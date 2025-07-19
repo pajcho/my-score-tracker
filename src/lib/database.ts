@@ -107,7 +107,14 @@ class DatabaseService {
       const result = this.db.exec('SELECT * FROM users WHERE email = ?', [email]);
       this.saveToLocalStorage();
       
-      return result[0].values[0] as any;
+      const [id, userName, userEmail, userPassword, createdAt] = result[0].values[0];
+      return { 
+        id: id as number, 
+        name: userName as string, 
+        email: userEmail as string, 
+        password: userPassword as string, 
+        createdAt: createdAt as string 
+      };
     } catch (error) {
       throw new Error('Email already exists');
     }
