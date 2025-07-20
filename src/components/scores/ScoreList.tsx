@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { auth } from '@/lib/auth';
 import { db, Score } from '@/lib/database';
 import { cn } from '@/lib/utils';
+import { ScoreEditDialog } from './ScoreEditDialog';
 
 interface ScoreListProps {
   scores: Score[];
@@ -28,6 +29,7 @@ interface ScoreListProps {
 
 export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreListProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingScore, setEditingScore] = useState<Score | null>(null);
   const { toast } = useToast();
 
   const gameIcons = {
@@ -152,12 +154,7 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        toast({
-                          title: "Edit functionality",
-                          description: "Edit feature coming soon!",
-                        });
-                      }}
+                      onClick={() => setEditingScore(score)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -197,6 +194,14 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
           </Card>
         );
       })}
+      
+      {/* Edit Dialog */}
+      <ScoreEditDialog
+        score={editingScore}
+        open={!!editingScore}
+        onOpenChange={(open) => !open && setEditingScore(null)}
+        onSuccess={onScoreUpdated}
+      />
     </div>
   );
 }

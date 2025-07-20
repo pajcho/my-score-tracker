@@ -221,6 +221,14 @@ class DatabaseService {
     );
     this.saveToLocalStorage();
   }
+
+  async getUniqueOpponents(userId: number): Promise<string[]> {
+    const result = this.db.exec('SELECT DISTINCT player2 FROM scores WHERE userId = ? ORDER BY player2', [userId]);
+    
+    if (result.length === 0) return [];
+    
+    return result[0].values.map(row => row[0] as string);
+  }
 }
 
 export const db = new DatabaseService();

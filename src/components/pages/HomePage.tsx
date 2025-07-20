@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trophy, Target, Zap } from 'lucide-react';
+import { Plus, Trophy, Target, Zap, TrendingUp, Calendar, Medal, Play } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { ScoreForm } from '@/components/scores/ScoreForm';
 import { ScoreList } from '@/components/scores/ScoreList';
+import { LiveScoreTracker } from '@/components/scores/LiveScoreTracker';
 import { auth } from '@/lib/auth';
 import { db, Score } from '@/lib/database';
 
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
+  const [showLiveTracker, setShowLiveTracker] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const user = auth.getCurrentUser();
@@ -32,6 +35,7 @@ export function HomePage() {
 
   const handleScoreAdded = () => {
     setShowScoreForm(false);
+    setShowLiveTracker(false);
     loadScores();
   };
 
@@ -41,21 +45,28 @@ export function HomePage() {
     'Ping Pong': Zap,
   };
 
+  if (showLiveTracker) {
+    return (
+      <LiveScoreTracker 
+        onClose={() => setShowLiveTracker(false)}
+        onScoresSaved={handleScoreAdded}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Welcome Header */}
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+    <div className="space-y-8">
+      {/* Welcome Section */}
+      <div className="text-center py-8">
+        <h1 className="text-4xl font-bold mb-3 bg-gradient-primary bg-clip-text text-transparent">
           Welcome back, {user?.name}!
         </h1>
-        <p className="text-xl text-muted-foreground">
-          Ready to track some scores and dominate the competition?
-        </p>
+        <p className="text-muted-foreground text-lg">Ready to track your game scores?</p>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-card border-0 hover:scale-105 transition-smooth">
+        <Card className="shadow-card border-0 hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Games</CardTitle>
             <Trophy className="h-4 w-4 text-primary" />
@@ -63,37 +74,50 @@ export function HomePage() {
           <CardContent>
             <div className="text-2xl font-bold">{scores.length}</div>
             <p className="text-xs text-muted-foreground">
-              Games recorded this month
+              Games recorded
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card border-0 hover:scale-105 transition-smooth">
+        <Card className="shadow-card border-0 hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-            <Target className="h-4 w-4 text-secondary" />
+            <TrendingUp className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-secondary">
-              {scores.length > 0 ? '75%' : '0%'}
+              {scores.length > 0 ? Math.round((scores.filter(s => {
+                const [p1, p2] = s.score.split('-').map(Number);
+                return p1 > p2;
+              }).length / scores.length) * 100) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
-              Keep up the great work!
+              Your success rate
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card border-0 hover:scale-105 transition-smooth">
+        <Card className="shadow-card border-0 hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Favorite Game</CardTitle>
-            <Zap className="h-4 w-4 text-accent" />
+            <Medal className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {scores.length > 0 ? scores[0].game : 'Pool'}
+              {(() => {
+                if (scores.length === 0) return 'Pool';
+                const gameCounts = scores.reduce((acc, score) => {
+                  acc[score.game] = (acc[score.game] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                return Object.keys(gameCounts).reduce((a, b) => 
+                  gameCounts[a] > gameCounts[b] ? a : b
+                );
+              })()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Your most played game
+              Most played game
             </p>
           </CardContent>
         </Card>
@@ -104,22 +128,31 @@ export function HomePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            Add New Score
+            {showScoreForm ? 'Add New Score' : 'Quick Actions'}
           </CardTitle>
           <CardDescription>
-            Record your latest game result and keep track of your progress
+            {showScoreForm ? 'Fill in the details of your game' : 'Start tracking your games'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!showScoreForm ? (
-            <EnhancedButton 
-              onClick={() => setShowScoreForm(true)}
-              size="lg"
-              className="w-full md:w-auto"
-            >
-              <Plus className="h-4 w-4" />
-              Add Score
-            </EnhancedButton>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <EnhancedButton 
+                onClick={() => setShowLiveTracker(true)}
+                className="w-full"
+              >
+                <Play className="h-4 w-4" />
+                Start Live Game
+              </EnhancedButton>
+              <Button 
+                variant="outline"
+                onClick={() => setShowScoreForm(true)}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4" />
+                Add Finished Score
+              </Button>
+            </div>
           ) : (
             <ScoreForm 
               onCancel={() => setShowScoreForm(false)}
@@ -132,7 +165,10 @@ export function HomePage() {
       {/* Recent Scores */}
       <Card className="shadow-card border-0">
         <CardHeader>
-          <CardTitle>Recent Games</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Recent Games
+          </CardTitle>
           <CardDescription>
             Your latest score entries
           </CardDescription>
@@ -151,7 +187,7 @@ export function HomePage() {
           ) : (
             <div className="text-center py-8 space-y-4">
               <div className="text-muted-foreground">
-                No scores recorded yet. Add your first game above!
+                No scores recorded yet. Start your first game above!
               </div>
               <div className="flex justify-center gap-4">
                 {Object.entries(gameIcons).map(([game, Icon]) => (
