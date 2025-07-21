@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/database';
-import { auth } from '@/lib/auth';
+import { supabaseAuth } from '@/lib/supabase-auth';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -24,25 +23,35 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const user = await db.loginUser(email, password);
-      if (user) {
-        auth.login(user);
-        toast({
-          title: "Welcome back!",
-          description: `Successfully logged in as ${user.name}`,
-        });
-        navigate('/');
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Invalid email or password",
-          variant: "destructive",
-        });
+      const { error } = await supabaseAuth.signIn(email, password);
+      
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          toast({
+            title: "Login failed",
+            description: "Invalid email or password. Please check your credentials and try again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+        return;
       }
+
+      toast({
+        title: "Welcome back!",
+        description: "You have been successfully logged in.",
+      });
+      
+      navigate('/');
     } catch (error) {
       toast({
         title: "Error",
-        description: "An error occurred during login",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {

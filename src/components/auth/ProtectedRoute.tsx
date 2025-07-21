@@ -1,20 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { auth } from '@/lib/auth';
+import { supabaseAuth } from '@/lib/supabase-auth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const [authState, setAuthState] = useState(auth.getState());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.subscribe(setAuthState);
+    const unsubscribe = supabaseAuth.subscribe((state) => {
+      setIsAuthenticated(state.isAuthenticated);
+      setIsLoading(state.isLoading);
+    });
+
     return unsubscribe;
   }, []);
 
-  if (!authState.isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

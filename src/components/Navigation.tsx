@@ -1,21 +1,21 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Home, History, User, BarChart3, LogOut, Trophy } from 'lucide-react';
-import { auth } from '@/lib/auth';
+import { supabaseAuth } from '@/lib/supabase-auth';
 import { EnhancedButton } from './ui/enhanced-button';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
   const location = useLocation();
-  const [authState, setAuthState] = useState(auth.getState());
+  const [authState, setAuthState] = useState(supabaseAuth.getState());
 
   useEffect(() => {
-    const unsubscribe = auth.subscribe(setAuthState);
+    const unsubscribe = supabaseAuth.subscribe(setAuthState);
     return unsubscribe;
   }, []);
 
-  const handleLogout = () => {
-    auth.logout();
+  const handleLogout = async () => {
+    await supabaseAuth.signOut();
   };
 
   const navItems = [
@@ -56,9 +56,9 @@ export function Navigation() {
 
           {/* User Info & Logout */}
           <div className="flex items-center gap-4">
-            {authState.user && (
+            {authState.profile && (
               <span className="hidden sm:block text-sm text-muted-foreground">
-                Hello, {authState.user.name}
+                Hello, {authState.profile.name}
               </span>
             )}
             <EnhancedButton

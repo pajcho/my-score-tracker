@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/database';
-import { auth } from '@/lib/auth';
+import { supabaseAuth } from '@/lib/supabase-auth';
 
 export function RegisterPage() {
   const [name, setName] = useState('');
@@ -54,17 +53,35 @@ export function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const user = await db.createUser(name, email, password);
-      auth.login(user);
+      const { error } = await supabaseAuth.signUp(email, password, name);
+      
+      if (error) {
+        if (error.message.includes('already registered')) {
+          toast({
+            title: "Registration failed",
+            description: "This email is already registered. Please try signing in instead.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
       toast({
-        title: "Account created!",
-        description: `Welcome to ScoreTracker, ${user.name}!`,
+        title: "Registration successful!",
+        description: "Your account has been created and you are now logged in.",
       });
+      
       navigate('/');
     } catch (error) {
       toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
