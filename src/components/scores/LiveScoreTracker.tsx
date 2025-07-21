@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { Plus, Minus, Save, X, Trash2, Trophy, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ interface LiveGame {
   score1: number;
   score2: number;
   date: string;
+  startTime: Date;
 }
 
 interface LiveScoreTrackerProps {
@@ -36,6 +38,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   });
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const { toast } = useToast();
 
   const gameTypes = [
@@ -43,6 +46,15 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     { value: 'Darts', label: 'Darts', icon: Target },
     { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
   ];
+
+  // Update timer every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Load previously entered opponents for autocomplete
   useEffect(() => {
@@ -80,7 +92,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       player2: newGame.player2,
       score1: 0,
       score2: 0,
-      date: format(new Date(), 'yyyy-MM-dd')
+      date: format(new Date(), 'yyyy-MM-dd'),
+      startTime: new Date()
     };
 
     setGames(prev => {
@@ -252,73 +265,84 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 </div>
               </CardHeader>
               <CardContent className="p-3">
-                {/* Compact single row layout */}
-                <div className="flex items-center gap-4">
-                  {/* Both players in a single row */}
-                  <div className="flex-1 flex gap-3">
-                    {/* Player 1 Score */}
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
-                        {game.player1} (You)
-                      </div>
-                      <div 
-                        className="bg-blue-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center"
+                <div className="space-y-3">
+                  {/* Main layout with controls on far sides */}
+                  <div className="flex items-center justify-between">
+                    {/* Left player controls */}
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => updateScore(game.id, 'player1', 1)}
+                        className="h-8 w-8 p-0"
                       >
-                        {game.score1}
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateScore(game.id, 'player1', -1)}
+                        disabled={game.score1 === 0}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                    </div>
+
+                    {/* Center - Both player scores */}
+                    <div className="flex items-center gap-3 flex-1 justify-center">
+                      {/* Player 1 Score */}
+                      <div className="text-center">
+                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
+                          {game.player1} (You)
+                        </div>
+                        <div 
+                          className="bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center min-w-[80px]"
+                          onClick={() => updateScore(game.id, 'player1', 1)}
+                        >
+                          {game.score1}
+                        </div>
+                      </div>
+
+                      {/* Player 2 Score */}
+                      <div className="text-center">
+                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
+                          {game.player2}
+                        </div>
+                        <div 
+                          className="bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center min-w-[80px]"
+                          onClick={() => updateScore(game.id, 'player2', 1)}
+                        >
+                          {game.score2}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Player 2 Score */}
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
-                        {game.player2}
-                      </div>
-                      <div 
-                        className="bg-red-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center"
+                    {/* Right player controls */}
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => updateScore(game.id, 'player2', 1)}
+                        className="h-8 w-8 p-0"
                       >
-                        {game.score2}
-                      </div>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateScore(game.id, 'player2', -1)}
+                        disabled={game.score2 === 0}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Control Buttons */}
-                  <div className="flex flex-col gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateScore(game.id, 'player1', 1)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateScore(game.id, 'player1', -1)}
-                      disabled={game.score1 === 0}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateScore(game.id, 'player2', 1)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateScore(game.id, 'player2', -1)}
-                      disabled={game.score2 === 0}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
+                  {/* Timer */}
+                  <div className="text-center text-xs text-muted-foreground">
+                    Started {formatDistanceToNow(game.startTime, { addSuffix: true })}
                   </div>
                 </div>
               </CardContent>
