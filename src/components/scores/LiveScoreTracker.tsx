@@ -253,38 +253,38 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               </CardHeader>
               <CardContent className="p-3">
                 {/* Compact single row layout */}
-                <div className="flex items-center gap-2">
-                  {/* Player 1 Score */}
-                  <div className="flex-1">
-                    <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
-                      {game.player1} (You)
+                <div className="flex items-center gap-4">
+                  {/* Both players in a single row */}
+                  <div className="flex-1 flex gap-3">
+                    {/* Player 1 Score */}
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
+                        {game.player1} (You)
+                      </div>
+                      <div 
+                        className="bg-blue-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center"
+                        onClick={() => updateScore(game.id, 'player1', 1)}
+                      >
+                        {game.score1}
+                      </div>
                     </div>
-                    <div 
-                      className="bg-blue-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center"
-                      onClick={() => updateScore(game.id, 'player1', 1)}
-                    >
-                      {game.score1}
-                    </div>
-                  </div>
 
-                  {/* VS Divider */}
-                  <div className="text-xs text-muted-foreground font-medium px-2">VS</div>
-
-                  {/* Player 2 Score */}
-                  <div className="flex-1">
-                    <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
-                      {game.player2}
-                    </div>
-                    <div 
-                      className="bg-red-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center"
-                      onClick={() => updateScore(game.id, 'player2', 1)}
-                    >
-                      {game.score2}
+                    {/* Player 2 Score */}
+                    <div className="flex-1">
+                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
+                        {game.player2}
+                      </div>
+                      <div 
+                        className="bg-red-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center"
+                        onClick={() => updateScore(game.id, 'player2', 1)}
+                      >
+                        {game.score2}
+                      </div>
                     </div>
                   </div>
 
                   {/* Control Buttons */}
-                  <div className="flex flex-col gap-1 ml-2">
+                  <div className="flex flex-col gap-1">
                     <Button
                       variant="outline"
                       size="sm"
