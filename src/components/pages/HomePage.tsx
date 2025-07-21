@@ -6,21 +6,20 @@ import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { ScoreForm } from '@/components/scores/ScoreForm';
 import { ScoreList } from '@/components/scores/ScoreList';
 import { LiveScoreTracker } from '@/components/scores/LiveScoreTracker';
-import { auth } from '@/lib/auth';
-import { db, Score } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb, Score } from '@/lib/supabase-database';
 
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
   const [showLiveTracker, setShowLiveTracker] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const user = auth.getCurrentUser();
+  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
 
   const loadScores = async () => {
-    if (!user) return;
-    
     try {
-      const userScores = await db.getScoresByUserId(user.id);
+      setIsLoading(true);
+      const userScores = await supabaseDb.getScoresByUserId();
       setScores(userScores.slice(0, 5)); // Show only recent 5 scores
     } catch (error) {
       console.error('Failed to load scores:', error);

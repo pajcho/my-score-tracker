@@ -1,7 +1,7 @@
-import { User } from './database';
+import { Profile } from './supabase-auth';
 
 interface AuthState {
-  user: User | null;
+  user: Profile | null;
   isAuthenticated: boolean;
 }
 
@@ -46,7 +46,7 @@ class AuthService {
     };
   }
 
-  login(user: User) {
+  login(user: Profile) {
     this.state = {
       user,
       isAuthenticated: true
@@ -64,7 +64,7 @@ class AuthService {
     this.notifyListeners();
   }
 
-  getCurrentUser(): User | null {
+  getCurrentUser(): Profile | null {
     return this.state.user;
   }
 

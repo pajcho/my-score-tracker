@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb } from '@/lib/supabase-database';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -48,12 +48,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved }: LiveScoreTrackerPro
   // Load previously entered opponents for autocomplete
   useEffect(() => {
     const loadOpponents = async () => {
-      const user = auth.getCurrentUser();
-      if (!user) return;
+      if (!supabaseAuth.isAuthenticated()) return;
 
       try {
-        const scores = await db.getScoresByUserId(user.id);
-        const uniqueOpponents = [...new Set(scores.map(score => score.player2))];
+        const uniqueOpponents = await supabaseDb.getUniqueOpponents();
         setOpponents(uniqueOpponents);
       } catch (error) {
         console.error('Failed to load opponents:', error);
@@ -85,13 +83,13 @@ export function LiveScoreTracker({ onClose, onScoresSaved }: LiveScoreTrackerPro
       return;
     }
 
-    const user = auth.getCurrentUser();
-    if (!user) return;
+    const profile = supabaseAuth.getCurrentProfile();
+    if (!profile) return;
 
     const game: LiveGame = {
       id: Date.now().toString(),
       game: newGame.game,
-      player1: user.name,
+      player1: profile.name,
       player2: newGame.player2,
       score1: 0,
       score2: 0,
@@ -133,14 +131,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved }: LiveScoreTrackerPro
   };
 
   const saveGame = async (game: LiveGame) => {
-    const user = auth.getCurrentUser();
-    if (!user) return;
+    if (!supabaseAuth.isAuthenticated()) return;
 
     setIsLoading(true);
 
     try {
-      await db.createScore(
-        user.id,
+      await supabaseDb.createScore(
         game.game,
         game.player1,
         game.player2,
@@ -173,11 +169,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved }: LiveScoreTrackerPro
 
     for (const game of games) {
       try {
-        const user = auth.getCurrentUser();
-        if (!user) continue;
+        if (!supabaseAuth.isAuthenticated()) continue;
 
-        await db.createScore(
-          user.id,
+        await supabaseDb.createScore(
           game.game,
           game.player1,
           game.player2,

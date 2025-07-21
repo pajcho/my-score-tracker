@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { auth } from '@/lib/auth';
-import { db, Score } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb, Score } from '@/lib/supabase-database';
 import { cn } from '@/lib/utils';
 import { ScoreEditDialog } from './ScoreEditDialog';
 
@@ -28,7 +28,7 @@ interface ScoreListProps {
 }
 
 export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreListProps) {
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<Score | null>(null);
   const { toast } = useToast();
 
@@ -45,14 +45,13 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
     return 'tie';
   };
 
-  const handleDelete = async (scoreId: number) => {
-    const user = auth.getCurrentUser();
-    if (!user) return;
+  const handleDelete = async (scoreId: string) => {
+    if (!supabaseAuth.isAuthenticated()) return;
 
     setDeletingId(scoreId);
 
     try {
-      await db.deleteScore(scoreId, user.id);
+      await supabaseDb.deleteScore(scoreId);
       toast({
         title: "Score deleted",
         description: "The score has been removed from your history",

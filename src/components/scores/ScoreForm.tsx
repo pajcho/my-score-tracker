@@ -11,8 +11,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb } from '@/lib/supabase-database';
 
 interface ScoreFormProps {
   onCancel: () => void;
@@ -28,7 +28,7 @@ interface ScoreFormProps {
 
 export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) {
   const [game, setGame] = useState(initialData?.game || '');
-  const [player1, setPlayer1] = useState(initialData?.player1 || auth.getCurrentUser()?.name || '');
+  const [player1, setPlayer1] = useState(initialData?.player1 || supabaseAuth.getCurrentProfile()?.name || '');
   const [player2, setPlayer2] = useState(initialData?.player2 || '');
   const [score, setScore] = useState(initialData?.score || '');
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
@@ -53,14 +53,19 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
       return;
     }
 
-    const user = auth.getCurrentUser();
-    if (!user) return;
+    if (!supabaseAuth.isAuthenticated()) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to save scores.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      await db.createScore(
-        user.id,
+      await supabaseDb.createScore(
         game,
         player1,
         player2,

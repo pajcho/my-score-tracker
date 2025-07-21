@@ -11,8 +11,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/auth';
-import { db, Score } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb, Score } from '@/lib/supabase-database';
 
 interface ScoreEditDialogProps {
   score: Score | null;
@@ -59,13 +59,19 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       return;
     }
 
-    const user = auth.getCurrentUser();
-    if (!user) return;
+    if (!supabaseAuth.isAuthenticated()) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to edit scores.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      await db.updateScore(score.id, user.id, {
+      await supabaseDb.updateScore(score.id, {
         game: game as 'Pool' | 'Darts' | 'Ping Pong',
         player1,
         player2,

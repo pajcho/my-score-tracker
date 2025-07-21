@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { BarChart3, Filter, Trophy, Target, TrendingUp, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { auth } from '@/lib/auth';
-import { db, Score } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb, Score } from '@/lib/supabase-database';
 
 export function StatisticsPage() {
   const [scores, setScores] = useState<Score[]>([]);
@@ -11,15 +11,18 @@ export function StatisticsPage() {
   const [gameFilter, setGameFilter] = useState<string>('all');
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const user = auth.getCurrentUser();
+  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
+  const [opponents, setOpponents] = useState<string[]>([]);
 
-  const loadScores = async () => {
-    if (!user) return;
-    
+  const loadData = async () => {
     try {
-      const userScores = await db.getScoresByUserId(user.id);
+      setIsLoading(true);
+      const [userScores, uniqueOpponents] = await Promise.all([
+        supabaseDb.getScoresByUserId(),
+        supabaseDb.getUniqueOpponents()
+      ]);
       setScores(userScores);
-      setFilteredScores(userScores);
+      setOpponents(uniqueOpponents);
     } catch (error) {
       console.error('Failed to load scores:', error);
     } finally {
@@ -28,7 +31,18 @@ export function StatisticsPage() {
   };
 
   useEffect(() => {
-    loadScores();
+    const unsubscribe = supabaseAuth.subscribe((authState) => {
+      setUser(authState.profile);
+      if (authState.profile) {
+        loadData();
+      } else {
+        setScores([]);
+        setOpponents([]);
+        setIsLoading(false);
+      }
+    });
+
+    return unsubscribe;
   }, [user]);
 
   useEffect(() => {

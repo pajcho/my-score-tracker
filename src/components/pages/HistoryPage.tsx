@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScoreList } from '@/components/scores/ScoreList';
-import { auth } from '@/lib/auth';
-import { db, Score } from '@/lib/database';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb, Score } from '@/lib/supabase-database';
 
 export function HistoryPage() {
   const [scores, setScores] = useState<Score[]>([]);
@@ -13,13 +13,12 @@ export function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [gameFilter, setGameFilter] = useState<string>('all');
-  const user = auth.getCurrentUser();
+  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
 
   const loadScores = async () => {
-    if (!user) return;
-    
     try {
-      const userScores = await db.getScoresByUserId(user.id);
+      setIsLoading(true);
+      const userScores = await supabaseDb.getScoresByUserId();
       setScores(userScores);
       setFilteredScores(userScores);
     } catch (error) {
