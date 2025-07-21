@@ -23,13 +23,12 @@ interface ScoreEditDialogProps {
 
 export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreEditDialogProps) {
   const [game, setGame] = useState(score?.game || '');
+  const [player1, setPlayer1] = useState(score?.player1 || '');
   const [player2, setPlayer2] = useState(score?.player2 || '');
-  const [yourScore, setYourScore] = useState('');
-  const [opponentScore, setOpponentScore] = useState('');
+  const [scoreValue, setScoreValue] = useState(score?.score || '');
   const [date, setDate] = useState<Date>(score?.date ? new Date(score.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const currentUser = supabaseAuth.getCurrentProfile();
 
   const games = [
     { value: 'Pool', label: 'Pool', icon: Trophy },
@@ -41,22 +40,17 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   useEffect(() => {
     if (score) {
       setGame(score.game);
+      setPlayer1(score.player1);
       setPlayer2(score.player2);
+      setScoreValue(score.score);
       setDate(new Date(score.date));
-      
-      // Parse the score string
-      const scoreParts = score.score.split('-');
-      if (scoreParts.length === 2) {
-        setYourScore(scoreParts[0].trim());
-        setOpponentScore(scoreParts[1].trim());
-      }
     }
   }, [score]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!score || !game || !player2 || !yourScore || !opponentScore) {
+    if (!score || !game || !player1 || !player2 || !scoreValue) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -77,18 +71,17 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
     setIsLoading(true);
 
     try {
-      const finalScore = `${yourScore}-${opponentScore}`;
       await supabaseDb.updateScore(score.id, {
         game: game as 'Pool' | 'Darts' | 'Ping Pong',
-        player1: currentUser?.name || score.player1,
+        player1,
         player2,
-        score: finalScore,
+        score: scoreValue,
         date: format(date, 'yyyy-MM-dd')
       });
 
       toast({
         title: "Score updated!",
-        description: `${game} game updated: ${finalScore}`,
+        description: `${game} game updated: ${scoreValue}`,
       });
 
       onSuccess();
@@ -161,8 +154,20 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
               </Popover>
             </div>
 
-            {/* Opponent */}
-            <div className="space-y-2 col-span-2">
+            {/* Player 1 */}
+            <div className="space-y-2">
+              <Label htmlFor="player1">Your Name *</Label>
+              <Input
+                id="player1"
+                value={player1}
+                onChange={(e) => setPlayer1(e.target.value)}
+                placeholder="Enter your name"
+                required
+              />
+            </div>
+
+            {/* Player 2 */}
+            <div className="space-y-2">
               <Label htmlFor="player2">Opponent *</Label>
               <Input
                 id="player2"
@@ -174,44 +179,19 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
             </div>
           </div>
 
-          {/* Score Section */}
-          <div className="space-y-4">
-            <div className="text-center p-4 bg-muted/30 rounded-lg border border-muted">
-              <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                {currentUser?.name || 'You'} vs {player2 || 'Opponent'}
-              </h3>
-              <div className="grid grid-cols-3 gap-4 items-center">
-                <div className="space-y-2">
-                  <Label htmlFor="your-score" className="text-sm font-medium">Your Score *</Label>
-                  <Input
-                    id="your-score"
-                    type="number"
-                    min="0"
-                    value={yourScore}
-                    onChange={(e) => setYourScore(e.target.value)}
-                    placeholder="0"
-                    className="text-center text-lg font-bold"
-                    required
-                  />
-                </div>
-                <div className="text-2xl font-bold text-muted-foreground self-end pb-2">
-                  -
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="opponent-score" className="text-sm font-medium">Opponent Score *</Label>
-                  <Input
-                    id="opponent-score"
-                    type="number"
-                    min="0"
-                    value={opponentScore}
-                    onChange={(e) => setOpponentScore(e.target.value)}
-                    placeholder="0"
-                    className="text-center text-lg font-bold"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
+          {/* Score */}
+          <div className="space-y-2">
+            <Label htmlFor="score">Score *</Label>
+            <Input
+              id="score"
+              value={scoreValue}
+              onChange={(e) => setScoreValue(e.target.value)}
+              placeholder="e.g., 5-3, 21-18, 11-9"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the final score in format: Your Score - Opponent Score
+            </p>
           </div>
 
           {/* Action Buttons */}

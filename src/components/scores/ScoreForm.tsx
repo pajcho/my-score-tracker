@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Calendar, Save, X, Trophy, Target, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,24 +28,12 @@ interface ScoreFormProps {
 
 export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) {
   const [game, setGame] = useState(initialData?.game || '');
+  const [player1, setPlayer1] = useState(initialData?.player1 || supabaseAuth.getCurrentProfile()?.name || '');
   const [player2, setPlayer2] = useState(initialData?.player2 || '');
-  const [yourScore, setYourScore] = useState('');
-  const [opponentScore, setOpponentScore] = useState('');
+  const [score, setScore] = useState(initialData?.score || '');
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const currentUser = supabaseAuth.getCurrentProfile();
-
-  // Parse existing score if editing
-  useEffect(() => {
-    if (initialData?.score) {
-      const scoreParts = initialData.score.split('-');
-      if (scoreParts.length === 2) {
-        setYourScore(scoreParts[0].trim());
-        setOpponentScore(scoreParts[1].trim());
-      }
-    }
-  }, [initialData]);
 
   const games = [
     { value: 'Pool', label: 'Pool', icon: Trophy },
@@ -56,7 +44,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!game || !player2 || !yourScore || !opponentScore) {
+    if (!game || !player1 || !player2 || !score) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -77,18 +65,17 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
     setIsLoading(true);
 
     try {
-      const finalScore = `${yourScore}-${opponentScore}`;
       await supabaseDb.createScore(
         game,
-        currentUser?.name || 'Unknown',
+        player1,
         player2,
-        finalScore,
+        score,
         format(date, 'yyyy-MM-dd')
       );
 
       toast({
         title: "Score added!",
-        description: `${game} game recorded: ${finalScore}`,
+        description: `${game} game recorded: ${score}`,
       });
 
       onSuccess();
@@ -156,7 +143,23 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               </Popover>
             </div>
 
-            {/* Opponent */}
+            {/* Player 1 */}
+            <div className="space-y-2">
+              <Label htmlFor="player1">Your Name *</Label>
+              <Input
+                id="player1"
+                value={player1}
+                readOnly
+                className="bg-muted/50 cursor-not-allowed"
+                placeholder="Your name (auto-filled)"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Automatically filled from your profile
+              </p>
+            </div>
+
+            {/* Player 2 */}
             <div className="space-y-2">
               <Label htmlFor="player2">Opponent *</Label>
               <Input
@@ -168,44 +171,19 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               />
             </div>
 
-            {/* Score Section */}
-            <div className="space-y-4 md:col-span-2">
-              <div className="text-center p-4 bg-muted/30 rounded-lg border border-muted">
-                <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                  {currentUser?.name || 'You'} vs {player2 || 'Opponent'}
-                </h3>
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <div className="space-y-2">
-                    <Label htmlFor="your-score" className="text-sm font-medium">Your Score *</Label>
-                    <Input
-                      id="your-score"
-                      type="number"
-                      min="0"
-                      value={yourScore}
-                      onChange={(e) => setYourScore(e.target.value)}
-                      placeholder="0"
-                      className="text-center text-lg font-bold"
-                      required
-                    />
-                  </div>
-                  <div className="text-2xl font-bold text-muted-foreground self-end pb-2">
-                    -
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="opponent-score" className="text-sm font-medium">Opponent Score *</Label>
-                    <Input
-                      id="opponent-score"
-                      type="number"
-                      min="0"
-                      value={opponentScore}
-                      onChange={(e) => setOpponentScore(e.target.value)}
-                      placeholder="0"
-                      className="text-center text-lg font-bold"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
+            {/* Score */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="score">Score *</Label>
+              <Input
+                id="score"
+                value={score}
+                onChange={(e) => setScore(e.target.value)}
+                placeholder="e.g., 5-3, 21-18, 11-9"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the final score in format: Your Score - Opponent Score
+              </p>
             </div>
           </div>
 
