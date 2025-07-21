@@ -267,7 +267,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               <CardContent className="p-3">
                 <div className="space-y-3">
                   {/* Main layout with controls on far sides */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex gap-3 items-end justify-between">
                     {/* Left player controls */}
                     <div className="flex flex-col gap-1">
                       <Button
@@ -289,10 +289,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       </Button>
                     </div>
 
-                     {/* Center - Both player scores */}
-                    <div className="flex items-center gap-3 flex-1 justify-center" style={{ gap: '10px', display: 'flex', alignItems: 'flex-end' }}>
+                    {/* Center - Both player scores */}
+                    <div className="flex items-center gap-3 flex-1 justify-center">
                        {/* Player 1 Score */}
-                       <div className="text-center" style={{ width: '100%' }}>
+                       <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
                           {game.player1} (You)
                         </div>
@@ -305,7 +305,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       </div>
 
                        {/* Player 2 Score */}
-                       <div className="text-center" style={{ width: '100%' }}>
+                       <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
                           {game.player2}
                         </div>
