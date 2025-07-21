@@ -251,78 +251,74 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 pb-3">
-                {/* Mobile-optimized layout: Single row with scores and controls */}
-                <div className="space-y-3">
-                  {/* Player 1 - You */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 text-center">
-                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                        {game.player1} (You)
-                      </div>
-                      <div 
-                        className="bg-blue-500 text-white text-center py-3 rounded-lg font-bold text-xl cursor-pointer hover:bg-blue-600 transition-colors min-h-[3rem] flex items-center justify-center"
-                        onClick={() => updateScore(game.id, 'player1', 1)}
-                      >
-                        {game.score1}
-                      </div>
+              <CardContent className="p-3">
+                {/* Compact single row layout */}
+                <div className="flex items-center gap-2">
+                  {/* Player 1 Score */}
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
+                      {game.player1} (You)
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, 'player1', 1)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, 'player1', -1)}
-                        disabled={game.score1 === 0}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
+                    <div 
+                      className="bg-blue-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center"
+                      onClick={() => updateScore(game.id, 'player1', 1)}
+                    >
+                      {game.score1}
                     </div>
                   </div>
 
                   {/* VS Divider */}
-                  <div className="text-center text-xs text-muted-foreground font-medium">VS</div>
+                  <div className="text-xs text-muted-foreground font-medium px-2">VS</div>
 
-                  {/* Player 2 - Opponent */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 text-center">
-                      <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                        {game.player2}
-                      </div>
-                      <div 
-                        className="bg-red-500 text-white text-center py-3 rounded-lg font-bold text-xl cursor-pointer hover:bg-red-600 transition-colors min-h-[3rem] flex items-center justify-center"
-                        onClick={() => updateScore(game.id, 'player2', 1)}
-                      >
-                        {game.score2}
-                      </div>
+                  {/* Player 2 Score */}
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-muted-foreground mb-1 truncate text-center">
+                      {game.player2}
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, 'player2', 1)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, 'player2', -1)}
-                        disabled={game.score2 === 0}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
+                    <div 
+                      className="bg-red-500 text-white text-center py-4 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center"
+                      onClick={() => updateScore(game.id, 'player2', 1)}
+                    >
+                      {game.score2}
                     </div>
+                  </div>
+
+                  {/* Control Buttons */}
+                  <div className="flex flex-col gap-1 ml-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateScore(game.id, 'player1', 1)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateScore(game.id, 'player1', -1)}
+                      disabled={game.score1 === 0}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateScore(game.id, 'player2', 1)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateScore(game.id, 'player2', -1)}
+                      disabled={game.score2 === 0}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>
