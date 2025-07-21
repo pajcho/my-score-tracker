@@ -149,10 +149,14 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               <Input
                 id="player1"
                 value={player1}
-                onChange={(e) => setPlayer1(e.target.value)}
-                placeholder="Enter your name"
+                readOnly
+                className="bg-muted/50 cursor-not-allowed"
+                placeholder="Your name (auto-filled)"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Automatically filled from your profile
+              </p>
             </div>
 
             {/* Player 2 */}

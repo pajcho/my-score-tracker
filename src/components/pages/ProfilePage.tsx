@@ -7,6 +7,7 @@ import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseDb } from '@/lib/supabase-database';
 
 export function ProfilePage() {
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
@@ -33,8 +34,7 @@ export function ProfilePage() {
     setIsLoading(true);
 
     try {
-      // Simulate profile update
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await supabaseDb.updateProfile(name, email);
       
       toast({
         title: "Profile updated",

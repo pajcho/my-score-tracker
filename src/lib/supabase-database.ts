@@ -104,6 +104,18 @@ class SupabaseDatabaseService {
     const unique = Array.from(new Set(data?.map(row => row.player2) || []));
     return unique.sort();
   }
+
+  async updateProfile(name: string, email: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ name, email })
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+  }
 }
 
 export const supabaseDb = new SupabaseDatabaseService();
