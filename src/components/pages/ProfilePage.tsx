@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Lock, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,12 +6,22 @@ import { Label } from '@/components/ui/label';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/auth';
+import { supabaseAuth } from '@/lib/supabase-auth';
 
 export function ProfilePage() {
-  const user = auth.getCurrentUser();
+  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
+
+  useEffect(() => {
+    const unsubscribe = supabaseAuth.subscribe((authState) => {
+      setUser(authState.profile);
+      setName(authState.profile?.name || '');
+      setEmail(authState.profile?.email || '');
+    });
+
+    return unsubscribe;
+  }, []);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
