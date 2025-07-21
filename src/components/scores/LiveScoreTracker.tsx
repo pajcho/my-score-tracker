@@ -2,15 +2,14 @@ import { useState, useEffect } from 'react';
 import { Plus, Minus, Save, X, Trash2, Trophy, Target, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
+import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 interface LiveGame {
   id: string;
@@ -37,7 +36,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   });
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
-  const [filteredOpponents, setFilteredOpponents] = useState<string[]>([]);
   const { toast } = useToast();
 
   const gameTypes = [
@@ -61,18 +59,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
     loadOpponents();
   }, []);
-
-  // Filter opponents based on input
-  useEffect(() => {
-    if (newGame.player2) {
-      const filtered = opponents.filter(opponent => 
-        opponent.toLowerCase().includes(newGame.player2.toLowerCase())
-      );
-      setFilteredOpponents(filtered);
-    } else {
-      setFilteredOpponents([]);
-    }
-  }, [newGame.player2, opponents]);
 
   const addNewGame = () => {
     if (!newGame.game || !newGame.player2) {
@@ -384,32 +370,13 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               </div>
 
               {/* Opponent Input with Autocomplete */}
-              <div className="space-y-2 relative">
-                <Label>Opponent</Label>
-                <Input
-                  value={newGame.player2}
-                  onChange={(e) => setNewGame(prev => ({ ...prev, player2: e.target.value }))}
-                  placeholder="Enter opponent's name"
-                />
-                
-                {/* Autocomplete Dropdown */}
-                {filteredOpponents.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-10 bg-background border border-border rounded-md shadow-lg max-h-32 overflow-y-auto">
-                    {filteredOpponents.map((opponent, index) => (
-                      <div
-                        key={index}
-                        className="px-3 py-2 hover:bg-accent cursor-pointer text-sm"
-                        onClick={() => {
-                          setNewGame(prev => ({ ...prev, player2: opponent }));
-                          setFilteredOpponents([]);
-                        }}
-                      >
-                        {opponent}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <OpponentAutocomplete
+                value={newGame.player2}
+                onChange={(value) => setNewGame(prev => ({ ...prev, player2: value }))}
+                opponents={opponents}
+                label="Opponent"
+                required
+              />
 
               {/* Action Buttons */}
               <div className="flex gap-2">

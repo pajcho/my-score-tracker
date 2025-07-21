@@ -119,41 +119,43 @@ export function OpponentAutocomplete({
   }, []);
 
   return (
-    <div className={cn("space-y-2 relative", className)}>
+    <div className={cn("relative", className)}>
       <Label htmlFor="opponent">{label} {required && '*'}</Label>
-      <Input
-        ref={inputRef}
-        id="opponent"
-        value={value}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        placeholder={placeholder}
-        required={required}
-        autoComplete="off"
-      />
-      
-      {/* Autocomplete Dropdown */}
-      {isOpen && filteredOpponents.length > 0 && (
-        <div 
-          ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
-        >
-          {filteredOpponents.map((opponent, index) => (
-            <div
-              key={opponent}
-              className={cn(
-                "px-3 py-2 hover:bg-accent cursor-pointer text-sm transition-colors",
-                selectedIndex === index && "bg-accent"
-              )}
-              onClick={() => handleSelect(opponent)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              {opponent}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="relative mt-2">
+        <Input
+          ref={inputRef}
+          id="opponent"
+          value={value}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          placeholder={placeholder}
+          required={required}
+          autoComplete="off"
+        />
+        
+        {/* Autocomplete Dropdown */}
+        {isOpen && filteredOpponents.length > 0 && (
+          <div 
+            ref={dropdownRef}
+            className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1"
+          >
+            {filteredOpponents.map((opponent, index) => (
+              <div
+                key={opponent}
+                className={cn(
+                  "px-3 py-2 hover:bg-accent cursor-pointer text-sm transition-colors",
+                  selectedIndex === index && "bg-accent"
+                )}
+                onClick={() => handleSelect(opponent)}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                {opponent}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
