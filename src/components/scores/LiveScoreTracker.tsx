@@ -289,10 +289,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       </Button>
                     </div>
 
-                    {/* Center - Both player scores */}
-                    <div className="flex items-center gap-3 flex-1 justify-center">
-                      {/* Player 1 Score */}
-                      <div className="text-center">
+                     {/* Center - Both player scores */}
+                    <div className="flex items-center gap-3 flex-1 justify-center" style={{ gap: '10px', display: 'flex', alignItems: 'flex-end' }}>
+                       {/* Player 1 Score */}
+                       <div className="text-center" style={{ width: '100%' }}>
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
                           {game.player1} (You)
                         </div>
@@ -304,8 +304,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                         </div>
                       </div>
 
-                      {/* Player 2 Score */}
-                      <div className="text-center">
+                       {/* Player 2 Score */}
+                       <div className="text-center" style={{ width: '100%' }}>
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
                           {game.player2}
                         </div>
