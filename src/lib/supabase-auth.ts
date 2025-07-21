@@ -84,9 +84,11 @@ class SupabaseAuthService {
 
       if (error) throw error;
       this.state.profile = profile;
+      this.notifyListeners(); // Notify listeners after profile is loaded
     } catch (error) {
       console.error('Error loading profile:', error);
       this.state.profile = null;
+      this.notifyListeners(); // Notify listeners even on error
     }
   }
 
