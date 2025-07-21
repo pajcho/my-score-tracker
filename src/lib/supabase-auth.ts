@@ -36,13 +36,17 @@ class SupabaseAuthService {
   private async initialize() {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        // Only synchronous state updates here
         this.state.session = session;
         this.state.user = session?.user ?? null;
         this.state.isAuthenticated = !!session?.user;
 
         if (session?.user) {
-          await this.loadProfile(session.user.id);
+          // Defer Supabase calls with setTimeout to avoid deadlock
+          setTimeout(() => {
+            this.loadProfile(session.user!.id);
+          }, 0);
         } else {
           this.state.profile = null;
         }
