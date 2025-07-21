@@ -6,8 +6,8 @@ import { HomePage } from "@/components/pages/HomePage";
 import { HistoryPage } from "@/components/pages/HistoryPage";
 import { ProfilePage } from "@/components/pages/ProfilePage";
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
+import { LiveScorePage } from "@/components/pages/LiveScorePage";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { LiveScoreTracker } from "@/components/scores/LiveScoreTracker";
 
 export const router = createBrowserRouter([
   {
@@ -39,8 +39,8 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><StatisticsPage /></ProtectedRoute>
       },
       {
-        path: "live-tracker",
-        element: <ProtectedRoute><LiveScoreTracker onClose={() => window.history.back()} onScoresSaved={() => window.location.href = "/"} /></ProtectedRoute>
+        path: "live",
+        element: <ProtectedRoute><LiveScorePage /></ProtectedRoute>
       }
     ]
   },

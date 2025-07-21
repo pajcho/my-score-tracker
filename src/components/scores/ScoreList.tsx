@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit, Trash2, Trophy, Target, Zap, Calendar, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

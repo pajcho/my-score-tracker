@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trophy, Target, Zap, TrendingUp, Calendar, Medal, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { ScoreForm } from '@/components/scores/ScoreForm';
 import { ScoreList } from '@/components/scores/ScoreList';
-import { LiveScoreTracker } from '@/components/scores/LiveScoreTracker';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
-  const [showLiveTracker, setShowLiveTracker] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
@@ -42,7 +41,6 @@ export function HomePage() {
 
   const handleScoreAdded = () => {
     setShowScoreForm(false);
-    setShowLiveTracker(false);
     loadScores();
   };
 
@@ -51,15 +49,6 @@ export function HomePage() {
     Darts: Target,
     'Ping Pong': Zap,
   };
-
-  if (showLiveTracker) {
-    return (
-      <LiveScoreTracker 
-        onClose={() => setShowLiveTracker(false)}
-        onScoresSaved={handleScoreAdded}
-      />
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -144,13 +133,12 @@ export function HomePage() {
         <CardContent>
           {!showScoreForm ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <EnhancedButton 
-                onClick={() => setShowLiveTracker(true)}
-                className="w-full"
-              >
-                <Play className="h-4 w-4" />
-                Start Live Game
-              </EnhancedButton>
+              <Link to="/live">
+                <EnhancedButton className="w-full">
+                  <Play className="h-4 w-4" />
+                  Start Live Game
+                </EnhancedButton>
+              </Link>
               <Button 
                 variant="outline"
                 onClick={() => setShowScoreForm(true)}

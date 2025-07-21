@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BarChart3, Filter, Trophy, Target, TrendingUp, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,10 +7,11 @@ import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 
 export function StatisticsPage() {
+  const [searchParams] = useSearchParams();
   const [scores, setScores] = useState<Score[]>([]);
   const [filteredScores, setFilteredScores] = useState<Score[]>([]);
-  const [gameFilter, setGameFilter] = useState<string>('all');
-  const [opponentFilter, setOpponentFilter] = useState<string>('all');
+  const [gameFilter, setGameFilter] = useState<string>(searchParams.get('game') || 'all');
+  const [opponentFilter, setOpponentFilter] = useState<string>(searchParams.get('opponent') || 'all');
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
   const [opponents, setOpponents] = useState<string[]>([]);

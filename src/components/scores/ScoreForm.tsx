@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Save, X, Trophy, Target, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -30,10 +31,26 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const [game, setGame] = useState(initialData?.game || '');
   const [player1, setPlayer1] = useState(initialData?.player1 || supabaseAuth.getCurrentProfile()?.name || '');
   const [player2, setPlayer2] = useState(initialData?.player2 || '');
-  const [score, setScore] = useState(initialData?.score || '');
+  const [yourScore, setYourScore] = useState(initialData?.score ? initialData.score.split('-')[0] : '');
+  const [opponentScore, setOpponentScore] = useState(initialData?.score ? initialData.score.split('-')[1] : '');
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [opponents, setOpponents] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Load opponents for autocomplete
+  useEffect(() => {
+    const loadOpponents = async () => {
+      if (!supabaseAuth.isAuthenticated()) return;
+      try {
+        const uniqueOpponents = await supabaseDb.getUniqueOpponents();
+        setOpponents(uniqueOpponents);
+      } catch (error) {
+        console.error('Failed to load opponents:', error);
+      }
+    };
+    loadOpponents();
+  }, []);
 
   const games = [
     { value: 'Pool', label: 'Pool', icon: Trophy },
@@ -44,7 +61,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!game || !player1 || !player2 || !score) {
+    if (!game || !player1 || !player2 || !yourScore || !opponentScore) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -65,17 +82,18 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
     setIsLoading(true);
 
     try {
+      const combinedScore = `${yourScore}-${opponentScore}`;
       await supabaseDb.createScore(
         game,
         player1,
         player2,
-        score,
+        combinedScore,
         format(date, 'yyyy-MM-dd')
       );
 
       toast({
         title: "Score added!",
-        description: `${game} game recorded: ${score}`,
+        description: `${game} game recorded: ${combinedScore}`,
       });
 
       onSuccess();
@@ -159,31 +177,39 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               </p>
             </div>
 
-            {/* Player 2 */}
+            {/* Opponent */}
+            <OpponentAutocomplete
+              value={player2}
+              onChange={setPlayer2}
+              opponents={opponents}
+              required
+            />
+
+            {/* Scores */}
             <div className="space-y-2">
-              <Label htmlFor="player2">Opponent *</Label>
+              <Label htmlFor="yourScore">Your Score *</Label>
               <Input
-                id="player2"
-                value={player2}
-                onChange={(e) => setPlayer2(e.target.value)}
-                placeholder="Enter opponent's name"
+                id="yourScore"
+                type="number"
+                min="0"
+                value={yourScore}
+                onChange={(e) => setYourScore(e.target.value)}
+                placeholder="Your score"
                 required
               />
             </div>
 
-            {/* Score */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="score">Score *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="opponentScore">Opponent Score *</Label>
               <Input
-                id="score"
-                value={score}
-                onChange={(e) => setScore(e.target.value)}
-                placeholder="e.g., 5-3, 21-18, 11-9"
+                id="opponentScore"
+                type="number"
+                min="0"
+                value={opponentScore}
+                onChange={(e) => setOpponentScore(e.target.value)}
+                placeholder="Opponent score"
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                Enter the final score in format: Your Score - Opponent Score
-              </p>
             </div>
           </div>
 
