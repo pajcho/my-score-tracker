@@ -77,21 +77,23 @@ export function ScoreFormFields({
     loadData();
   }, []);
 
-  // Set initial opponent type and selection based on initialData
+  // Set initial opponent type and selection based on initialData (only once)
   useEffect(() => {
-    if (initialData?.opponent_user_id && friends.length > 0) {
+    if (!initialData) return;
+    
+    if (initialData.opponent_user_id && friends.length > 0) {
       const friend = friends.find(f => f.id === initialData.opponent_user_id);
-      if (friend && opponentType !== 'friend') {
+      if (friend) {
         setOpponentType('friend');
         setSelectedFriend(friend.id);
         setOpponent(''); // Clear custom opponent when friend is selected
       }
-    } else if (initialData?.opponent_name && !initialData?.opponent_user_id && opponentType !== 'custom') {
+    } else if (initialData.opponent_name && !initialData.opponent_user_id) {
       setOpponentType('custom');
       setOpponent(initialData.opponent_name);
       setSelectedFriend(''); // Clear friend selection when custom opponent is set
     }
-  }, [initialData, friends]);
+  }, [initialData?.opponent_user_id, initialData?.opponent_name, friends.length]); // Only run when these specific values change
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -158,7 +160,7 @@ export function ScoreFormFields({
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="custom" className="space-y-2">
+          <TabsContent value="custom">
             <OpponentAutocomplete
               value={opponent}
               onChange={(value) => {
@@ -170,7 +172,7 @@ export function ScoreFormFields({
             />
           </TabsContent>
           
-          <TabsContent value="friend" className="space-y-2">
+          <TabsContent value="friend">
             <Select value={selectedFriend} onValueChange={(value) => {
               setSelectedFriend(value);
               setOpponent(''); // Clear custom opponent when friend is selected

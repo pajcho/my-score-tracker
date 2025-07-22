@@ -76,11 +76,14 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
     );
   }
 
+  const currentUser = supabaseAuth.getCurrentUser();
+
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
       {scores.map((score) => {
         const Icon = gameIcons[score.game as keyof typeof gameIcons] || Trophy;
         const result = getScoreResult(score.score);
+        const isOwnScore = currentUser && score.user_id === currentUser.id;
         
         return (
           <Card 
@@ -93,65 +96,51 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
             )}
           >
             <CardContent className={cn("p-4", compact && "p-3")}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  {/* Game Icon */}
-                  <div className={cn(
-                    "p-2 rounded-full",
-                    result === 'win' && "bg-secondary/10",
-                    result === 'loss' && "bg-destructive/10",
-                    result === 'tie' && "bg-accent/10"
-                  )}>
-                    <Icon className={cn(
-                      "h-5 w-5",
-                      result === 'win' && "text-secondary",
-                      result === 'loss' && "text-destructive",
-                      result === 'tie' && "text-accent"
-                    )} />
-                  </div>
+              <div className="flex items-center">
+                {/* Game Icon */}
+                <div className={cn(
+                  "p-2 rounded-full",
+                  result === 'win' && "bg-secondary/10",
+                  result === 'loss' && "bg-destructive/10",
+                  result === 'tie' && "bg-accent/10"
+                )}>
+                  <Icon className={cn(
+                    "h-5 w-5",
+                    result === 'win' && "text-secondary",
+                    result === 'loss' && "text-destructive",
+                    result === 'tie' && "text-accent"
+                  )} />
+                </div>
 
-                  {/* Game Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold">{score.game}</h4>
-                      <Badge 
-                        variant={result === 'win' ? 'default' : result === 'loss' ? 'destructive' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {result === 'win' ? 'WIN' : result === 'loss' ? 'LOSS' : 'TIE'}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        <span className="truncate">
-                          You vs {(score as any).friend_name || score.opponent_name || 'Unknown'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        <span>{format(new Date(score.date), 'MMM d, yyyy')}</span>
-                      </div>
-                    </div>
+                {/* Game Info */}
+                <div className="flex-1 min-w-0 mx-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold">{score.game}</h4>
+                    <Badge 
+                      variant={result === 'win' ? 'default' : result === 'loss' ? 'destructive' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {result === 'win' ? 'WIN' : result === 'loss' ? 'LOSS' : 'TIE'}
+                    </Badge>
                   </div>
-
-                  {/* Score */}
-                  <div className="text-right">
-                    <div className={cn(
-                      "text-lg font-bold",
-                      result === 'win' && "text-secondary",
-                      result === 'loss' && "text-destructive",
-                      result === 'tie' && "text-accent"
-                    )}>
-                      {score.score}
+                  
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      <span className="truncate">
+                        You vs {(score as any).friend_name || score.opponent_name || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{format(new Date(score.date), 'MMM d, yyyy')}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                {!compact && (
-                  <div className="flex items-center gap-2 ml-4">
+                {!compact && isOwnScore && (
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -190,6 +179,18 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
                     </AlertDialog>
                   </div>
                 )}
+
+                {/* Score - Always on the right */}
+                <div className="text-right ml-auto">
+                  <div className={cn(
+                    "text-lg font-bold",
+                    result === 'win' && "text-secondary",
+                    result === 'loss' && "text-destructive",
+                    result === 'tie' && "text-accent"
+                  )}>
+                    {score.score}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
