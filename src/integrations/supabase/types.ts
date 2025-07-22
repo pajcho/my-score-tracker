@@ -143,6 +143,10 @@ export type Database = {
         Args: { user1_id: string; user2_id: string }
         Returns: boolean
       }
+      delete_user_account: {
+        Args: { target_user_id?: string }
+        Returns: undefined
+      }
       get_user_friends: {
         Args: { target_user_id?: string }
         Returns: {

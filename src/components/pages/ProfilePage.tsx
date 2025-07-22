@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
@@ -97,13 +98,27 @@ export function ProfilePage() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    // Show confirmation dialog in a real app
-    toast({
-      title: "Account deletion",
-      description: "Account deletion feature coming soon.",
-      variant: "destructive",
-    });
+  const handleDeleteAccount = async () => {
+    setIsLoading(true);
+    
+    try {
+      await supabaseDb.deleteAccount();
+      
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      
+      // The user will be automatically signed out due to account deletion
+    } catch (error) {
+      toast({
+        title: "Deletion failed",
+        description: "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -241,14 +256,38 @@ export function ProfilePage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Once you delete your account, there is no going back. Please be certain.
               </p>
-              <EnhancedButton
-                variant="destructive"
-                onClick={handleDeleteAccount}
-                className="w-full sm:w-auto"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Account
-              </EnhancedButton>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <EnhancedButton
+                    variant="destructive"
+                    className="w-full sm:w-auto"
+                    disabled={isLoading}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Account
+                  </EnhancedButton>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your account,
+                      remove all your scores, friendships, and friend invitations. Other users' 
+                      scores where you were the opponent will show "Deleted User" as the opponent.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Deleting..." : "Delete Account"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardContent>

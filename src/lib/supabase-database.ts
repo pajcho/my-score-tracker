@@ -183,6 +183,14 @@ class SupabaseDatabaseService {
       email: friend.friend_email
     }));
   }
+
+  async deleteAccount(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase.rpc('delete_user_account');
+    if (error) throw error;
+  }
 }
 
 export const supabaseDb = new SupabaseDatabaseService();
