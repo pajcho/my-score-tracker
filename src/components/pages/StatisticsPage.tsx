@@ -55,14 +55,14 @@ export function StatisticsPage() {
     }
 
     if (opponentFilter !== 'all') {
-      filtered = filtered.filter(score => score.player2 === opponentFilter);
+      filtered = filtered.filter(score => score.opponent_name === opponentFilter);
     }
 
     setFilteredScores(filtered);
   }, [scores, gameFilter, opponentFilter]);
 
   const uniqueGames = [...new Set(scores.map(score => score.game))];
-  const uniqueOpponents = [...new Set(scores.map(score => score.player2))];
+  const uniqueOpponents = [...new Set(scores.map(score => score.opponent_name).filter(Boolean))];
 
   // Calculate statistics
   const totalGames = filteredScores.length;
@@ -80,8 +80,8 @@ export function StatisticsPage() {
   }, uniqueGames[0] || 'N/A');
 
   const mostPlayedOpponent = uniqueOpponents.reduce((prev, opponent) => {
-    const opponentCount = filteredScores.filter(s => s.player2 === opponent).length;
-    const prevCount = filteredScores.filter(s => s.player2 === prev).length;
+    const opponentCount = filteredScores.filter(s => s.opponent_name === opponent).length;
+    const prevCount = filteredScores.filter(s => s.opponent_name === prev).length;
     return opponentCount > prevCount ? opponent : prev;
   }, uniqueOpponents[0] || 'N/A');
 
@@ -249,7 +249,7 @@ export function StatisticsPage() {
                   <div>
                     <div className="font-medium text-secondary">Best Game</div>
                     <div className="text-sm text-muted-foreground">
-                      {bestScore ? `${bestScore.game} vs ${bestScore.player2}` : 'N/A'}
+                      {bestScore ? `${bestScore.game} vs ${bestScore.opponent_name || 'Friend'}` : 'N/A'}
                     </div>
                   </div>
                   <div className="text-lg font-bold text-secondary">
@@ -261,7 +261,7 @@ export function StatisticsPage() {
                   <div>
                     <div className="font-medium">Worst Game</div>
                     <div className="text-sm text-muted-foreground">
-                      {worstScore ? `${worstScore.game} vs ${worstScore.player2}` : 'N/A'}
+                      {worstScore ? `${worstScore.game} vs ${worstScore.opponent_name || 'Friend'}` : 'N/A'}
                     </div>
                   </div>
                   <div className="text-lg font-bold">

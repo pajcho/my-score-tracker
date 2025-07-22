@@ -24,8 +24,7 @@ interface ScoreEditDialogProps {
 
 export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreEditDialogProps) {
   const [game, setGame] = useState(score?.game || '');
-  const [player1, setPlayer1] = useState(score?.player1 || '');
-  const [player2, setPlayer2] = useState(score?.player2 || '');
+  const [opponent, setOpponent] = useState(score?.opponent_name || '');
   const [yourScore, setYourScore] = useState(score?.score ? score.score.split('-')[0] : '');
   const [opponentScore, setOpponentScore] = useState(score?.score ? score.score.split('-')[1] : '');
   const [date, setDate] = useState<Date>(score?.date ? new Date(score.date) : new Date());
@@ -56,8 +55,7 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   useEffect(() => {
     if (score) {
       setGame(score.game);
-      setPlayer1(score.player1);
-      setPlayer2(score.player2);
+      setOpponent(score.opponent_name || '');
       const [your, opponent] = score.score.split('-');
       setYourScore(your);
       setOpponentScore(opponent);
@@ -68,7 +66,7 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!score || !game || !player1 || !player2 || !yourScore || !opponentScore) {
+    if (!score || !game || !opponent || !yourScore || !opponentScore) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -92,8 +90,7 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       const combinedScore = `${yourScore}-${opponentScore}`;
       await supabaseDb.updateScore(score.id, {
         game: game as 'Pool' | 'Ping Pong',
-        player1,
-        player2,
+        opponent_name: opponent,
         score: combinedScore,
         date: format(date, 'yyyy-MM-dd')
       });
@@ -173,25 +170,15 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
               </Popover>
             </div>
 
-            {/* Player 1 */}
-            <div className="space-y-2">
-              <Label htmlFor="player1">Your Name *</Label>
-              <Input
-                id="player1"
-                value={player1}
-                onChange={(e) => setPlayer1(e.target.value)}
-                placeholder="Enter your name"
+            {/* Opponent */}
+            <div className="col-span-2">
+              <OpponentAutocomplete
+                value={opponent}
+                onChange={setOpponent}
+                opponents={opponents}
                 required
               />
             </div>
-
-            {/* Opponent */}
-            <OpponentAutocomplete
-              value={player2}
-              onChange={setPlayer2}
-              opponents={opponents}
-              required
-            />
           </div>
 
           {/* Scores */}

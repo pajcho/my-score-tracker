@@ -20,8 +20,7 @@ interface ScoreFormProps {
   onSuccess: () => void;
   initialData?: {
     game: string;
-    player1: string;
-    player2: string;
+    opponent_name: string;
     score: string;
     date: string;
   };
@@ -29,8 +28,7 @@ interface ScoreFormProps {
 
 export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) {
   const [game, setGame] = useState(initialData?.game || '');
-  const [player1, setPlayer1] = useState(initialData?.player1 || supabaseAuth.getCurrentProfile()?.name || '');
-  const [player2, setPlayer2] = useState(initialData?.player2 || '');
+  const [opponent, setOpponent] = useState(initialData?.opponent_name || '');
   const [yourScore, setYourScore] = useState(initialData?.score ? initialData.score.split('-')[0] : '');
   const [opponentScore, setOpponentScore] = useState(initialData?.score ? initialData.score.split('-')[1] : '');
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
@@ -60,7 +58,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!game || !player1 || !player2 || !yourScore || !opponentScore) {
+    if (!game || !opponent || !yourScore || !opponentScore) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -84,8 +82,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
       const combinedScore = `${yourScore}-${opponentScore}`;
       await supabaseDb.createScore(
         game,
-        player1,
-        player2,
+        opponent,
         combinedScore,
         format(date, 'yyyy-MM-dd')
       );
@@ -160,29 +157,15 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               </Popover>
             </div>
 
-            {/* Player 1 */}
-            <div className="space-y-2">
-              <Label htmlFor="player1">Your Name *</Label>
-              <Input
-                id="player1"
-                value={player1}
-                readOnly
-                className="bg-muted/50 cursor-not-allowed"
-                placeholder="Your name (auto-filled)"
+            {/* Opponent */}
+            <div className="md:col-span-2">
+              <OpponentAutocomplete
+                value={opponent}
+                onChange={setOpponent}
+                opponents={opponents}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                Automatically filled from your profile
-              </p>
             </div>
-
-            {/* Opponent */}
-            <OpponentAutocomplete
-              value={player2}
-              onChange={setPlayer2}
-              opponents={opponents}
-              required
-            />
 
             {/* Scores */}
             <div className="space-y-2">

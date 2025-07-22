@@ -4,8 +4,8 @@ export interface Score {
   id: string;
   user_id: string;
   game: 'Pool' | 'Ping Pong';
-  player1: string;
-  player2: string;
+  opponent_name: string | null;
+  opponent_user_id: string | null;
   score: string;
   date: string;
   created_at: string;
@@ -15,10 +15,10 @@ export interface Score {
 class SupabaseDatabaseService {
   async createScore(
     game: string,
-    player1: string,
-    player2: string,
+    opponent_name: string,
     score: string,
-    date: string
+    date: string,
+    opponent_user_id?: string
   ): Promise<Score> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -28,8 +28,8 @@ class SupabaseDatabaseService {
       .insert({
         user_id: user.id,
         game,
-        player1,
-        player2,
+        opponent_name: opponent_user_id ? null : opponent_name,
+        opponent_user_id: opponent_user_id || null,
         score,
         date
       })
@@ -47,7 +47,7 @@ class SupabaseDatabaseService {
     const { data, error } = await supabase
       .from('scores')
       .select('*')
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},opponent_user_id.eq.${user.id}`)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -94,14 +94,15 @@ class SupabaseDatabaseService {
 
     const { data, error } = await supabase
       .from('scores')
-      .select('player2')
+      .select('opponent_name')
       .eq('user_id', user.id)
-      .order('player2');
+      .not('opponent_name', 'is', null)
+      .order('opponent_name');
 
     if (error) throw error;
 
     // Get unique opponents
-    const unique = Array.from(new Set(data?.map(row => row.player2) || []));
+    const unique = Array.from(new Set(data?.map(row => row.opponent_name).filter(Boolean) || []));
     return unique.sort();
   }
 

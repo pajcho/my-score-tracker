@@ -40,11 +40,10 @@ export function HistoryPage() {
       filtered = filtered.filter(score => score.game === gameFilter);
     }
 
-    // Filter by search term (player names)
+    // Filter by search term (opponent names)
     if (searchTerm) {
       filtered = filtered.filter(score => 
-        score.player1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        score.player2.toLowerCase().includes(searchTerm.toLowerCase())
+        (score.opponent_name && score.opponent_name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 

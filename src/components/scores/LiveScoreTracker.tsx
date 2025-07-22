@@ -15,8 +15,7 @@ import { format } from 'date-fns';
 interface LiveGame {
   id: string;
   game: string;
-  player1: string;
-  player2: string;
+  opponent: string;
   score1: number;
   score2: number;
   date: string;
@@ -34,7 +33,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
     game: '',
-    player2: ''
+    opponent: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
@@ -72,7 +71,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   }, []);
 
   const addNewGame = () => {
-    if (!newGame.game || !newGame.player2) {
+    if (!newGame.game || !newGame.opponent) {
       toast({
         title: "Missing information",
         description: "Please select a game type and enter opponent's name",
@@ -81,14 +80,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       return;
     }
 
-    const profile = supabaseAuth.getCurrentProfile();
-    if (!profile) return;
-
     const game: LiveGame = {
       id: Date.now().toString(),
       game: newGame.game,
-      player1: profile.name,
-      player2: newGame.player2,
+      opponent: newGame.opponent,
       score1: 0,
       score2: 0,
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -100,12 +95,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       onActiveGamesChange?.(newGames.length > 0);
       return newGames;
     });
-    setNewGame({ game: '', player2: '' });
+    setNewGame({ game: '', opponent: '' });
     setShowNewGameForm(false);
 
     toast({
       title: "Game started!",
-      description: `${newGame.game} game vs ${newGame.player2}`,
+      description: `${newGame.game} game vs ${newGame.opponent}`,
     });
   };
 
@@ -145,8 +140,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     try {
       await supabaseDb.createScore(
         game.game,
-        game.player1,
-        game.player2,
+        game.opponent,
         `${game.score1}-${game.score2}`,
         game.date
       );
@@ -184,8 +178,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
         await supabaseDb.createScore(
           game.game,
-          game.player1,
-          game.player2,
+          game.opponent,
           `${game.score1}-${game.score2}`,
           game.date
         );
@@ -290,10 +283,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
                     {/* Center - Both player scores */}
                     <div className="flex items-center gap-3 flex-1 justify-center">
-                       {/* Player 1 Score */}
+                       {/* Your Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                          {game.player1} (You)
+                          You
                         </div>
                         <div 
                           className="bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center min-w-[80px]"
@@ -303,10 +296,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                         </div>
                       </div>
 
-                       {/* Player 2 Score */}
+                       {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                          {game.player2}
+                          {game.opponent}
                         </div>
                         <div 
                           className="bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center min-w-[80px]"
@@ -390,8 +383,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
               {/* Opponent Input with Autocomplete */}
               <OpponentAutocomplete
-                value={newGame.player2}
-                onChange={(value) => setNewGame(prev => ({ ...prev, player2: value }))}
+                value={newGame.opponent}
+                onChange={(value) => setNewGame(prev => ({ ...prev, opponent: value }))}
                 opponents={opponents}
                 label="Opponent"
                 required
@@ -406,7 +399,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   variant="outline" 
                   onClick={() => {
                     setShowNewGameForm(false);
-                    setNewGame({ game: '', player2: '' });
+                    setNewGame({ game: '', opponent: '' });
                   }}
                   size="sm"
                 >
