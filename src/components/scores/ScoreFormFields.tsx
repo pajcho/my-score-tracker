@@ -81,17 +81,17 @@ export function ScoreFormFields({
   useEffect(() => {
     if (initialData?.opponent_user_id && friends.length > 0) {
       const friend = friends.find(f => f.id === initialData.opponent_user_id);
-      if (friend) {
+      if (friend && opponentType !== 'friend') {
         setOpponentType('friend');
         setSelectedFriend(friend.id);
         setOpponent(''); // Clear custom opponent when friend is selected
       }
-    } else if (initialData?.opponent_name && !initialData?.opponent_user_id) {
+    } else if (initialData?.opponent_name && !initialData?.opponent_user_id && opponentType !== 'custom') {
       setOpponentType('custom');
       setOpponent(initialData.opponent_name);
       setSelectedFriend(''); // Clear friend selection when custom opponent is set
     }
-  }, [initialData, friends, setOpponentType, setSelectedFriend, setOpponent]);
+  }, [initialData, friends]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
