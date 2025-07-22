@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Tablets, Zap, Calendar, User, Trophy } from 'lucide-react';
+import { Edit, Trash2, Triangle, Zap, Calendar, User, Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
   const { toast } = useToast();
 
   const gameIcons = {
-    Pool: Tablets,
+    Pool: Triangle,
     'Ping Pong': Zap,
   };
 
