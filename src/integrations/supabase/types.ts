@@ -20,7 +20,7 @@ export type Database = {
           id: string
           message: string | null
           receiver_email: string
-          receiver_id: string
+          receiver_id: string | null
           sender_id: string
           status: string
           updated_at: string
@@ -30,7 +30,7 @@ export type Database = {
           id?: string
           message?: string | null
           receiver_email: string
-          receiver_id: string
+          receiver_id?: string | null
           sender_id: string
           status?: string
           updated_at?: string
@@ -40,7 +40,7 @@ export type Database = {
           id?: string
           message?: string | null
           receiver_email?: string
-          receiver_id?: string
+          receiver_id?: string | null
           sender_id?: string
           status?: string
           updated_at?: string
