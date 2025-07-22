@@ -70,19 +70,16 @@ class SupabaseDatabaseService {
         }
         
         if (friendUserId) {
-          console.log('Looking up friend profile for user ID:', friendUserId);
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('name')
             .eq('user_id', friendUserId)
             .maybeSingle();
           
-          console.log('Profile lookup result:', { profile, profileError });
           friend_name = profile?.name || null;
         }
       }
       
-      console.log('Score enriched:', { scoreId: score.id, friend_name, opponent_user_id: score.opponent_user_id });
       return {
         ...score,
         friend_name
