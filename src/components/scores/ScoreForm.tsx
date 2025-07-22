@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Save, X, Trophy, Target, Zap } from 'lucide-react';
+import { Calendar, Save, X, Tablets, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,8 +53,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   }, []);
 
   const games = [
-    { value: 'Pool', label: 'Pool', icon: Trophy },
-    { value: 'Darts', label: 'Darts', icon: Target },
+    { value: 'Pool', label: 'Pool', icon: Tablets },
     { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
   ];
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Plus, Minus, Save, X, Trash2, Trophy, Target, Zap } from 'lucide-react';
+import { Plus, Minus, Save, X, Trash2, Tablets, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -42,8 +42,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const { toast } = useToast();
 
   const gameTypes = [
-    { value: 'Pool', label: 'Pool', icon: Trophy },
-    { value: 'Darts', label: 'Darts', icon: Target },
+    { value: 'Pool', label: 'Pool', icon: Tablets },
     { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
   ];
 

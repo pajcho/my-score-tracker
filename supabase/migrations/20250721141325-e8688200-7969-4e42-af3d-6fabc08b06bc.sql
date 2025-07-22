@@ -12,7 +12,7 @@ CREATE TABLE public.profiles (
 CREATE TABLE public.scores (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  game TEXT NOT NULL CHECK (game IN ('Pool', 'Darts', 'Ping Pong')),
+  game TEXT NOT NULL CHECK (game IN ('Pool', 'Ping Pong')),
   player1 TEXT NOT NULL,
   player2 TEXT NOT NULL,
   score TEXT NOT NULL,

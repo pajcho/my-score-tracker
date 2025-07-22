@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Score {
   id: string;
   user_id: string;
-  game: 'Pool' | 'Darts' | 'Ping Pong';
+  game: 'Pool' | 'Ping Pong';
   player1: string;
   player2: string;
   score: string;

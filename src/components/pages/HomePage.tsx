@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trophy, Target, Zap, TrendingUp, Calendar, Medal, Play } from 'lucide-react';
+import { Plus, Tablets, Zap, TrendingUp, Calendar, Medal, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,8 +45,7 @@ export function HomePage() {
   };
 
   const gameIcons = {
-    Pool: Trophy,
-    Darts: Target,
+    Pool: Tablets,
     'Ping Pong': Zap,
   };
 
