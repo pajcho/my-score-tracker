@@ -165,7 +165,7 @@ export function FriendsPage() {
       </div>
 
       <Tabs defaultValue="friends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 h-auto">
           <TabsTrigger value="friends" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Friends ({friends.length})

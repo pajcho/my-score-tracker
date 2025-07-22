@@ -42,7 +42,7 @@ class SupabaseFriendsService {
       .eq('sender_id', user.id)
       .eq('receiver_email', receiverEmail)
       .eq('status', 'pending')
-      .single();
+      .maybeSingle();
 
     if (existingInvitation) {
       throw new Error('A pending invitation already exists for this email');
@@ -54,7 +54,7 @@ class SupabaseFriendsService {
       .from('profiles')
       .select('user_id')
       .eq('email', receiverEmail)
-      .single();
+      .maybeSingle();
 
     if (receiverProfile) {
       receiverId = receiverProfile.user_id;
@@ -164,7 +164,7 @@ class SupabaseFriendsService {
       .from('friend_invitations')
       .select('*')
       .eq('id', invitationId)
-      .eq('receiver_id', user.id)
+      .or(`receiver_id.eq.${user.id},receiver_email.eq.${user.email}`)
       .eq('status', 'pending')
       .single();
 
@@ -205,7 +205,7 @@ class SupabaseFriendsService {
       .from('friend_invitations')
       .update({ status: 'declined' })
       .eq('id', invitationId)
-      .eq('receiver_id', user.id);
+      .or(`receiver_id.eq.${user.id},receiver_email.eq.${user.email}`);
 
     if (error) throw error;
   }
