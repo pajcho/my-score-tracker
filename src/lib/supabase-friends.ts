@@ -106,10 +106,28 @@ class SupabaseFriendsService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Get user's profile to find their email
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+
+    // First, update any pending invitations sent to this email to link the receiver_id
+    await supabase
+      .from('friend_invitations')
+      .update({ receiver_id: user.id })
+      .eq('receiver_email', profile.email)
+      .is('receiver_id', null)
+      .eq('status', 'pending');
+
+    // Now get all invitations (both by receiver_id and by email)
     const { data, error } = await supabase
       .from('friend_invitations')
       .select('*')
-      .eq('receiver_id', user.id)
+      .or(`receiver_id.eq.${user.id},and(receiver_email.eq.${profile.email},receiver_id.is.null)`)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
