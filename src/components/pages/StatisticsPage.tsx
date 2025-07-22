@@ -55,14 +55,14 @@ export function StatisticsPage() {
     }
 
     if (opponentFilter !== 'all') {
-      filtered = filtered.filter(score => score.opponent_name === opponentFilter);
+      filtered = filtered.filter(score => ((score as any).friend_name || score.opponent_name) === opponentFilter);
     }
 
     setFilteredScores(filtered);
   }, [scores, gameFilter, opponentFilter]);
 
   const uniqueGames = [...new Set(scores.map(score => score.game))];
-  const uniqueOpponents = [...new Set(scores.map(score => score.opponent_name).filter(Boolean))];
+  const uniqueOpponents = [...new Set(scores.map(score => (score as any).friend_name || score.opponent_name).filter(Boolean))];
 
   // Calculate statistics
   const totalGames = filteredScores.length;
@@ -80,8 +80,8 @@ export function StatisticsPage() {
   }, uniqueGames[0] || 'N/A');
 
   const mostPlayedOpponent = uniqueOpponents.reduce((prev, opponent) => {
-    const opponentCount = filteredScores.filter(s => s.opponent_name === opponent).length;
-    const prevCount = filteredScores.filter(s => s.opponent_name === prev).length;
+    const opponentCount = filteredScores.filter(s => ((s as any).friend_name || s.opponent_name) === opponent).length;
+    const prevCount = filteredScores.filter(s => ((s as any).friend_name || s.opponent_name) === prev).length;
     return opponentCount > prevCount ? opponent : prev;
   }, uniqueOpponents[0] || 'N/A');
 

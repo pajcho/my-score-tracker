@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Plus, Minus, Save, X, Trash2, Triangle, Trophy, Zap } from 'lucide-react';
+import { Plus, Minus, Save, X, Trash2, Triangle, Trophy, Zap, Users, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ interface LiveGame {
   id: string;
   game: string;
   opponent: string;
+  opponentUserId?: string;
   score1: number;
   score2: number;
   date: string;
@@ -33,10 +35,13 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
     game: '',
-    opponent: ''
+    opponent: '',
+    opponentType: 'custom' as 'custom' | 'friend',
+    selectedFriend: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
+  const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const { toast } = useToast();
 
@@ -54,36 +59,70 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     return () => clearInterval(timer);
   }, []);
 
-  // Load previously entered opponents for autocomplete
+  // Load previously entered opponents and friends for autocomplete
   useEffect(() => {
-    const loadOpponents = async () => {
+    const loadData = async () => {
       if (!supabaseAuth.isAuthenticated()) return;
 
       try {
-        const uniqueOpponents = await supabaseDb.getUniqueOpponents();
+        const [uniqueOpponents, userFriends] = await Promise.all([
+          supabaseDb.getUniqueOpponents(),
+          supabaseDb.getFriends()
+        ]);
         setOpponents(uniqueOpponents);
+        setFriends(userFriends);
       } catch (error) {
-        console.error('Failed to load opponents:', error);
+        console.error('Failed to load data:', error);
       }
     };
 
-    loadOpponents();
+    loadData();
   }, []);
 
   const addNewGame = () => {
-    if (!newGame.game || !newGame.opponent) {
+    if (!newGame.game) {
       toast({
         title: "Missing information",
-        description: "Please select a game type and enter opponent's name",
+        description: "Please select a game type",
         variant: "destructive",
       });
       return;
     }
 
+    if (newGame.opponentType === 'custom' && !newGame.opponent) {
+      toast({
+        title: "Missing information",
+        description: "Please enter opponent's name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newGame.opponentType === 'friend' && !newGame.selectedFriend) {
+      toast({
+        title: "Missing information",
+        description: "Please select a friend to play against",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let opponentName = newGame.opponent;
+    let opponentUserId: string | undefined;
+
+    if (newGame.opponentType === 'friend' && newGame.selectedFriend) {
+      const friend = friends.find(f => f.id === newGame.selectedFriend);
+      if (friend) {
+        opponentName = friend.name;
+        opponentUserId = friend.id;
+      }
+    }
+
     const game: LiveGame = {
       id: Date.now().toString(),
       game: newGame.game,
-      opponent: newGame.opponent,
+      opponent: opponentName,
+      opponentUserId,
       score1: 0,
       score2: 0,
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -95,12 +134,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       onActiveGamesChange?.(newGames.length > 0);
       return newGames;
     });
-    setNewGame({ game: '', opponent: '' });
+    setNewGame({ game: '', opponent: '', opponentType: 'custom', selectedFriend: '' });
     setShowNewGameForm(false);
 
     toast({
       title: "Game started!",
-      description: `${newGame.game} game vs ${newGame.opponent}`,
+      description: `${newGame.game} game vs ${opponentName}`,
     });
   };
 
@@ -140,9 +179,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     try {
       await supabaseDb.createScore(
         game.game,
-        game.opponent,
+        game.opponentUserId ? null : game.opponent, // If friend, don't store name
         `${game.score1}-${game.score2}`,
-        game.date
+        game.date,
+        game.opponentUserId
       );
 
       setGames(prev => {
@@ -178,9 +218,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
         await supabaseDb.createScore(
           game.game,
-          game.opponent,
+          game.opponentUserId ? null : game.opponent, // If friend, don't store name
           `${game.score1}-${game.score2}`,
-          game.date
+          game.date,
+          game.opponentUserId
         );
         savedCount++;
       } catch (error) {
@@ -381,14 +422,52 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 </Select>
               </div>
 
-              {/* Opponent Input with Autocomplete */}
-              <OpponentAutocomplete
-                value={newGame.opponent}
-                onChange={(value) => setNewGame(prev => ({ ...prev, opponent: value }))}
-                opponents={opponents}
-                label="Opponent"
-                required
-              />
+              {/* Opponent Selection */}
+              <div className="space-y-4">
+                <Label>Opponent</Label>
+                <Tabs value={newGame.opponentType} onValueChange={(value) => setNewGame(prev => ({ ...prev, opponentType: value as 'custom' | 'friend' }))}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="custom" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Custom
+                    </TabsTrigger>
+                    <TabsTrigger value="friend" className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Friend
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="custom" className="space-y-2">
+                    <OpponentAutocomplete
+                      value={newGame.opponent}
+                      onChange={(value) => setNewGame(prev => ({ ...prev, opponent: value, selectedFriend: '' }))}
+                      opponents={opponents}
+                      required={newGame.opponentType === 'custom'}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="friend" className="space-y-2">
+                    <Select value={newGame.selectedFriend} onValueChange={(value) => setNewGame(prev => ({ ...prev, selectedFriend: value, opponent: '' }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a friend" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {friends.length === 0 ? (
+                          <div className="p-2 text-sm text-muted-foreground">
+                            No friends yet. Add friends to play against them!
+                          </div>
+                        ) : (
+                          friends.map((friend) => (
+                            <SelectItem key={friend.id} value={friend.id}>
+                              {friend.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </TabsContent>
+                </Tabs>
+              </div>
 
               {/* Action Buttons */}
               <div className="flex gap-2">
@@ -399,7 +478,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   variant="outline" 
                   onClick={() => {
                     setShowNewGameForm(false);
-                    setNewGame({ game: '', opponent: '' });
+                    setNewGame({ game: '', opponent: '', opponentType: 'custom', selectedFriend: '' });
                   }}
                   size="sm"
                 >

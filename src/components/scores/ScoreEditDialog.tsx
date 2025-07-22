@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Save, X, Triangle, Zap } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { EnhancedButton } from '@/components/ui/enhanced-button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
+import { ScoreFormFields } from './ScoreFormFields';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
@@ -29,27 +23,9 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   const [opponentScore, setOpponentScore] = useState(score?.score ? score.score.split('-')[1] : '');
   const [date, setDate] = useState<Date>(score?.date ? new Date(score.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
-  const [opponents, setOpponents] = useState<string[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<string>('');
+  const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('custom');
   const { toast } = useToast();
-
-  // Load opponents for autocomplete
-  useEffect(() => {
-    const loadOpponents = async () => {
-      if (!supabaseAuth.isAuthenticated()) return;
-      try {
-        const uniqueOpponents = await supabaseDb.getUniqueOpponents();
-        setOpponents(uniqueOpponents);
-      } catch (error) {
-        console.error('Failed to load opponents:', error);
-      }
-    };
-    loadOpponents();
-  }, []);
-
-  const games = [
-    { value: 'Pool', label: 'Pool', icon: Triangle },
-    { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
-  ];
 
   // Reset form when score changes
   useEffect(() => {
@@ -60,16 +36,43 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       setYourScore(your);
       setOpponentScore(opponent);
       setDate(new Date(score.date));
+      
+      // Set opponent type based on whether there's an opponent_user_id
+      if (score.opponent_user_id) {
+        setOpponentType('friend');
+        setSelectedFriend(score.opponent_user_id);
+      } else {
+        setOpponentType('custom');
+        setSelectedFriend('');
+      }
     }
   }, [score]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!score || !game || !opponent || !yourScore || !opponentScore) {
+    if (!score || !game || !yourScore || !opponentScore) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (opponentType === 'custom' && !opponent) {
+      toast({
+        title: "Missing information",
+        description: "Please enter an opponent name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (opponentType === 'friend' && !selectedFriend) {
+      toast({
+        title: "Missing information",
+        description: "Please select a friend",
         variant: "destructive",
       });
       return;
@@ -88,9 +91,20 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
 
     try {
       const combinedScore = `${yourScore}-${opponentScore}`;
+      
+      let opponentName: string | null = null;
+      let opponentUserId: string | null = null;
+      
+      if (opponentType === 'friend' && selectedFriend) {
+        opponentUserId = selectedFriend;
+      } else if (opponentType === 'custom' && opponent) {
+        opponentName = opponent;
+      }
+      
       await supabaseDb.updateScore(score.id, {
         game: game as 'Pool' | 'Ping Pong',
-        opponent_name: opponent,
+        opponent_name: opponentName,
+        opponent_user_id: opponentUserId,
         score: combinedScore,
         date: format(date, 'yyyy-MM-dd')
       });
@@ -121,94 +135,26 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Game Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="game">Game Type *</Label>
-              <Select value={game} onValueChange={setGame} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a game" />
-                </SelectTrigger>
-                <SelectContent>
-                  {games.map(({ value, label, icon: Icon }) => (
-                    <SelectItem key={value} value={value}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        {label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Date Picker */}
-            <div className="space-y-2">
-              <Label>Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Opponent */}
-            <div className="col-span-2">
-              <OpponentAutocomplete
-                value={opponent}
-                onChange={setOpponent}
-                opponents={opponents}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Scores */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="yourScore">Your Score *</Label>
-              <Input
-                id="yourScore"
-                type="number"
-                min="0"
-                value={yourScore}
-                onChange={(e) => setYourScore(e.target.value)}
-                placeholder="Your score"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="opponentScore">Opponent Score *</Label>
-              <Input
-                id="opponentScore"
-                type="number"
-                min="0"
-                value={opponentScore}
-                onChange={(e) => setOpponentScore(e.target.value)}
-                placeholder="Opponent score"
-                required
-              />
-            </div>
-          </div>
+          <ScoreFormFields
+            game={game}
+            setGame={setGame}
+            opponent={opponent}
+            setOpponent={setOpponent}
+            yourScore={yourScore}
+            setYourScore={setYourScore}
+            opponentScore={opponentScore}
+            setOpponentScore={setOpponentScore}
+            date={date}
+            setDate={setDate}
+            opponentType={opponentType}
+            setOpponentType={setOpponentType}
+            selectedFriend={selectedFriend}
+            setSelectedFriend={setSelectedFriend}
+            initialData={{
+              opponent_user_id: score?.opponent_user_id,
+              opponent_name: score?.opponent_name
+            }}
+          />
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">

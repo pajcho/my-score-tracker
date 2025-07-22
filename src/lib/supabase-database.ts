@@ -15,7 +15,7 @@ export interface Score {
 class SupabaseDatabaseService {
   async createScore(
     game: string,
-    opponent_name: string,
+    opponent_name: string | null,
     score: string,
     date: string,
     opponent_user_id?: string
@@ -40,7 +40,7 @@ class SupabaseDatabaseService {
     return data as Score;
   }
 
-  async getScoresByUserId(): Promise<Score[]> {
+  async getScoresByUserId(): Promise<(Score & { friend_name?: string })[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -52,7 +52,28 @@ class SupabaseDatabaseService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []) as Score[];
+    
+    // Get friend names for scores with opponent_user_id
+    const enrichedScores = await Promise.all((data || []).map(async (score: any) => {
+      let friend_name = null;
+      
+      if (score.opponent_user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', score.opponent_user_id)
+          .single();
+        
+        friend_name = profile?.name || null;
+      }
+      
+      return {
+        ...score,
+        friend_name
+      };
+    }));
+    
+    return enrichedScores as (Score & { friend_name?: string })[];
   }
 
   async deleteScore(id: string): Promise<void> {
@@ -92,18 +113,34 @@ class SupabaseDatabaseService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase
+    // Get both custom opponent names and friend names
+    const { data: scores, error } = await supabase
       .from('scores')
-      .select('opponent_name')
-      .eq('user_id', user.id)
-      .not('opponent_name', 'is', null)
-      .order('opponent_name');
+      .select('opponent_name, opponent_user_id')
+      .eq('user_id', user.id);
 
     if (error) throw error;
 
-    // Get unique opponents
-    const unique = Array.from(new Set(data?.map(row => row.opponent_name).filter(Boolean) || []));
-    return unique.sort();
+    const opponents = new Set<string>();
+    
+    // Process each score to get opponent names
+    await Promise.all((scores || []).map(async (score) => {
+      if (score.opponent_name) {
+        opponents.add(score.opponent_name);
+      } else if (score.opponent_user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', score.opponent_user_id)
+          .single();
+        
+        if (profile?.name) {
+          opponents.add(profile.name);
+        }
+      }
+    }));
+
+    return Array.from(opponents).sort();
   }
 
   async updateProfile(name: string, email: string): Promise<void> {
