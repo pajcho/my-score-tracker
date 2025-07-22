@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Save, X, Tablets, Zap } from 'lucide-react';
+import { Calendar, Save, X, Triangle, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,7 +48,7 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   }, []);
 
   const games = [
-    { value: 'Pool', label: 'Pool', icon: Tablets },
+    { value: 'Pool', label: 'Pool', icon: Triangle },
     { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
   ];
 
