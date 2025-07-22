@@ -9,7 +9,6 @@ interface OpponentAutocompleteProps {
   opponents: string[];
   placeholder?: string;
   required?: boolean;
-  label?: string;
   className?: string;
 }
 
@@ -19,7 +18,6 @@ export function OpponentAutocomplete({
   opponents,
   placeholder = "Enter opponent's name",
   required = false,
-  label = "Opponent",
   className
 }: OpponentAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -120,8 +118,7 @@ export function OpponentAutocomplete({
 
   return (
     <div className={cn("relative", className)}>
-      <Label htmlFor="opponent">{label} {required && '*'}</Label>
-      <div className="relative mt-2">
+      <div className="relative">
         <Input
           ref={inputRef}
           id="opponent"
