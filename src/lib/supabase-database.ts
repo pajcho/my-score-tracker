@@ -58,23 +58,23 @@ class SupabaseDatabaseService {
       let friend_name = null;
       
       if (score.opponent_user_id) {
-        // If current user is the score creator, get opponent's name
+        let friendUserId = null;
+        
+        // If current user created the score, get opponent's name
         if (score.user_id === user.id) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('user_id', score.opponent_user_id)
-            .single();
-          
-          friend_name = profile?.name || null;
+          friendUserId = score.opponent_user_id;
         } 
         // If current user is the opponent, get creator's name
         else if (score.opponent_user_id === user.id) {
+          friendUserId = score.user_id;
+        }
+        
+        if (friendUserId) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('name')
-            .eq('user_id', score.user_id)
-            .single();
+            .eq('user_id', friendUserId)
+            .maybeSingle();
           
           friend_name = profile?.name || null;
         }
