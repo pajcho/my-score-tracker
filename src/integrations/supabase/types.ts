@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      friend_invitations: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          receiver_email: string
+          receiver_id: string
+          sender_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          receiver_email: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          receiver_email?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user1_id: string
+          user2_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user1_id: string
+          user2_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user1_id?: string
+          user2_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -82,7 +139,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      are_friends: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: boolean
+      }
+      get_user_friends: {
+        Args: { target_user_id?: string }
+        Returns: {
+          friend_id: string
+          friend_name: string
+          friend_email: string
+          friendship_created_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

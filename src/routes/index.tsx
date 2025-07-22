@@ -6,6 +6,7 @@ import { HomePage } from "@/components/pages/HomePage";
 import { HistoryPage } from "@/components/pages/HistoryPage";
 import { ProfilePage } from "@/components/pages/ProfilePage";
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
+import { FriendsPage } from "@/components/pages/FriendsPage";
 import { LiveScorePage } from "@/components/pages/LiveScorePage";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
@@ -37,6 +38,10 @@ export const router = createBrowserRouter([
       {
         path: "statistics",
         element: <ProtectedRoute><StatisticsPage /></ProtectedRoute>
+      },
+      {
+        path: "friends",
+        element: <ProtectedRoute><FriendsPage /></ProtectedRoute>
       },
       {
         path: "live",

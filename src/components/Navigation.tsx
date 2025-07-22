@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, History, User, BarChart3, LogOut, Trophy } from 'lucide-react';
+import { Home, History, User, BarChart3, LogOut, Trophy, Users } from 'lucide-react';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { EnhancedButton } from './ui/enhanced-button';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ export function Navigation() {
     { to: '/', icon: Home, label: 'Home' },
     { to: '/history', icon: History, label: 'History' },
     { to: '/statistics', icon: BarChart3, label: 'Statistics' },
+    { to: '/friends', icon: Users, label: 'Friends' },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
