@@ -104,7 +104,7 @@ export type Database = {
           date: string
           game: string
           id: string
-          opponent_name: string
+          opponent_name: string | null
           opponent_user_id: string | null
           score: string
           updated_at: string
@@ -115,7 +115,7 @@ export type Database = {
           date: string
           game: string
           id?: string
-          opponent_name: string
+          opponent_name?: string | null
           opponent_user_id?: string | null
           score: string
           updated_at?: string
@@ -126,7 +126,7 @@ export type Database = {
           date?: string
           game?: string
           id?: string
-          opponent_name?: string
+          opponent_name?: string | null
           opponent_user_id?: string | null
           score?: string
           updated_at?: string
