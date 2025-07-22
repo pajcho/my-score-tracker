@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Save, X, Triangle, Zap } from 'lucide-react';
+import { Calendar, Save, X, Triangle, Zap, Users, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -34,20 +35,27 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
+  const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<string>('');
+  const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('custom');
   const { toast } = useToast();
 
-  // Load opponents for autocomplete
+  // Load opponents and friends for autocomplete
   useEffect(() => {
-    const loadOpponents = async () => {
+    const loadData = async () => {
       if (!supabaseAuth.isAuthenticated()) return;
       try {
-        const uniqueOpponents = await supabaseDb.getUniqueOpponents();
+        const [uniqueOpponents, userFriends] = await Promise.all([
+          supabaseDb.getUniqueOpponents(),
+          supabaseDb.getFriends()
+        ]);
         setOpponents(uniqueOpponents);
+        setFriends(userFriends);
       } catch (error) {
-        console.error('Failed to load opponents:', error);
+        console.error('Failed to load data:', error);
       }
     };
-    loadOpponents();
+    loadData();
   }, []);
 
   const games = [
@@ -58,10 +66,28 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!game || !opponent || !yourScore || !opponentScore) {
+    if (!game || !yourScore || !opponentScore) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (opponentType === 'custom' && !opponent) {
+      toast({
+        title: "Missing information",
+        description: "Please enter an opponent name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (opponentType === 'friend' && !selectedFriend) {
+      toast({
+        title: "Missing information",
+        description: "Please select a friend to play against",
         variant: "destructive",
       });
       return;
@@ -80,11 +106,24 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
 
     try {
       const combinedScore = `${yourScore}-${opponentScore}`;
+      
+      let opponentName = opponent;
+      let opponentUserId: string | undefined;
+      
+      if (opponentType === 'friend') {
+        const friend = friends.find(f => f.id === selectedFriend);
+        if (friend) {
+          opponentName = friend.name;
+          opponentUserId = friend.id;
+        }
+      }
+      
       await supabaseDb.createScore(
         game,
-        opponent,
+        opponentName,
         combinedScore,
-        format(date, 'yyyy-MM-dd')
+        format(date, 'yyyy-MM-dd'),
+        opponentUserId
       );
 
       toast({
@@ -157,14 +196,51 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
               </Popover>
             </div>
 
-            {/* Opponent */}
-            <div className="md:col-span-2">
-              <OpponentAutocomplete
-                value={opponent}
-                onChange={setOpponent}
-                opponents={opponents}
-                required
-              />
+            {/* Opponent Selection */}
+            <div className="md:col-span-2 space-y-4">
+              <Label>Opponent *</Label>
+              <Tabs value={opponentType} onValueChange={(value) => setOpponentType(value as 'custom' | 'friend')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="custom" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Custom
+                  </TabsTrigger>
+                  <TabsTrigger value="friend" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Friend
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="custom" className="space-y-2">
+                  <OpponentAutocomplete
+                    value={opponent}
+                    onChange={setOpponent}
+                    opponents={opponents}
+                    required={opponentType === 'custom'}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="friend" className="space-y-2">
+                  <Select value={selectedFriend} onValueChange={setSelectedFriend}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a friend" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {friends.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No friends yet. Add friends to play against them!
+                        </div>
+                      ) : (
+                        friends.map((friend) => (
+                          <SelectItem key={friend.id} value={friend.id}>
+                            {friend.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Scores */}

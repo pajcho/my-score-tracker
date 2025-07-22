@@ -117,6 +117,22 @@ class SupabaseDatabaseService {
 
     if (error) throw error;
   }
+
+  async getFriends(): Promise<{ id: string; name: string; email: string }[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .rpc('get_user_friends');
+
+    if (error) throw error;
+
+    return data.map((friend: any) => ({
+      id: friend.friend_id,
+      name: friend.friend_name,
+      email: friend.friend_email
+    }));
+  }
 }
 
 export const supabaseDb = new SupabaseDatabaseService();

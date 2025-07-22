@@ -125,7 +125,9 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />
-                        <span className="truncate">You vs {score.opponent_name || 'Friend'}</span>
+                        <span className="truncate">
+                          You vs {score.opponent_name} {score.opponent_user_id && '👥'}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
