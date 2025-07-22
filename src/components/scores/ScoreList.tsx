@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, Trash2, Tablets, Zap, Calendar, User } from 'lucide-react';
+import { Edit, Trash2, Tablets, Zap, Calendar, User, Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +79,7 @@ export function ScoreList({ scores, onScoreUpdated, compact = false }: ScoreList
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
       {scores.map((score) => {
-        const Icon = gameIcons[score.game as keyof typeof gameIcons];
+        const Icon = gameIcons[score.game as keyof typeof gameIcons] || Trophy;
         const result = getScoreResult(score.score);
         
         return (
