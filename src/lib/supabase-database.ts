@@ -58,13 +58,26 @@ class SupabaseDatabaseService {
       let friend_name = null;
       
       if (score.opponent_user_id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', score.opponent_user_id)
-          .single();
-        
-        friend_name = profile?.name || null;
+        // If current user is the score creator, get opponent's name
+        if (score.user_id === user.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('user_id', score.opponent_user_id)
+            .single();
+          
+          friend_name = profile?.name || null;
+        } 
+        // If current user is the opponent, get creator's name
+        else if (score.opponent_user_id === user.id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('user_id', score.user_id)
+            .single();
+          
+          friend_name = profile?.name || null;
+        }
       }
       
       return {
