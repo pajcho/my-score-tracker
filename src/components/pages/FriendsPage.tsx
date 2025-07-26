@@ -165,26 +165,22 @@ export function FriendsPage() {
       </div>
 
       <Tabs defaultValue="friends" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
-          <TabsTrigger value="friends" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Friends</span>
-            <span className="sm:hidden">F</span> ({friends.length})
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="friends" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Friends ({friends.length})
           </TabsTrigger>
-          <TabsTrigger value="invite" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <UserPlus className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Invite Friend</span>
-            <span className="sm:hidden">Invite</span>
+          <TabsTrigger value="invite" className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            Invite Friend
           </TabsTrigger>
-          <TabsTrigger value="received" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Received</span>
-            <span className="sm:hidden">R</span> ({receivedInvitations.length})
+          <TabsTrigger value="received" className="flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            Received ({receivedInvitations.length})
           </TabsTrigger>
-          <TabsTrigger value="sent" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Sent</span>
-            <span className="sm:hidden">S</span> ({sentInvitations.length})
+          <TabsTrigger value="sent" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Sent ({sentInvitations.length})
           </TabsTrigger>
         </TabsList>
 
