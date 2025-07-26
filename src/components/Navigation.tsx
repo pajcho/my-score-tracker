@@ -58,7 +58,7 @@ export function Navigation() {
           {/* User Info & Logout */}
           <div className="flex items-center gap-4">
             {authState.profile && (
-              <span className="hidden sm:block text-sm text-muted-foreground">
+              <span className="hidden lg:block text-sm text-muted-foreground">
                 Hello, {authState.profile.name}
               </span>
             )}
