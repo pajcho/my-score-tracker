@@ -42,9 +42,12 @@ export function HistoryPage() {
 
     // Filter by search term (opponent names)
     if (searchTerm) {
-      filtered = filtered.filter(score => 
-        (score.opponent_name && score.opponent_name.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      filtered = filtered.filter(score => {
+        const searchLower = searchTerm.toLowerCase();
+        const opponentName = score.opponent_name?.toLowerCase() || '';
+        const friendName = (score as any).friend_name?.toLowerCase() || '';
+        return opponentName.includes(searchLower) || friendName.includes(searchLower);
+      });
     }
 
     setFilteredScores(filtered);
