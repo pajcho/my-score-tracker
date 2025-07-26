@@ -166,19 +166,19 @@ export function FriendsPage() {
 
       <Tabs defaultValue="friends" className="space-y-6">
         <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto">
-          <TabsTrigger value="friends" className="flex items-center gap-2">
+          <TabsTrigger value="friends" className="flex items-center gap-2 justify-start sm:justify-center">
             <Users className="h-4 w-4" />
             Friends ({friends.length})
           </TabsTrigger>
-          <TabsTrigger value="invite" className="flex items-center gap-2">
+          <TabsTrigger value="invite" className="flex items-center gap-2 justify-start sm:justify-center">
             <UserPlus className="h-4 w-4" />
             Invite Friend
           </TabsTrigger>
-          <TabsTrigger value="received" className="flex items-center gap-2">
+          <TabsTrigger value="received" className="flex items-center gap-2 justify-start sm:justify-center">
             <Mail className="h-4 w-4" />
             Received ({receivedInvitations.length})
           </TabsTrigger>
-          <TabsTrigger value="sent" className="flex items-center gap-2">
+          <TabsTrigger value="sent" className="flex items-center gap-2 justify-start sm:justify-center">
             <Clock className="h-4 w-4" />
             Sent ({sentInvitations.length})
           </TabsTrigger>
