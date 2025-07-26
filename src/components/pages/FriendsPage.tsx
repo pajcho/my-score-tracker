@@ -201,7 +201,7 @@ export function FriendsPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {friends.map((friend) => (
-                    <Card key={friend.friend_id} className="shadow-card border-0">
+                    <Card key={friend.friend_id} className="shadow-card border-0 group">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
@@ -213,7 +213,11 @@ export function FriendsPage() {
                           </div>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
