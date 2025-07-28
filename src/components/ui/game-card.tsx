@@ -126,7 +126,10 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3" />
                   <span className="truncate">
-                    You vs {(score as any).friend_name || score.opponent_name || 'Unknown'}
+                    {isOwnScore 
+                      ? `You vs ${(score as any).friend_name || score.opponent_name || 'Unknown'}`
+                      : `${(score as any).friend_name || score.opponent_name || 'Unknown'} vs You`
+                    }
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
