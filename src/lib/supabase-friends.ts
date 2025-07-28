@@ -127,11 +127,11 @@ class SupabaseFriendsService {
           .from('profiles')
           .select('name')
           .eq('user_id', invitation.sender_id)
-          .single();
+          .maybeSingle();
 
         return {
           ...invitation,
-          sender_name: senderProfile?.name
+          sender_name: senderProfile?.name || 'Unknown User'
         };
       })
     );
