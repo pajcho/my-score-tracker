@@ -10,7 +10,6 @@ export interface Friend {
 export interface FriendInvitation {
   id: string;
   sender_id: string;
-  receiver_id: string;
   receiver_email: string;
   status: 'pending' | 'accepted' | 'declined';
   message?: string;
@@ -48,8 +47,7 @@ class SupabaseFriendsService {
       throw new Error('A pending invitation already exists for this email');
     }
 
-    // Get receiver user ID if they exist
-    let receiverId = null;
+    // Check if receiver exists and if already friends
     const { data: receiverProfile } = await supabase
       .from('profiles')
       .select('user_id')
@@ -57,10 +55,8 @@ class SupabaseFriendsService {
       .maybeSingle();
 
     if (receiverProfile) {
-      receiverId = receiverProfile.user_id;
-
       // Check if already friends
-      const areFriends = await this.areUsersFriends(user.id, receiverId);
+      const areFriends = await this.areUsersFriends(user.id, receiverProfile.user_id);
       if (areFriends) {
         throw new Error('You are already friends with this user');
       }
@@ -70,7 +66,6 @@ class SupabaseFriendsService {
       .from('friend_invitations')
       .insert({
         sender_id: user.id,
-        receiver_id: receiverId,
         receiver_email: receiverEmail,
         message,
         status: 'pending'
@@ -115,19 +110,11 @@ class SupabaseFriendsService {
 
     if (!profile) throw new Error('User profile not found');
 
-    // First, update any pending invitations sent to this email to link the receiver_id
-    await supabase
-      .from('friend_invitations')
-      .update({ receiver_id: user.id })
-      .eq('receiver_email', profile.email)
-      .is('receiver_id', null)
-      .eq('status', 'pending');
-
-    // Now get all invitations (both by receiver_id and by email)
+    // Get all invitations by email
     const { data, error } = await supabase
       .from('friend_invitations')
       .select('*')
-      .or(`receiver_id.eq.${user.id},and(receiver_email.eq.${profile.email},receiver_id.is.null)`)
+      .eq('receiver_email', profile.email)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
@@ -159,12 +146,21 @@ class SupabaseFriendsService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Get user's email to check invitation
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+
     // Get the invitation
     const { data: invitation, error: invitationError } = await supabase
       .from('friend_invitations')
       .select('*')
       .eq('id', invitationId)
-      .or(`receiver_id.eq.${user.id},receiver_email.eq.${user.email}`)
+      .eq('receiver_email', profile.email)
       .eq('status', 'pending')
       .single();
 
@@ -201,11 +197,20 @@ class SupabaseFriendsService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Get user's email to check invitation
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+
     const { error } = await supabase
       .from('friend_invitations')
       .update({ status: 'declined' })
       .eq('id', invitationId)
-      .or(`receiver_id.eq.${user.id},receiver_email.eq.${user.email}`);
+      .eq('receiver_email', profile.email);
 
     if (error) throw error;
   }
