@@ -1,8 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, History, User, BarChart3, LogOut, Trophy, Users } from 'lucide-react';
+import { Home, History, User, BarChart3, Trophy, Users } from 'lucide-react';
 import { supabaseAuth } from '@/lib/supabase-auth';
-import { EnhancedButton } from './ui/enhanced-button';
 import { cn } from '@/lib/utils';
 
 export function Navigation() {
@@ -14,9 +13,6 @@ export function Navigation() {
     return unsubscribe;
   }, []);
 
-  const handleLogout = async () => {
-    await supabaseAuth.signOut();
-  };
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
@@ -55,22 +51,13 @@ export function Navigation() {
             ))}
           </div>
 
-          {/* User Info & Logout */}
+          {/* User Info */}
           <div className="flex items-center gap-4">
             {authState.profile && (
               <span className="hidden lg:block text-sm text-muted-foreground">
                 Hello, {authState.profile.name}
               </span>
             )}
-            <EnhancedButton
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </EnhancedButton>
           </div>
         </div>
 
