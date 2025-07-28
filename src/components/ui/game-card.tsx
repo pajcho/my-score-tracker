@@ -39,10 +39,16 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
     'Ping Pong': Zap,
   };
 
-  const getScoreResult = (scoreString: string) => {
-    const [player1Score, player2Score] = scoreString.split('-').map(Number);
-    if (player1Score > player2Score) return 'win';
-    if (player1Score < player2Score) return 'loss';
+  const getScoreResult = (scoreString: string, isCreator: boolean) => {
+    const [score1, score2] = scoreString.split('-').map(Number);
+    
+    // If current user is the creator: score1 is their score, score2 is opponent's
+    // If current user is NOT the creator: score1 is creator's score, score2 is current user's
+    const userScore = isCreator ? score1 : score2;
+    const opponentScore = isCreator ? score2 : score1;
+    
+    if (userScore > opponentScore) return 'win';
+    if (userScore < opponentScore) return 'loss';
     return 'tie';
   };
 
@@ -70,9 +76,9 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
   };
 
   const Icon = gameIcons[score.game as keyof typeof gameIcons] || Trophy;
-  const result = getScoreResult(score.score);
   const currentUser = supabaseAuth.getCurrentUser();
   const isOwnScore = currentUser && score.user_id === currentUser.id;
+  const result = getScoreResult(score.score, isOwnScore);
   const canShowActions = showActions && isOwnScore;
 
   return (
