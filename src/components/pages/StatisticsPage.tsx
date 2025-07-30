@@ -275,7 +275,7 @@ export function StatisticsPage() {
                   <div>
                     <div className="font-medium text-secondary">Best Game</div>
                     <div className="text-sm text-muted-foreground">
-                      {bestScore ? `${bestScore.game} vs ${bestScore.opponent_name || 'Friend'}` : 'N/A'}
+                      {bestScore ? `${bestScore.game} vs ${(bestScore as any).friend_name || bestScore.opponent_name || 'Unknown'}` : 'N/A'}
                     </div>
                   </div>
                   <div className="text-lg font-bold text-secondary">
@@ -287,7 +287,7 @@ export function StatisticsPage() {
                   <div>
                     <div className="font-medium">Worst Game</div>
                     <div className="text-sm text-muted-foreground">
-                      {worstScore ? `${worstScore.game} vs ${worstScore.opponent_name || 'Friend'}` : 'N/A'}
+                      {worstScore ? `${worstScore.game} vs ${(worstScore as any).friend_name || worstScore.opponent_name || 'Unknown'}` : 'N/A'}
                     </div>
                   </div>
                   <div className="text-lg font-bold">
