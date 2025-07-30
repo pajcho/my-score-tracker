@@ -22,14 +22,14 @@ interface ScoreFormProps {
 }
 
 export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) {
-  const [game, setGame] = useState(initialData?.game || '');
+  const [game, setGame] = useState(initialData?.game || 'Pool');
   const [opponent, setOpponent] = useState(initialData?.opponent_name || '');
   const [yourScore, setYourScore] = useState(initialData?.score ? initialData.score.split('-')[0] : '');
   const [opponentScore, setOpponentScore] = useState(initialData?.score ? initialData.score.split('-')[1] : '');
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string>('');
-  const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('custom');
+  const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('friend');
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {

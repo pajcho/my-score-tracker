@@ -34,9 +34,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [games, setGames] = useState<LiveGame[]>([]);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
-    game: '',
+    game: 'Pool',
     opponent: '',
-    opponentType: 'custom' as 'custom' | 'friend',
+    opponentType: 'friend' as 'custom' | 'friend',
     selectedFriend: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -134,7 +134,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       onActiveGamesChange?.(newGames.length > 0);
       return newGames;
     });
-    setNewGame({ game: '', opponent: '', opponentType: 'custom', selectedFriend: '' });
+    setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
     setShowNewGameForm(false);
 
     toast({
@@ -478,7 +478,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   variant="outline" 
                   onClick={() => {
                     setShowNewGameForm(false);
-                    setNewGame({ game: '', opponent: '', opponentType: 'custom', selectedFriend: '' });
+                    setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
                   }}
                   size="sm"
                 >
