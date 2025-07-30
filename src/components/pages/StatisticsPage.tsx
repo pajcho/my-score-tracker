@@ -92,15 +92,41 @@ export function StatisticsPage() {
     }, 0) / totalGames : 0;
 
   const bestScore = filteredScores.reduce((best, score) => {
-    const [player1Score] = score.score.split('-').map(Number);
-    const [bestPlayer1Score] = (best?.score || '0-0').split('-').map(Number);
-    return player1Score > bestPlayer1Score ? score : best;
+    const [player1Score, player2Score] = score.score.split('-').map(Number);
+    const userWon = player1Score > player2Score;
+    const scoreDifference = Math.abs(player1Score - player2Score);
+    
+    if (!best) return score;
+    
+    const [bestP1, bestP2] = best.score.split('-').map(Number);
+    const bestUserWon = bestP1 > bestP2;
+    const bestScoreDifference = Math.abs(bestP1 - bestP2);
+    
+    // Prioritize wins, then score difference
+    if (userWon && !bestUserWon) return score;
+    if (!userWon && bestUserWon) return best;
+    if (userWon && bestUserWon) return scoreDifference > bestScoreDifference ? score : best;
+    // Both losses, prefer smaller loss margin
+    return scoreDifference < bestScoreDifference ? score : best;
   }, null as Score | null);
 
   const worstScore = filteredScores.reduce((worst, score) => {
-    const [player1Score] = score.score.split('-').map(Number);
-    const [worstPlayer1Score] = (worst?.score || '999-999').split('-').map(Number);
-    return player1Score < worstPlayer1Score ? score : worst;
+    const [player1Score, player2Score] = score.score.split('-').map(Number);
+    const userWon = player1Score > player2Score;
+    const scoreDifference = Math.abs(player1Score - player2Score);
+    
+    if (!worst) return score;
+    
+    const [worstP1, worstP2] = worst.score.split('-').map(Number);
+    const worstUserWon = worstP1 > worstP2;
+    const worstScoreDifference = Math.abs(worstP1 - worstP2);
+    
+    // Prioritize losses, then score difference
+    if (!userWon && worstUserWon) return score;
+    if (userWon && !worstUserWon) return worst;
+    if (!userWon && !worstUserWon) return scoreDifference > worstScoreDifference ? score : worst;
+    // Both wins, prefer smaller win margin
+    return scoreDifference < worstScoreDifference ? score : worst;
   }, null as Score | null);
 
   return (
