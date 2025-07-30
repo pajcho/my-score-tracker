@@ -27,7 +27,7 @@ export function HomePage() {
     try {
       setIsLoading(true);
       const userScores = await supabaseDb.getScoresByUserId();
-      setScores(userScores.slice(0, 5)); // Show only recent 5 scores
+      setScores(userScores); // Store all scores for stats calculation
     } catch (error) {
       console.error('Failed to load scores:', error);
     } finally {
@@ -174,7 +174,7 @@ export function HomePage() {
             </div>
           ) : scores.length > 0 ? (
             <ScoreList 
-              scores={scores} 
+              scores={scores.slice(0, 5)} 
               onScoreUpdated={loadScores}
               compact={true}
             />
