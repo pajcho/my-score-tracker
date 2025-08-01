@@ -68,7 +68,12 @@ export function StatisticsPage() {
   const totalGames = filteredScores.length;
   const totalWins = filteredScores.filter(score => {
     const [player1Score, player2Score] = score.score.split('-').map(Number);
-    return player1Score > player2Score;
+    // If current user is the score creator, use score as-is
+    // If current user is the opponent, flip the perspective
+    const isCurrentUserScoreCreator = score.user_id === user?.user_id;
+    const currentUserScore = isCurrentUserScoreCreator ? player1Score : player2Score;
+    const opponentScore = isCurrentUserScoreCreator ? player2Score : player1Score;
+    return currentUserScore > opponentScore;
   }).length;
   const totalLosses = totalGames - totalWins;
   const winPercentage = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
@@ -87,20 +92,28 @@ export function StatisticsPage() {
 
   const averageScore = totalGames > 0 ? 
     filteredScores.reduce((sum, score) => {
-      const [player1Score] = score.score.split('-').map(Number);
-      return sum + player1Score;
+      const [player1Score, player2Score] = score.score.split('-').map(Number);
+      const isCurrentUserScoreCreator = score.user_id === user?.user_id;
+      const currentUserScore = isCurrentUserScoreCreator ? player1Score : player2Score;
+      return sum + currentUserScore;
     }, 0) / totalGames : 0;
 
   const bestScore = filteredScores.reduce((best, score) => {
     const [player1Score, player2Score] = score.score.split('-').map(Number);
-    const userWon = player1Score > player2Score;
-    const scoreDifference = Math.abs(player1Score - player2Score);
+    const isCurrentUserScoreCreator = score.user_id === user?.user_id;
+    const currentUserScore = isCurrentUserScoreCreator ? player1Score : player2Score;
+    const opponentScore = isCurrentUserScoreCreator ? player2Score : player1Score;
+    const userWon = currentUserScore > opponentScore;
+    const scoreDifference = Math.abs(currentUserScore - opponentScore);
     
     if (!best) return score;
     
     const [bestP1, bestP2] = best.score.split('-').map(Number);
-    const bestUserWon = bestP1 > bestP2;
-    const bestScoreDifference = Math.abs(bestP1 - bestP2);
+    const isBestCurrentUserScoreCreator = best.user_id === user?.user_id;
+    const bestCurrentUserScore = isBestCurrentUserScoreCreator ? bestP1 : bestP2;
+    const bestOpponentScore = isBestCurrentUserScoreCreator ? bestP2 : bestP1;
+    const bestUserWon = bestCurrentUserScore > bestOpponentScore;
+    const bestScoreDifference = Math.abs(bestCurrentUserScore - bestOpponentScore);
     
     // Prioritize wins, then score difference
     if (userWon && !bestUserWon) return score;
@@ -112,14 +125,20 @@ export function StatisticsPage() {
 
   const worstScore = filteredScores.reduce((worst, score) => {
     const [player1Score, player2Score] = score.score.split('-').map(Number);
-    const userWon = player1Score > player2Score;
-    const scoreDifference = Math.abs(player1Score - player2Score);
+    const isCurrentUserScoreCreator = score.user_id === user?.user_id;
+    const currentUserScore = isCurrentUserScoreCreator ? player1Score : player2Score;
+    const opponentScore = isCurrentUserScoreCreator ? player2Score : player1Score;
+    const userWon = currentUserScore > opponentScore;
+    const scoreDifference = Math.abs(currentUserScore - opponentScore);
     
     if (!worst) return score;
     
     const [worstP1, worstP2] = worst.score.split('-').map(Number);
-    const worstUserWon = worstP1 > worstP2;
-    const worstScoreDifference = Math.abs(worstP1 - worstP2);
+    const isWorstCurrentUserScoreCreator = worst.user_id === user?.user_id;
+    const worstCurrentUserScore = isWorstCurrentUserScoreCreator ? worstP1 : worstP2;
+    const worstOpponentScore = isWorstCurrentUserScoreCreator ? worstP2 : worstP1;
+    const worstUserWon = worstCurrentUserScore > worstOpponentScore;
+    const worstScoreDifference = Math.abs(worstCurrentUserScore - worstOpponentScore);
     
     // Prioritize losses, then score difference
     if (!userWon && worstUserWon) return score;
