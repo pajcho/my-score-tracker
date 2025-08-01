@@ -1,26 +1,49 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Home, History, User, BarChart3, Trophy, Users } from 'lucide-react';
+import { Home, History, User, BarChart3, Trophy, Users, LogOut } from 'lucide-react';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import crypto from 'crypto';
 
 export function Navigation() {
   const location = useLocation();
   const [authState, setAuthState] = useState(supabaseAuth.getState());
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = supabaseAuth.subscribe(setAuthState);
     return unsubscribe;
   }, []);
 
-
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/history', icon: History, label: 'History' },
     { to: '/statistics', icon: BarChart3, label: 'Statistics' },
-    { to: '/friends', icon: Users, label: 'Friends' },
-    { to: '/profile', icon: User, label: 'Profile' },
   ];
+
+  const getGravatarUrl = (email: string) => {
+    const hash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex');
+    return `https://www.gravatar.com/avatar/${hash}?d=mp&s=32`;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabaseAuth.signOut();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      toast({
+        title: "Logout failed", 
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <nav className="bg-card border-b border-border shadow-card">
@@ -32,8 +55,8 @@ export function Navigation() {
             ScoreTracker
           </Link>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-1">
+          {/* Navigation Links - Centered */}
+          <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {navItems.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
@@ -51,14 +74,44 @@ export function Navigation() {
             ))}
           </div>
 
-          {/* User Info */}
-          <div className="flex items-center gap-4">
-            {authState.profile && (
-              <span className="hidden lg:block text-sm text-muted-foreground">
-                Hello, {authState.profile.name}
-              </span>
-            )}
-          </div>
+          {/* User Avatar Dropdown */}
+          {authState.profile && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-3 hover:bg-muted/50 rounded-lg p-2 transition-smooth">
+                <span className="hidden sm:block text-sm font-medium text-foreground">
+                  {authState.profile.name}
+                </span>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage 
+                    src={getGravatarUrl(authState.profile.email)} 
+                    alt={authState.profile.name}
+                  />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User className="h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/friends" className="flex items-center gap-2 cursor-pointer">
+                    <Users className="h-4 w-4" />
+                    Friends
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Mobile Navigation */}
@@ -79,6 +132,30 @@ export function Navigation() {
                 {label}
               </Link>
             ))}
+            <Link
+              to="/friends"
+              className={cn(
+                "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
+                location.pathname === "/friends"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Users className="h-5 w-5" />
+              Friends
+            </Link>
+            <Link
+              to="/profile"
+              className={cn(
+                "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
+                location.pathname === "/profile"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <User className="h-5 w-5" />
+              Profile
+            </Link>
           </div>
         </div>
       </div>

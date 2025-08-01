@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Lock, Trash2, Save, LogOut } from 'lucide-react';
+import { User, Lock, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -98,26 +98,6 @@ export function ProfilePage() {
     }
   };
 
-  const handleLogout = async () => {
-    setIsLoading(true);
-    
-    try {
-      await supabaseAuth.signOut();
-      
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
-    } catch (error) {
-      toast({
-        title: "Logout failed", 
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDeleteAccount = async () => {
     setIsLoading(true);
@@ -272,24 +252,6 @@ export function ProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <h4 className="font-medium mb-2">Sign Out</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Sign out of your account on this device.
-              </p>
-              <EnhancedButton
-                variant="outline"
-                onClick={handleLogout}
-                className="w-full sm:w-auto"
-                disabled={isLoading}
-              >
-                <LogOut className="h-4 w-4" />
-                {isLoading ? "Signing out..." : "Sign Out"}
-              </EnhancedButton>
-            </div>
-
-            <Separator />
-
             <div className="p-4 bg-destructive/5 rounded-lg border border-destructive/20">
               <h4 className="font-medium text-destructive mb-2">Delete Account</h4>
               <p className="text-sm text-muted-foreground mb-4">
