@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import crypto from 'crypto';
 
 export function Navigation() {
   const location = useLocation();
@@ -24,10 +23,22 @@ export function Navigation() {
     { to: '/statistics', icon: BarChart3, label: 'Statistics' },
   ];
 
-  const getGravatarUrl = (email: string) => {
-    const hash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex');
+  const getGravatarUrl = async (email: string) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(email.toLowerCase().trim());
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return `https://www.gravatar.com/avatar/${hash}?d=mp&s=32`;
   };
+
+  const [gravatarUrl, setGravatarUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (authState.profile?.email) {
+      getGravatarUrl(authState.profile.email).then(setGravatarUrl);
+    }
+  }, [authState.profile?.email]);
 
   const handleLogout = async () => {
     try {
@@ -83,7 +94,7 @@ export function Navigation() {
                 </span>
                 <Avatar className="h-8 w-8">
                   <AvatarImage 
-                    src={getGravatarUrl(authState.profile.email)} 
+                    src={gravatarUrl} 
                     alt={authState.profile.name}
                   />
                   <AvatarFallback>
