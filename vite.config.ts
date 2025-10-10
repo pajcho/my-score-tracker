@@ -19,5 +19,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '/my-score-tracker/', // 👈 IMPORTANT: repo name, with leading and trailing slashes
+  base: './',
 }));
