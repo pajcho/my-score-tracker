@@ -9,6 +9,7 @@ import { StatisticsPage } from "@/components/pages/StatisticsPage";
 import { FriendsPage } from "@/components/pages/FriendsPage";
 import { LiveScorePage } from "@/components/pages/LiveScorePage";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import {getBaseName} from "@/routerBase.ts";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,8 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <Navigate to="/" replace />
-  }
-]);
+    element: <Navigate to="/" replace />,
+  },
+], {
+  basename: getBaseName(),
+});
