@@ -33,11 +33,11 @@ export function Navigation() {
   ];
 
   const getGravatarUrl = async (email: string) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(email.toLowerCase().trim());
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailBytes = new TextEncoder().encode(normalizedEmail);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hash = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
     return `https://www.gravatar.com/avatar/${hash}?d=mp&s=32`;
   };
 
