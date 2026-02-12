@@ -12,6 +12,20 @@ export interface Score {
   updated_at: string;
 }
 
+export interface LiveGame {
+  id: string;
+  created_by_user_id: string;
+  game: 'Pool' | 'Ping Pong';
+  opponent_name: string | null;
+  opponent_user_id: string | null;
+  score1: number;
+  score2: number;
+  date: string;
+  started_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 class SupabaseDatabaseService {
   async createScore(
     game: string,
@@ -54,7 +68,7 @@ class SupabaseDatabaseService {
     if (error) throw error;
     
     // Get friend names for scores with opponent_user_id
-    const enrichedScores = await Promise.all((data || []).map(async (score: any) => {
+    const enrichedScores = await Promise.all((data || []).map(async (score) => {
       let friend_name = null;
       
       if (score.opponent_user_id) {
@@ -177,11 +191,134 @@ class SupabaseDatabaseService {
 
     if (error) throw error;
 
-    return data.map((friend: any) => ({
+    return data.map((friend) => ({
       id: friend.friend_id,
       name: friend.friend_name,
       email: friend.friend_email
     }));
+  }
+
+  async createLiveGame(
+    game: string,
+    opponent_name: string | null,
+    date: string,
+    opponent_user_id?: string
+  ): Promise<LiveGame> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('live_games')
+      .insert({
+        created_by_user_id: user.id,
+        game,
+        opponent_name: opponent_user_id ? null : opponent_name,
+        opponent_user_id: opponent_user_id || null,
+        date,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as LiveGame;
+  }
+
+  async getLiveGames(): Promise<(LiveGame & { friend_name?: string })[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('live_games')
+      .select('*')
+      .order('started_at', { ascending: false });
+
+    if (error) throw error;
+
+    const enrichedGames = await Promise.all((data || []).map(async (game) => {
+      let friend_name = null;
+
+      if (game.opponent_user_id) {
+        const friendUserId =
+          game.created_by_user_id === user.id ? game.opponent_user_id : game.created_by_user_id;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('user_id', friendUserId)
+          .maybeSingle();
+
+        friend_name = profile?.name || null;
+      }
+
+      return {
+        ...game,
+        friend_name
+      };
+    }));
+
+    return enrichedGames as (LiveGame & { friend_name?: string })[];
+  }
+
+  async updateLiveGameScore(id: string, score1: number, score2: number): Promise<void> {
+    const { error } = await supabase
+      .from('live_games')
+      .update({ score1, score2 })
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async deleteLiveGame(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('live_games')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  async completeLiveGame(id: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data: liveGame, error: liveGameError } = await supabase
+      .from('live_games')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (liveGameError) throw liveGameError;
+    if (!liveGame) throw new Error('Live game not found');
+    if (liveGame.created_by_user_id !== user.id) {
+      throw new Error('Only the game creator can save the final score');
+    }
+
+    await this.createScore(
+      liveGame.game,
+      liveGame.opponent_user_id ? null : liveGame.opponent_name,
+      `${liveGame.score1}-${liveGame.score2}`,
+      liveGame.date,
+      liveGame.opponent_user_id || undefined
+    );
+
+    await this.deleteLiveGame(id);
+  }
+
+  subscribeToLiveGames(onChange: () => void | Promise<void>): () => void {
+    const channel = supabase
+      .channel(`live-games-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_games' },
+        () => {
+          void onChange();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }
 
   async deleteAccount(): Promise<void> {

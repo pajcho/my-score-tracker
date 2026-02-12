@@ -68,6 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      live_games: {
+        Row: {
+          created_at: string
+          created_by_user_id: string
+          date: string
+          game: string
+          id: string
+          opponent_name: string | null
+          opponent_user_id: string | null
+          score1: number
+          score2: number
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id: string
+          date?: string
+          game: string
+          id?: string
+          opponent_name?: string | null
+          opponent_user_id?: string | null
+          score1?: number
+          score2?: number
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string
+          date?: string
+          game?: string
+          id?: string
+          opponent_name?: string | null
+          opponent_user_id?: string | null
+          score1?: number
+          score2?: number
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

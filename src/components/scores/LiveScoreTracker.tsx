@@ -10,19 +10,10 @@ import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb } from '@/lib/supabase-database';
+import { supabaseDb, LiveGame as LiveGameRecord } from '@/lib/supabase-database';
 import { format } from 'date-fns';
 
-interface LiveGame {
-  id: string;
-  game: string;
-  opponent: string;
-  opponentUserId?: string;
-  score1: number;
-  score2: number;
-  date: string;
-  startTime: Date;
-}
+type LiveGameView = LiveGameRecord & { friend_name?: string };
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -31,7 +22,7 @@ interface LiveScoreTrackerProps {
 }
 
 export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
-  const [games, setGames] = useState<LiveGame[]>([]);
+  const [games, setGames] = useState<LiveGameView[]>([]);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
     game: 'Pool',
@@ -42,8 +33,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
   const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [, setTimeTicker] = useState(new Date());
   const { toast } = useToast();
+  const currentUser = supabaseAuth.getCurrentUser();
 
   const gameTypes = [
     { value: 'Pool', label: 'Pool', icon: Triangle },
@@ -53,33 +45,63 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   // Update timer every minute
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      setTimeTicker(new Date());
     }, 60000); // Update every minute
 
     return () => clearInterval(timer);
   }, []);
 
-  // Load previously entered opponents and friends for autocomplete
+  // Load initial data and subscribe to realtime updates for live games
   useEffect(() => {
+    let isMounted = true;
+
+    const loadLiveGames = async () => {
+      try {
+        const userLiveGames = await supabaseDb.getLiveGames();
+        if (isMounted) {
+          setGames(userLiveGames);
+        }
+      } catch (error) {
+        console.error('Failed to load live games:', error);
+      }
+    };
+
     const loadData = async () => {
       if (!supabaseAuth.isAuthenticated()) return;
 
       try {
         const [uniqueOpponents, userFriends] = await Promise.all([
           supabaseDb.getUniqueOpponents(),
-          supabaseDb.getFriends()
+          supabaseDb.getFriends(),
         ]);
-        setOpponents(uniqueOpponents);
-        setFriends(userFriends);
+        if (isMounted) {
+          setOpponents(uniqueOpponents);
+          setFriends(userFriends);
+        }
       } catch (error) {
         console.error('Failed to load data:', error);
       }
     };
 
-    loadData();
+    void loadData();
+    void loadLiveGames();
+
+    const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
+      if (!supabaseAuth.isAuthenticated()) return;
+      void loadLiveGames();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  const addNewGame = () => {
+  useEffect(() => {
+    onActiveGamesChange?.(games.length > 0);
+  }, [games, onActiveGamesChange]);
+
+  const addNewGame = async () => {
     if (!newGame.game) {
       toast({
         title: "Missing information",
@@ -118,79 +140,103 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       }
     }
 
-    const game: LiveGame = {
-      id: Date.now().toString(),
-      game: newGame.game,
-      opponent: opponentName,
-      opponentUserId,
-      score1: 0,
-      score2: 0,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      startTime: new Date()
-    };
+    setIsLoading(true);
 
-    setGames(prev => {
-      const newGames = [...prev, game];
-      onActiveGamesChange?.(newGames.length > 0);
-      return newGames;
-    });
-    setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
-    setShowNewGameForm(false);
+    try {
+      const createdLiveGame = await supabaseDb.createLiveGame(
+        newGame.game,
+        opponentUserId ? null : opponentName,
+        format(new Date(), 'yyyy-MM-dd'),
+        opponentUserId
+      );
 
-    toast({
-      title: "Game started!",
-      description: `${newGame.game} game vs ${opponentName}`,
-    });
+      setGames(prev => [
+        {
+          ...createdLiveGame,
+          friend_name: opponentUserId ? opponentName : undefined,
+        },
+        ...prev,
+      ]);
+      setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
+      setShowNewGameForm(false);
+
+      toast({
+        title: "Game started!",
+        description: `${newGame.game} game vs ${opponentName}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to start game",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateScore = (gameId: string, player: 'player1' | 'player2', change: number) => {
-    setGames(prev => prev.map(game => {
-      if (game.id === gameId) {
-        const newScore = player === 'player1' ? 
-          Math.max(0, game.score1 + change) : 
-          Math.max(0, game.score2 + change);
-        
-        return {
-          ...game,
-          [player === 'player1' ? 'score1' : 'score2']: newScore
-        };
-      }
-      return game;
-    }));
+    const gameToUpdate = games.find((game) => game.id === gameId);
+    if (!gameToUpdate) return;
+
+    const nextScore1 = player === 'player1'
+      ? Math.max(0, gameToUpdate.score1 + change)
+      : gameToUpdate.score1;
+    const nextScore2 = player === 'player2'
+      ? Math.max(0, gameToUpdate.score2 + change)
+      : gameToUpdate.score2;
+
+    setGames((previousGames) =>
+      previousGames.map((game) =>
+        game.id === gameId
+          ? { ...game, score1: nextScore1, score2: nextScore2 }
+          : game
+      )
+    );
+
+    void supabaseDb
+      .updateLiveGameScore(gameId, nextScore1, nextScore2)
+      .catch(() => {
+        toast({
+          title: "Failed to sync score",
+          description: "Your score change could not be saved",
+          variant: "destructive",
+        });
+      });
   };
 
-  const removeGame = (gameId: string) => {
-    setGames(prev => {
-      const newGames = prev.filter(game => game.id !== gameId);
-      onActiveGamesChange?.(newGames.length > 0);
-      return newGames;
-    });
-    toast({
-      title: "Game cancelled",
-      description: "The game has been removed",
-    });
+  const removeGame = async (gameId: string) => {
+    try {
+      await supabaseDb.deleteLiveGame(gameId);
+      toast({
+        title: "Game cancelled",
+        description: "The game has been removed",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to cancel game",
+        description: "Only the game creator can cancel this game",
+        variant: "destructive",
+      });
+    }
   };
 
-  const saveGame = async (game: LiveGame) => {
+  const saveGame = async (game: LiveGameView) => {
     if (!supabaseAuth.isAuthenticated()) return;
+    if (!currentUser || game.created_by_user_id !== currentUser.id) {
+      toast({
+        title: "Cannot save game",
+        description: "Only the game creator can save the final score",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      await supabaseDb.createScore(
-        game.game,
-        game.opponentUserId ? null : game.opponent, // If friend, don't store name
-        `${game.score1}-${game.score2}`,
-        game.date,
-        game.opponentUserId
-      );
+      await supabaseDb.completeLiveGame(game.id);
 
-      setGames(prev => {
-        const newGames = prev.filter(g => g.id !== game.id);
-        onActiveGamesChange?.(newGames.length > 0);
-        return newGames;
-      });
-      
       toast({
         title: "Score saved!",
         description: `${game.game}: ${game.score1}-${game.score2}`,
@@ -208,29 +254,20 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
   const saveAllGames = async () => {
     if (games.length === 0) return;
+    if (!currentUser) return;
 
     setIsLoading(true);
     let savedCount = 0;
 
-    for (const game of games) {
+    for (const game of games.filter((activeGame) => activeGame.created_by_user_id === currentUser.id)) {
       try {
-        if (!supabaseAuth.isAuthenticated()) continue;
-
-        await supabaseDb.createScore(
-          game.game,
-          game.opponentUserId ? null : game.opponent, // If friend, don't store name
-          `${game.score1}-${game.score2}`,
-          game.date,
-          game.opponentUserId
-        );
+        await supabaseDb.completeLiveGame(game.id);
         savedCount++;
       } catch (error) {
         console.error('Failed to save game:', error);
       }
     }
 
-    setGames([]);
-    onActiveGamesChange?.(false);
     setIsLoading(false);
     
     toast({
@@ -238,7 +275,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       description: `${savedCount} game${savedCount !== 1 ? 's' : ''} saved successfully`,
     });
 
-    onScoresSaved();
+    if (savedCount > 0) {
+      onScoresSaved();
+    }
   };
 
   const getGameIcon = (gameType: string) => {
@@ -246,16 +285,20 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     return gameConfig?.icon || Trophy;
   };
 
+  const ownGamesCount = currentUser
+    ? games.filter((game) => game.created_by_user_id === currentUser.id).length
+    : 0;
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Live Score Tracking</h2>
         <div className="flex gap-2">
-          {games.length > 0 && (
+          {ownGamesCount > 0 && (
             <Button onClick={saveAllGames} disabled={isLoading} size="sm">
               <Save className="h-4 w-4 mr-2" />
-              Save All ({games.length})
+              Save All ({ownGamesCount})
             </Button>
           )}
           <Button variant="outline" onClick={onClose} size="sm">
@@ -268,6 +311,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {games.map((game) => {
           const Icon = getGameIcon(game.game);
+          const opponentName = game.friend_name || game.opponent_name || 'Unknown opponent';
+          const isGameCreator = currentUser?.id === game.created_by_user_id;
+          const yourPlayer = isGameCreator ? 'player1' : 'player2';
+          const opponentPlayer = isGameCreator ? 'player2' : 'player1';
+          const yourScore = isGameCreator ? game.score1 : game.score2;
+          const opponentScore = isGameCreator ? game.score2 : game.score1;
           return (
             <Card key={game.id} className="shadow-card border-0">
               <CardHeader className="pb-2">
@@ -276,25 +325,29 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                     <Icon className="h-4 w-4" />
                     {game.game}
                   </CardTitle>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => saveGame(game)}
-                      disabled={isLoading}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Save className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeGame(game.id)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  {isGameCreator ? (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => saveGame(game)}
+                        disabled={isLoading}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Save className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeGame(game.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Synced live</span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -306,7 +359,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, 'player1', 1)}
+                        onClick={() => updateScore(game.id, yourPlayer, 1)}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
@@ -314,8 +367,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, 'player1', -1)}
-                        disabled={game.score1 === 0}
+                        onClick={() => updateScore(game.id, yourPlayer, -1)}
+                        disabled={yourScore === 0}
                         className="h-8 w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />
@@ -331,22 +384,22 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                         </div>
                         <div 
                           className="bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center min-w-[80px]"
-                          onClick={() => updateScore(game.id, 'player1', 1)}
+                          onClick={() => updateScore(game.id, yourPlayer, 1)}
                         >
-                          {game.score1}
+                          {yourScore}
                         </div>
                       </div>
 
                        {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                          {game.opponent}
+                          {opponentName}
                         </div>
                         <div 
                           className="bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center min-w-[80px]"
-                          onClick={() => updateScore(game.id, 'player2', 1)}
+                          onClick={() => updateScore(game.id, opponentPlayer, 1)}
                         >
-                          {game.score2}
+                          {opponentScore}
                         </div>
                       </div>
                     </div>
@@ -356,7 +409,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, 'player2', 1)}
+                        onClick={() => updateScore(game.id, opponentPlayer, 1)}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
@@ -364,8 +417,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, 'player2', -1)}
-                        disabled={game.score2 === 0}
+                        onClick={() => updateScore(game.id, opponentPlayer, -1)}
+                        disabled={opponentScore === 0}
                         className="h-8 w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />
@@ -375,7 +428,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
                   {/* Timer */}
                   <div className="text-center text-xs text-muted-foreground">
-                    Started {formatDistanceToNow(game.startTime, { addSuffix: true })}
+                    Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
                   </div>
                 </div>
               </CardContent>
@@ -471,7 +524,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <EnhancedButton onClick={addNewGame} size="sm" className="flex-1">
+                <EnhancedButton onClick={addNewGame} size="sm" className="flex-1" disabled={isLoading}>
                   Start Game
                 </EnhancedButton>
                 <Button 
