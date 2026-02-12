@@ -9,22 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 
 export function Navigation() {
   const location = useLocation();
-  const [authState, setAuthState] = useState(() => {
-    const initialState = supabaseAuth.getState();
-    // Don't use initial state if it's still loading
-    return initialState.isLoading ? { ...initialState, profile: null } : initialState;
-  });
+  const [authState, setAuthState] = useState(() => supabaseAuth.getState());
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = supabaseAuth.subscribe((newState) => {
-      // Only update if we're not loading or if the profile has actually changed
-      if (!newState.isLoading || newState.profile !== authState.profile) {
-        setAuthState(newState);
-      }
+      setAuthState(newState);
     });
     return unsubscribe;
-  }, [authState.profile]);
+  }, []);
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },

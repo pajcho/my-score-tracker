@@ -29,8 +29,20 @@ export function HistoryPage() {
   };
 
   useEffect(() => {
-    loadScores();
-  }, [user]);
+    const unsubscribe = supabaseAuth.subscribe((authState) => {
+      setUser(authState.profile);
+
+      if (authState.isAuthenticated) {
+        void loadScores();
+      } else {
+        setScores([]);
+        setFilteredScores([]);
+        setIsLoading(false);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let filtered = scores;

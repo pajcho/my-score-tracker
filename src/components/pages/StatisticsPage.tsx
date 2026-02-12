@@ -35,17 +35,18 @@ export function StatisticsPage() {
   useEffect(() => {
     const unsubscribe = supabaseAuth.subscribe((authState) => {
       setUser(authState.profile);
-      if (authState.profile) {
-        loadData();
+      if (authState.isAuthenticated) {
+        void loadData();
       } else {
         setScores([]);
+        setFilteredScores([]);
         setOpponents([]);
         setIsLoading(false);
       }
     });
 
     return unsubscribe;
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     let filtered = scores;

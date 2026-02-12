@@ -29,6 +29,13 @@ class SupabaseAuthService {
 
   private listeners: ((state: AuthState) => void)[] = [];
 
+  private createStateSnapshot(): AuthState {
+    return {
+      ...this.state,
+      profile: this.state.profile ? { ...this.state.profile } : null,
+    };
+  }
+
   constructor() {
     this.initialize();
   }
@@ -93,13 +100,14 @@ class SupabaseAuthService {
   }
 
   private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.state));
+    const snapshot = this.createStateSnapshot();
+    this.listeners.forEach(listener => listener(snapshot));
   }
 
   subscribe(listener: (state: AuthState) => void) {
     this.listeners.push(listener);
     // Call immediately with current state
-    listener(this.state);
+    listener(this.createStateSnapshot());
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
     };
@@ -163,7 +171,7 @@ class SupabaseAuthService {
   }
 
   getState(): AuthState {
-    return this.state;
+    return this.createStateSnapshot();
   }
 }
 

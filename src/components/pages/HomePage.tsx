@@ -15,14 +15,6 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
 
-  useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((authState) => {
-      setUser(authState.profile);
-    });
-
-    return unsubscribe;
-  }, []);
-
   const loadScores = async () => {
     try {
       setIsLoading(true);
@@ -36,8 +28,19 @@ export function HomePage() {
   };
 
   useEffect(() => {
-    loadScores();
-  }, [user]);
+    const unsubscribe = supabaseAuth.subscribe((authState) => {
+      setUser(authState.profile);
+
+      if (authState.isAuthenticated) {
+        void loadScores();
+      } else {
+        setScores([]);
+        setIsLoading(false);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleScoreAdded = () => {
     setShowScoreForm(false);
