@@ -23,6 +23,7 @@ interface LiveScoreTrackerProps {
 
 export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
   const [games, setGames] = useState<LiveGameView[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
     game: 'Pool',
@@ -63,6 +64,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         }
       } catch (error) {
         console.error('Failed to load live games:', error);
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+        }
       }
     };
 
@@ -288,6 +293,14 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const ownGamesCount = currentUser
     ? games.filter((game) => game.created_by_user_id === currentUser.id).length
     : 0;
+
+  if (isInitialLoading) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+        Loading live games...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
