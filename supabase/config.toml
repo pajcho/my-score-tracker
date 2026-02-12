@@ -1,1 +1,23 @@
-project_id = "xdvlpceesghqhondevfg"
+project_id = "my-score-tracker"
+
+[api]
+port = 55321
+
+[db]
+major_version = 17
+port = 55322
+
+[db.migrations]
+enabled = true
+
+[studio]
+port = 55323
+
+[inbucket]
+port = 55324
+
+[analytics]
+port = 55327
+
+[db.pooler]
+port = 55329

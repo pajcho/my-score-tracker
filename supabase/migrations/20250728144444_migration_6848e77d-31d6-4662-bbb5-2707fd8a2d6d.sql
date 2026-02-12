@@ -1,9 +1,9 @@
--- First drop the existing policies that reference receiver_id
+-- Remove receiver_id column from friend_invitations table since we only need email
+ALTER TABLE public.friend_invitations DROP COLUMN IF EXISTS receiver_id CASCADE;
+
+-- Update RLS policies to only check email-based access
 DROP POLICY IF EXISTS "Users can update their invitations" ON public.friend_invitations;
 DROP POLICY IF EXISTS "Users can view their invitations" ON public.friend_invitations;
-
--- Remove receiver_id column from friend_invitations table
-ALTER TABLE public.friend_invitations DROP COLUMN receiver_id;
 
 -- Create new RLS policies that work with email only
 CREATE POLICY "Users can update their invitations" 
