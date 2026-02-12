@@ -31,7 +31,7 @@ export function Navigation() {
     const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hash = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    return `https://www.gravatar.com/avatar/${hash}?d=mp&s=32`;
+    return `https://www.gravatar.com/avatar/${hash}?d=404&s=32`;
   };
 
   const [gravatarUrl, setGravatarUrl] = useState<string>('');
