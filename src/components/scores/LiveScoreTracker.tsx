@@ -156,11 +156,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       );
 
       setGames(prev => [
+        ...prev,
         {
           ...createdLiveGame,
           friend_name: opponentUserId ? opponentName : undefined,
         },
-        ...prev,
       ]);
       setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
       setShowNewGameForm(false);

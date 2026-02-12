@@ -230,7 +230,7 @@ class SupabaseDatabaseService {
     const { data, error } = await supabase
       .from('live_games')
       .select('*')
-      .order('started_at', { ascending: false });
+      .order('started_at', { ascending: true });
 
     if (error) throw error;
 
