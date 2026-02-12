@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Plus, Minus, Save, X, Trash2, Triangle, Trophy, Zap, Users, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,10 +10,8 @@ import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, LiveGame as LiveGameRecord } from '@/lib/supabase-database';
+import { supabaseDb, LiveGameView } from '@/lib/supabase-database';
 import { format } from 'date-fns';
-
-type LiveGameView = LiveGameRecord & { friend_name?: string };
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -35,6 +33,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [opponents, setOpponents] = useState<string[]>([]);
   const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
   const [, setTimeTicker] = useState(new Date());
+  const hasLoadedAfterAuth = useRef(false);
   const { toast } = useToast();
   const currentUser = supabaseAuth.getCurrentUser();
 
@@ -63,7 +62,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
           setGames(userLiveGames);
         }
       } catch (error) {
-        console.error('Failed to load live games:', error);
+        if (isMounted && supabaseAuth.isAuthenticated()) {
+          console.error('Failed to load live games:', error);
+        }
       } finally {
         if (isMounted) {
           setIsInitialLoading(false);
@@ -72,8 +73,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     };
 
     const loadData = async () => {
-      if (!supabaseAuth.isAuthenticated()) return;
-
       try {
         const [uniqueOpponents, userFriends] = await Promise.all([
           supabaseDb.getUniqueOpponents(),
@@ -88,16 +87,29 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       }
     };
 
-    void loadData();
-    void loadLiveGames();
+    const unsubscribeAuth = supabaseAuth.subscribe((authState) => {
+      if (!isMounted || authState.isLoading) return;
+
+      if (!authState.isAuthenticated) {
+        hasLoadedAfterAuth.current = false;
+        setGames([]);
+        setIsInitialLoading(false);
+        return;
+      }
+
+      if (hasLoadedAfterAuth.current) return;
+      hasLoadedAfterAuth.current = true;
+      void loadData();
+      void loadLiveGames();
+    });
 
     const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
-      if (!supabaseAuth.isAuthenticated()) return;
       void loadLiveGames();
     });
 
     return () => {
       isMounted = false;
+      unsubscribeAuth();
       unsubscribe();
     };
   }, []);
@@ -159,7 +171,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         ...prev,
         {
           ...createdLiveGame,
-          friend_name: opponentUserId ? opponentName : undefined,
+          creator_name: currentUser?.user_metadata?.name,
+          opponent_user_name: opponentUserId ? opponentName : undefined,
         },
       ]);
       setNewGame({ game: 'Pool', opponent: '', opponentType: 'friend', selectedFriend: '' });
@@ -293,6 +306,21 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const ownGamesCount = currentUser
     ? games.filter((game) => game.created_by_user_id === currentUser.id).length
     : 0;
+  const orderedGames = [...games]
+    .sort((firstGame, secondGame) =>
+      new Date(firstGame.started_at).getTime() - new Date(secondGame.started_at).getTime()
+    )
+    .sort((firstGame, secondGame) => {
+      const firstIsParticipant = currentUser
+        ? firstGame.created_by_user_id === currentUser.id || firstGame.opponent_user_id === currentUser.id
+        : false;
+      const secondIsParticipant = currentUser
+        ? secondGame.created_by_user_id === currentUser.id || secondGame.opponent_user_id === currentUser.id
+        : false;
+
+      if (firstIsParticipant === secondIsParticipant) return 0;
+      return firstIsParticipant ? -1 : 1;
+    });
 
   if (isInitialLoading) {
     return (
@@ -322,45 +350,62 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
       {/* Active Games */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {games.map((game) => {
+        {orderedGames.map((game) => {
           const Icon = getGameIcon(game.game);
-          const opponentName = game.friend_name || game.opponent_name || 'Unknown opponent';
           const isGameCreator = currentUser?.id === game.created_by_user_id;
+          const isGameOpponent = currentUser?.id === game.opponent_user_id;
+          const isSpectator = !isGameCreator && !isGameOpponent;
+          const creatorName = isGameCreator ? 'You' : (game.creator_name || 'Unknown player');
+          const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
+          const opponentLabel = isGameOpponent ? 'You' : opponentName;
+          const leftPlayerLabel = isSpectator ? creatorName : 'You';
+          const rightPlayerLabel = isSpectator ? opponentName : opponentLabel;
           const yourPlayer = isGameCreator ? 'player1' : 'player2';
           const opponentPlayer = isGameCreator ? 'player2' : 'player1';
-          const yourScore = isGameCreator ? game.score1 : game.score2;
-          const opponentScore = isGameCreator ? game.score2 : game.score1;
+          const leftPlayer = isSpectator ? 'player1' : yourPlayer;
+          const rightPlayer = isSpectator ? 'player2' : opponentPlayer;
+          const leftScore = isSpectator
+            ? game.score1
+            : (isGameCreator ? game.score1 : game.score2);
+          const rightScore = isSpectator
+            ? game.score2
+            : (isGameCreator ? game.score2 : game.score1);
+          const disableGameInteractions = isSpectator || isLoading;
           return (
             <Card key={game.id} className="shadow-card border-0">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between min-h-8 gap-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Icon className="h-4 w-4" />
                     {game.game}
                   </CardTitle>
-                  {isGameCreator ? (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => saveGame(game)}
-                        disabled={isLoading}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Save className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeGame(game.id)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Synced live</span>
-                  )}
+                  <div className="w-40 shrink-0">
+                    {isGameCreator ? (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => saveGame(game)}
+                          disabled={isLoading}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeGame(game.id)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="block text-right text-xs text-muted-foreground leading-8">
+                        {isSpectator ? 'Watching (read-only)' : 'Synced live'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-3">
@@ -372,7 +417,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, yourPlayer, 1)}
+                        onClick={() => updateScore(game.id, leftPlayer, 1)}
+                        disabled={disableGameInteractions}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
@@ -380,8 +426,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, yourPlayer, -1)}
-                        disabled={yourScore === 0}
+                        onClick={() => updateScore(game.id, leftPlayer, -1)}
+                        disabled={disableGameInteractions || leftScore === 0}
                         className="h-8 w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />
@@ -393,26 +439,26 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Your Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                          You
+                          {leftPlayerLabel}
                         </div>
                         <div 
-                          className="bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-blue-600 transition-colors flex items-center justify-center min-w-[80px]"
-                          onClick={() => updateScore(game.id, yourPlayer, 1)}
+                          className={`bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-blue-600 transition-colors'}`}
+                          onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
                         >
-                          {yourScore}
+                          {leftScore}
                         </div>
                       </div>
 
                        {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate">
-                          {opponentName}
+                          {rightPlayerLabel}
                         </div>
                         <div 
-                          className="bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl cursor-pointer hover:bg-red-600 transition-colors flex items-center justify-center min-w-[80px]"
-                          onClick={() => updateScore(game.id, opponentPlayer, 1)}
+                          className={`bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-red-600 transition-colors'}`}
+                          onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
                         >
-                          {opponentScore}
+                          {rightScore}
                         </div>
                       </div>
                     </div>
@@ -422,7 +468,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, opponentPlayer, 1)}
+                        onClick={() => updateScore(game.id, rightPlayer, 1)}
+                        disabled={disableGameInteractions}
                         className="h-8 w-8 p-0"
                       >
                         <Plus className="h-3 w-3" />
@@ -430,8 +477,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => updateScore(game.id, opponentPlayer, -1)}
-                        disabled={opponentScore === 0}
+                        onClick={() => updateScore(game.id, rightPlayer, -1)}
+                        disabled={disableGameInteractions || rightScore === 0}
                         className="h-8 w-8 p-0"
                       >
                         <Minus className="h-3 w-3" />

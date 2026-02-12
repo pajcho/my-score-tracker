@@ -26,6 +26,11 @@ export interface LiveGame {
   updated_at: string;
 }
 
+export interface LiveGameView extends LiveGame {
+  creator_name?: string;
+  opponent_user_name?: string;
+}
+
 class SupabaseDatabaseService {
   async createScore(
     game: string,
@@ -223,7 +228,7 @@ class SupabaseDatabaseService {
     return data as LiveGame;
   }
 
-  async getLiveGames(): Promise<(LiveGame & { friend_name?: string })[]> {
+  async getLiveGames(): Promise<LiveGameView[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -234,29 +239,36 @@ class SupabaseDatabaseService {
 
     if (error) throw error;
 
-    const enrichedGames = await Promise.all((data || []).map(async (game) => {
-      let friend_name = null;
+    const profileIds = Array.from(
+      new Set(
+        (data || []).flatMap((game) =>
+          [game.created_by_user_id, game.opponent_user_id].filter(Boolean) as string[]
+        )
+      )
+    );
 
-      if (game.opponent_user_id) {
-        const friendUserId =
-          game.created_by_user_id === user.id ? game.opponent_user_id : game.created_by_user_id;
+    const profileNameById = new Map<string, string>();
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', friendUserId)
-          .maybeSingle();
+    if (profileIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, name')
+        .in('user_id', profileIds);
 
-        friend_name = profile?.name || null;
+      if (profilesError) throw profilesError;
+
+      for (const profile of profiles || []) {
+        profileNameById.set(profile.user_id, profile.name);
       }
+    }
 
-      return {
-        ...game,
-        friend_name
-      };
-    }));
-
-    return enrichedGames as (LiveGame & { friend_name?: string })[];
+    return (data || []).map((game) => ({
+      ...game,
+      creator_name: profileNameById.get(game.created_by_user_id) || undefined,
+      opponent_user_name: game.opponent_user_id
+        ? profileNameById.get(game.opponent_user_id) || undefined
+        : undefined,
+    })) as LiveGameView[];
   }
 
   async updateLiveGameScore(id: string, score1: number, score2: number): Promise<void> {
