@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 interface OpponentAutocompleteProps {
@@ -39,6 +38,14 @@ export function OpponentAutocomplete({
     }
   }, [value, opponents, isOpen]);
 
+  // Handle opponent selection
+  const handleSelect = useCallback((opponent: string) => {
+    onChange(opponent);
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    inputRef.current?.blur();
+  }, [onChange]);
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!isOpen || filteredOpponents.length === 0) {
@@ -74,15 +81,7 @@ export function OpponentAutocomplete({
         setSelectedIndex(-1);
         break;
     }
-  }, [isOpen, filteredOpponents, selectedIndex]);
-
-  // Handle opponent selection
-  const handleSelect = useCallback((opponent: string) => {
-    onChange(opponent);
-    setIsOpen(false);
-    setSelectedIndex(-1);
-    inputRef.current?.blur();
-  }, [onChange]);
+  }, [filteredOpponents, handleSelect, isOpen, selectedIndex, value]);
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

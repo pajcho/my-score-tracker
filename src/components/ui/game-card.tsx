@@ -21,8 +21,10 @@ import { supabaseDb, Score } from '@/lib/supabase-database';
 import { cn } from '@/lib/utils';
 import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
 
+type ScoreWithFriend = Score & { friend_name?: string | null };
+
 interface GameCardProps {
-  score: Score;
+  score: ScoreWithFriend;
   onScoreUpdated: () => void;
   compact?: boolean;
   showActions?: boolean;
@@ -127,8 +129,8 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
                   <User className="h-3 w-3" />
                   <span className="truncate">
                     {isOwnScore 
-                      ? `You vs ${(score as any).friend_name || score.opponent_name || 'Unknown'}`
-                      : `${(score as any).friend_name || score.opponent_name || 'Unknown'} vs You`
+                      ? `You vs ${score.friend_name || score.opponent_name || 'Unknown'}`
+                      : `${score.friend_name || score.opponent_name || 'Unknown'} vs You`
                     }
                   </span>
                 </div>

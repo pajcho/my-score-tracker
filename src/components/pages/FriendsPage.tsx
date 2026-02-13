@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { UserPlus, Users, Mail, Check, X, Trash2, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,13 @@ import { supabaseFriends, Friend, FriendInvitation } from '@/lib/supabase-friend
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { format } from 'date-fns';
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Please try again';
+}
+
 export function FriendsPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [sentInvitations, setSentInvitations] = useState<FriendInvitation[]>([]);
@@ -23,11 +30,7 @@ export function FriendsPage() {
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!supabaseAuth.isAuthenticated()) return;
 
     try {
@@ -51,7 +54,11 @@ export function FriendsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleSendInvitation = async () => {
     if (!inviteEmail) {
@@ -76,10 +83,10 @@ export function FriendsPage() {
       setInviteEmail('');
       setInviteMessage('');
       loadData(); // Refresh data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to send invitation",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -97,10 +104,10 @@ export function FriendsPage() {
       });
 
       loadData(); // Refresh data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to accept invitation",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -116,10 +123,10 @@ export function FriendsPage() {
       });
 
       loadData(); // Refresh data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to decline invitation",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -135,10 +142,10 @@ export function FriendsPage() {
       });
 
       loadData(); // Refresh data
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to remove friend",
-        description: error.message || "Please try again",
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }

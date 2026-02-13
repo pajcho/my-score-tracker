@@ -7,9 +7,11 @@ import { ScoreList } from '@/components/scores/ScoreList';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 
+type ScoreWithFriend = Score & { friend_name?: string | null };
+
 export function HistoryPage() {
-  const [scores, setScores] = useState<Score[]>([]);
-  const [filteredScores, setFilteredScores] = useState<Score[]>([]);
+  const [scores, setScores] = useState<ScoreWithFriend[]>([]);
+  const [filteredScores, setFilteredScores] = useState<ScoreWithFriend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [gameFilter, setGameFilter] = useState<string>('all');
@@ -18,7 +20,7 @@ export function HistoryPage() {
   const loadScores = async () => {
     try {
       setIsLoading(true);
-      const userScores = await supabaseDb.getScoresByUserId();
+      const userScores = await supabaseDb.getScoresByUserId() as ScoreWithFriend[];
       setScores(userScores);
       setFilteredScores(userScores);
     } catch (error) {
@@ -57,7 +59,7 @@ export function HistoryPage() {
       filtered = filtered.filter(score => {
         const searchLower = searchTerm.toLowerCase();
         const opponentName = score.opponent_name?.toLowerCase() || '';
-        const friendName = (score as any).friend_name?.toLowerCase() || '';
+        const friendName = score.friend_name?.toLowerCase() || '';
         return opponentName.includes(searchLower) || friendName.includes(searchLower);
       });
     }
