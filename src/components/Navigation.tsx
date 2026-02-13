@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { BarChart3, History, Home, LogOut, Trophy, User, Users } from 'lucide-react';
+import { BarChart3, History, Home, LogOut, Monitor, Moon, Sun, Trophy, User, Users } from 'lucide-react';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,16 +13,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeModeToggle } from '@/components/ThemeModeToggle';
+import { useTheme } from 'next-themes';
 
 export function Navigation() {
   const location = useLocation();
   const [authState, setAuthState] = useState(() => supabaseAuth.getState());
+  const [isMounted, setIsMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
 
   useEffect(() => {
     return supabaseAuth.subscribe((newState) => {
       setAuthState(newState);
     });
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
   }, []);
 
   const navItems = [
@@ -105,7 +112,34 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeModeToggle />
+            <div className="hidden md:block">
+              <ThemeModeToggle />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted/70 text-muted-foreground transition-smooth hover:text-foreground md:hidden">
+                {!isMounted || theme === 'system' ? (
+                  <Monitor className="h-4 w-4" />
+                ) : theme === 'dark' ? (
+                  <Moon className="h-4 w-4" />
+                ) : (
+                  <Sun className="h-4 w-4" />
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 md:hidden">
+                <DropdownMenuItem onClick={() => setTheme('light')} className="flex items-center gap-2 cursor-pointer">
+                  <Sun className="h-4 w-4" />
+                  Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')} className="flex items-center gap-2 cursor-pointer">
+                  <Moon className="h-4 w-4" />
+                  Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')} className="flex items-center gap-2 cursor-pointer">
+                  <Monitor className="h-4 w-4" />
+                  Auto
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {authState.profile && (
               <DropdownMenu>
