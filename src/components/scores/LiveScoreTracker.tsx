@@ -258,6 +258,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const removeGame = async (gameId: string) => {
     try {
       await supabaseDb.deleteLiveGame(gameId);
+      setGames((previousGames) => previousGames.filter((game) => game.id !== gameId));
       toast({
         title: "Game cancelled",
         description: "The game has been removed",
@@ -286,6 +287,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
     try {
       await supabaseDb.completeLiveGame(game.id);
+      setGames((previousGames) => previousGames.filter((activeGame) => activeGame.id !== game.id));
 
       toast({
         title: "Score saved!",
@@ -308,10 +310,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
     setIsLoading(true);
     let savedCount = 0;
+    const savedGameIds: string[] = [];
 
     for (const game of games.filter((activeGame) => activeGame.created_by_user_id === currentUser.id)) {
       try {
         await supabaseDb.completeLiveGame(game.id);
+        savedGameIds.push(game.id);
         savedCount++;
       } catch (error) {
         console.error('Failed to save game:', error);
@@ -324,6 +328,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       title: "Games saved!",
       description: `${savedCount} game${savedCount !== 1 ? 's' : ''} saved successfully`,
     });
+
+    if (savedGameIds.length > 0) {
+      setGames((previousGames) =>
+        previousGames.filter((game) => !savedGameIds.includes(game.id))
+      );
+    }
 
     if (savedCount > 0) {
       onScoresSaved();
@@ -523,9 +533,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
         {/* Add New Game Card */}
         {!showNewGameForm ? (
-          <Card className="shadow-card border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer">
+          <Card className="shadow-card border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardContent 
-              className="flex items-center justify-center p-8"
+              className="flex h-full items-center justify-center p-8"
               onClick={() => setShowNewGameForm(true)}
             >
               <div className="text-center">
