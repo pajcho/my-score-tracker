@@ -3,6 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      (function () {
+        const storageKey = 'score-tracker-theme';
+        const rootElement = document.documentElement;
+        const savedTheme = localStorage.getItem(storageKey);
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolvedTheme = savedTheme === 'light' || savedTheme === 'dark'
+          ? savedTheme
+          : prefersDarkScheme
+            ? 'dark'
+            : 'light';
+
+        if (resolvedTheme === 'dark') {
+          rootElement.classList.add('dark');
+          rootElement.style.backgroundColor = 'hsl(218 24% 9%)';
+        } else {
+          rootElement.classList.remove('dark');
+          rootElement.style.backgroundColor = 'hsl(210 20% 98%)';
+        }
+      })();
+    </script>
     <title>My Score Tracker</title>
     <meta name="description" content="Ready to track your game scores?" />
     <meta name="author" content="My Score Tracker" />
