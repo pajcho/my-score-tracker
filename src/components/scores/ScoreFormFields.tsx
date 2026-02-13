@@ -14,7 +14,7 @@ import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
 
 const toggleOptionClassName =
-  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-none";
+  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
 
 interface ScoreFormFieldsProps {
   game: string;
@@ -138,7 +138,7 @@ export function ScoreFormFields({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal",
+                  "w-full justify-start text-left font-normal dark:bg-muted/40 dark:hover:bg-muted/55",
                   !date && "text-muted-foreground"
                 )}
               >
