@@ -81,11 +81,11 @@ export function HomePage() {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="text-center py-8">
-        <h1 className="text-4xl font-bold mb-3 bg-gradient-primary bg-clip-text text-transparent">
+      <div className="text-center py-2 sm:py-8">
+        <h1 className="mx-auto max-w-full bg-gradient-primary bg-clip-text text-xl font-bold leading-tight text-transparent sm:mb-3 sm:text-4xl">
           Welcome back, {user?.name}!
         </h1>
-        <p className="text-muted-foreground text-lg">Ready to track your game scores?</p>
+        <p className="mt-1 text-sm text-muted-foreground sm:text-lg">Ready to track your game scores?</p>
       </div>
 
       {/* Quick Stats */}
