@@ -11,14 +11,19 @@ import { supabaseDb, Score } from '@/lib/supabase-database';
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
+  const [liveGameCount, setLiveGameCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
 
-  const loadScores = async () => {
+  const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const userScores = await supabaseDb.getScoresByUserId();
-      setScores(userScores); // Store all scores for stats calculation
+      const [userScores, liveGames] = await Promise.all([
+        supabaseDb.getScoresByUserId(),
+        supabaseDb.getLiveGames(),
+      ]);
+      setScores(userScores);
+      setLiveGameCount(liveGames.length);
     } catch (error) {
       console.error('Failed to load scores:', error);
     } finally {
@@ -31,9 +36,10 @@ export function HomePage() {
       setUser(authState.profile);
 
       if (authState.isAuthenticated) {
-        void loadScores();
+        void loadDashboardData();
       } else {
         setScores([]);
+        setLiveGameCount(0);
         setIsLoading(false);
       }
     });
@@ -43,7 +49,7 @@ export function HomePage() {
 
   const handleScoreAdded = () => {
     setShowScoreForm(false);
-    loadScores();
+    void loadDashboardData();
   };
 
   const gameIcons = {
@@ -133,21 +139,41 @@ export function HomePage() {
         </CardHeader>
         <CardContent>
           {!showScoreForm ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link to="/live">
-                <Button className="w-full">
-                  <Play className="h-4 w-4" />
-                  Start Live Game
-                </Button>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/live" className="w-full sm:w-[280px]">
+                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-primary/10 p-2">
+                      <Play className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {liveGameCount > 0 ? `Continue Live Game (${liveGameCount})` : 'Start Live Game'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {liveGameCount > 0 ? 'You have active live tracking sessions' : 'Track points live in real time'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </Link>
-              <Button 
-                variant="outline"
+              <button
+                type="button"
                 onClick={() => setShowScoreForm(true)}
-                className="w-full"
+                className="w-full sm:w-[280px] text-left"
               >
-                <Plus className="h-4 w-4" />
-                Add Finished Score
-              </Button>
+                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-2">
+                      <Plus className="h-4 w-4 text-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Add Finished Score</p>
+                      <p className="text-sm text-muted-foreground">Save a game that is already completed</p>
+                    </div>
+                  </div>
+                </div>
+              </button>
             </div>
           ) : (
             <ScoreForm 
@@ -177,7 +203,9 @@ export function HomePage() {
           ) : scores.length > 0 ? (
             <ScoreList 
               scores={scores.slice(0, 5)} 
-              onScoreUpdated={loadScores}
+              onScoreUpdated={() => {
+                void loadDashboardData();
+              }}
               compact={true}
             />
           ) : (
