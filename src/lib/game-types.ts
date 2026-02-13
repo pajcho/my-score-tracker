@@ -32,6 +32,10 @@ const poolTypeLabelMap: Record<PoolType, string> = POOL_TYPE_OPTIONS.reduce(
 export const DEFAULT_GAME_TYPE: GameType = 'Pool';
 export const DEFAULT_POOL_TYPE: PoolType = '9-ball';
 
+export const isGameType = (gameType: string): gameType is GameType => {
+  return GAME_TYPE_OPTIONS.some((gameTypeOption) => gameTypeOption.value === gameType);
+};
+
 export const isPoolGameType = (gameType: string): gameType is 'Pool' => gameType === 'Pool';
 
 export const getGameTypeLabel = (gameType: string): string => {

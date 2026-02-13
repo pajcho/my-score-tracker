@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
+import { isGameType, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 
 export type PlayerSide = 'player1' | 'player2';
 export type BreakRule = 'alternate' | 'winner_stays';
@@ -479,6 +479,9 @@ class SupabaseDatabaseService {
     if (!liveGame) throw new Error('Live game not found');
     if (liveGame.created_by_user_id !== user.id) {
       throw new Error('Only the game creator can save the final score');
+    }
+    if (!isGameType(liveGame.game)) {
+      throw new Error(`Unsupported live game type: ${liveGame.game}`);
     }
 
     const createdScore = await this.createScore(
