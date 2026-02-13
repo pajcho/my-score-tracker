@@ -1,11 +1,18 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { Home, History, User, BarChart3, Trophy, Users, LogOut } from 'lucide-react';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
+import {Link, useLocation} from 'react-router-dom';
+import {useEffect, useState} from 'react';
+import {BarChart3, History, Home, LogOut, Trophy, User, Users} from 'lucide-react';
+import {supabaseAuth} from '@/lib/supabase-auth';
+import {cn} from '@/lib/utils';
+import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import {useToast} from '@/hooks/use-toast';
+import {ThemeModeToggle} from '@/components/ThemeModeToggle';
 
 export function Navigation() {
   const location = useLocation();
@@ -13,10 +20,9 @@ export function Navigation() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((newState) => {
+    return supabaseAuth.subscribe((newState) => {
       setAuthState(newState);
     });
-    return unsubscribe;
   }, []);
 
   const navItems = [
@@ -65,7 +71,7 @@ export function Navigation() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
             <Trophy className="h-6 w-6" />
-            ScoreTracker
+            <span className="hidden sm:inline">ScoreTracker</span>
           </Link>
 
           {/* Navigation Links - Centered */}
@@ -87,44 +93,48 @@ export function Navigation() {
             ))}
           </div>
 
-          {/* User Avatar Dropdown */}
-          {authState.profile && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-3 hover:bg-muted/50 rounded-lg p-2 transition-smooth">
-                <span className="hidden sm:block text-sm font-medium text-foreground">
-                  {authState.profile.name}
-                </span>
-                <Avatar className="h-8 w-8">
-                  <AvatarImage 
-                    src={gravatarUrl} 
-                    alt={authState.profile.name}
-                  />
-                  <AvatarFallback>
-                    <User className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                    <User className="h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/friends" className="flex items-center gap-2 cursor-pointer">
-                    <Users className="h-4 w-4" />
-                    Friends
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeModeToggle />
+
+            {/* User Avatar Dropdown */}
+            {authState.profile && (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-3 hover:bg-muted/50 rounded-lg p-2 transition-smooth">
+                  <span className="hidden sm:block text-sm font-medium text-foreground">
+                    {authState.profile.name}
+                  </span>
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={gravatarUrl}
+                      alt={authState.profile.name}
+                    />
+                    <AvatarFallback>
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <User className="h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/friends" className="flex items-center gap-2 cursor-pointer">
+                      <Users className="h-4 w-4" />
+                      Friends
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         {/* Mobile Navigation */}

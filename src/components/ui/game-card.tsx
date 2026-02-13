@@ -31,7 +31,6 @@ interface GameCardProps {
 }
 
 export function GameCard({ score, onScoreUpdated, compact = false, showActions = true }: GameCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<Score | null>(null);
   const { toast } = useToast();
@@ -82,124 +81,130 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
   const isOwnScore = currentUser && score.user_id === currentUser.id;
   const result = getScoreResult(score.score, isOwnScore);
   const canShowActions = showActions && isOwnScore;
+  const resultBadgeStyles = {
+    win: "border-secondary/70 bg-secondary/10 text-secondary",
+    loss: "border-destructive/70 bg-destructive/10 text-destructive",
+    tie: "border-accent/70 bg-accent/10 text-accent",
+  } as const;
 
   return (
     <>
-      <Card 
+      <Card
         className={cn(
-          "shadow-card border-0 transition-smooth hover:scale-[1.02] group",
-          result === 'win' && "border-l-4 border-l-secondary",
-          result === 'loss' && "border-l-4 border-l-destructive",
-          result === 'tie' && "border-l-4 border-l-accent"
+          "group overflow-hidden border bg-card/80 shadow-none transition-colors duration-200 hover:border-primary/30"
         )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
-        <CardContent className={cn("p-4", compact && "p-3")}>
-          <div className="flex items-center">
-            {/* Game Icon */}
-            <div className={cn(
-              "p-2 rounded-full",
-              result === 'win' && "bg-secondary/10",
-              result === 'loss' && "bg-destructive/10",
-              result === 'tie' && "bg-accent/10"
-            )}>
-              <Icon className={cn(
-                "h-5 w-5",
-                result === 'win' && "text-secondary",
-                result === 'loss' && "text-destructive",
-                result === 'tie' && "text-accent"
-              )} />
-            </div>
-
-            {/* Game Info */}
-            <div className="flex-1 min-w-0 mx-3">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-semibold">{score.game}</h4>
-                <Badge 
-                  variant={result === 'win' ? 'default' : result === 'loss' ? 'destructive' : 'secondary'}
-                  className="text-xs"
-                >
-                  {result === 'win' ? 'WIN' : result === 'loss' ? 'LOSS' : 'TIE'}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  <span className="truncate">
-                    {isOwnScore 
-                      ? `You vs ${score.friend_name || score.opponent_name || 'Unknown'}`
-                      : `${score.friend_name || score.opponent_name || 'Unknown'} vs You`
-                    }
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>{format(new Date(score.date), 'MMM d, yyyy')}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions - Show on hover */}
-            {canShowActions && (
+        <CardContent className={cn("p-4 sm:p-5", compact && "p-3 sm:p-4")}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              {/* Game Icon */}
               <div className={cn(
-                "flex items-center gap-1 transition-all duration-200",
-                isHovered ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+                "mt-0.5 hidden rounded-full p-2.5 sm:block",
+                result === 'win' && "bg-secondary/12",
+                result === 'loss' && "bg-destructive/12",
+                result === 'tie' && "bg-accent/12"
               )}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingScore(score)}
-                  className="h-8 w-8 p-0 hover:bg-muted"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                </Button>
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={deletingId === score.id}
-                      className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Score</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this score? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={() => handleDelete(score.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                <Icon className={cn(
+                  "h-4 w-4",
+                  result === 'win' && "text-secondary",
+                  result === 'loss' && "text-destructive",
+                  result === 'tie' && "text-accent"
+                )} />
+              </div>
+
+              {/* Game Info */}
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-base font-semibold text-foreground">{score.game}</h4>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-6 rounded-sm border bg-transparent px-2.5 text-[11px] font-semibold tracking-wide",
+                      resultBadgeStyles[result]
+                    )}
+                  >
+                    {result === 'win' ? 'WIN' : result === 'loss' ? 'LOSS' : 'TIE'}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-3">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {isOwnScore
+                        ? `You vs ${score.friend_name || score.opponent_name || 'Unknown'}`
+                        : `${score.friend_name || score.opponent_name || 'Unknown'} vs You`
+                      }
+                    </span>
+                  </div>
+                  <div className="hidden h-1 w-1 rounded-full bg-border sm:block" />
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <span>{format(new Date(score.date), 'MMM d, yyyy')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+              {/* Actions */}
+              {canShowActions && (
+                <div className="-ml-2 flex items-center gap-1 sm:ml-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingScore(score)}
+                    className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={deletingId === score.id}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            )}
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Score</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this score? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(score.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
 
-            {/* Score - Always on the right */}
-            <div className={cn(
-              "text-right ml-4",
-              canShowActions && isHovered && "mr-2" // Add margin when actions are visible
-            )}>
               <div className={cn(
-                "text-lg font-bold",
-                result === 'win' && "text-secondary",
-                result === 'loss' && "text-destructive",
-                result === 'tie' && "text-accent"
+                "ml-auto rounded-lg border px-3 py-1.5 text-right",
+                result === 'win' && "border-secondary/30 bg-secondary/10",
+                result === 'loss' && "border-destructive/30 bg-destructive/10",
+                result === 'tie' && "border-accent/30 bg-accent/10"
               )}>
-                {score.score}
+                <div className={cn(
+                  "text-xl font-bold tabular-nums leading-tight",
+                  result === 'win' && "text-secondary",
+                  result === 'loss' && "text-destructive",
+                  result === 'tie' && "text-accent"
+                )}>
+                  {score.score}
+                </div>
               </div>
             </div>
           </div>

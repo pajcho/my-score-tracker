@@ -26,7 +26,7 @@ export function GameList({ scores, onScoreUpdated, compact = false, showActions 
           score={score}
           onScoreUpdated={onScoreUpdated}
           compact={compact}
-          showActions={true}
+          showActions={showActions}
         />
       ))}
     </div>

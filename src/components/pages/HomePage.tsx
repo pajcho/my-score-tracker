@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Plus, Triangle, Trophy, Zap, TrendingUp, Calendar, Medal, Play } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ScoreForm } from '@/components/scores/ScoreForm';
-import { ScoreList } from '@/components/scores/ScoreList';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Score } from '@/lib/supabase-database';
+import {useEffect, useState} from 'react';
+import {Calendar, Medal, Play, Plus, TrendingUp, Triangle, Trophy, Zap} from 'lucide-react';
+import {Link} from 'react-router-dom';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {ScoreForm} from '@/components/scores/ScoreForm';
+import {ScoreList} from '@/components/scores/ScoreList';
+import {supabaseAuth} from '@/lib/supabase-auth';
+import {Score, supabaseDb} from '@/lib/supabase-database';
 
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
@@ -32,7 +31,7 @@ export function HomePage() {
   };
 
   useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((authState) => {
+    return supabaseAuth.subscribe((authState) => {
       setUser(authState.profile);
 
       if (authState.isAuthenticated) {
@@ -43,8 +42,6 @@ export function HomePage() {
         setIsLoading(false);
       }
     });
-
-    return unsubscribe;
   }, []);
 
   const handleScoreAdded = () => {
@@ -56,6 +53,20 @@ export function HomePage() {
     Pool: Triangle,
     'Ping Pong': Zap,
   };
+  const currentUserId = supabaseAuth.getCurrentUser()?.id;
+  const winCount = scores.filter((scoreEntry) => {
+    const [firstScore, secondScore] = scoreEntry.score.split('-').map((scoreValue) => Number(scoreValue));
+    if (Number.isNaN(firstScore) || Number.isNaN(secondScore) || !currentUserId) {
+      return false;
+    }
+
+    const isScoreOwner = scoreEntry.user_id === currentUserId;
+    const userScore = isScoreOwner ? firstScore : secondScore;
+    const opponentScore = isScoreOwner ? secondScore : firstScore;
+
+    return userScore > opponentScore;
+  }).length;
+  const winRate = scores.length > 0 ? Math.round((winCount / scores.length) * 100) : 0;
 
   return (
     <div className="space-y-8">
@@ -89,10 +100,7 @@ export function HomePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-secondary">
-              {scores.length > 0 ? Math.round((scores.filter(s => {
-                const [p1, p2] = s.score.split('-').map(Number);
-                return p1 > p2;
-              }).length / scores.length) * 100) : 0}%
+              {winRate}%
             </div>
             <p className="text-xs text-muted-foreground">
               Your success rate

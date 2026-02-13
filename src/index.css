@@ -19,9 +19,9 @@ All colors MUST be HSL.
     --popover-foreground: 215 25% 12%;
 
     /* Deep sports blue as primary */
-    --primary: 215 85% 35%;
+    --primary: 213 72% 38%;
     --primary-foreground: 210 40% 98%;
-    --primary-glow: 215 85% 50%;
+    --primary-glow: 213 68% 46%;
 
     /* Vibrant accent for wins/success */
     --secondary: 142 76% 36%;
@@ -39,10 +39,10 @@ All colors MUST be HSL.
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 215 85% 35%;
+    --ring: 213 72% 38%;
 
     /* Beautiful gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(215 85% 35%), hsl(215 85% 50%));
+    --gradient-primary: linear-gradient(135deg, hsl(213 72% 38%), hsl(213 68% 46%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 45%));
     --gradient-accent: linear-gradient(135deg, hsl(38 92% 50%), hsl(38 92% 60%));
     
@@ -73,24 +73,24 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 28% 8%;
+    --background: 218 24% 9%;
     --foreground: 210 40% 98%;
 
-    --card: 215 25% 12%;
+    --card: 217 20% 13%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 215 25% 12%;
+    --popover: 217 20% 13%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 215 85% 50%;
-    --primary-foreground: 215 28% 8%;
-    --primary-glow: 215 85% 60%;
+    --primary: 213 62% 62%;
+    --primary-foreground: 218 24% 9%;
+    --primary-glow: 213 58% 68%;
 
     --secondary: 142 76% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 25% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 18% 18%;
+    --muted-foreground: 215 18% 72%;
 
     --accent: 38 92% 55%;
     --accent-foreground: 0 0% 100%;
@@ -98,18 +98,18 @@ All colors MUST be HSL.
     --destructive: 0 84% 65%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 25% 18%;
-    --input: 215 25% 18%;
-    --ring: 215 85% 50%;
+    --border: 217 18% 22%;
+    --input: 217 18% 22%;
+    --ring: 213 62% 62%;
 
     /* Dark mode gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(215 85% 50%), hsl(215 85% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(213 62% 62%), hsl(213 58% 68%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(142 76% 55%));
     --gradient-accent: linear-gradient(135deg, hsl(38 92% 55%), hsl(38 92% 65%));
     
     /* Dark shadows */
-    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.3);
-    --shadow-button: 0 2px 8px hsl(0 0% 0% / 0.2);
+    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.35);
+    --shadow-button: 0 2px 8px hsl(0 0% 0% / 0.3);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -127,6 +127,6 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
   }
 }
