@@ -110,6 +110,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pool_game_settings: {
+        Row: {
+          break_rule: string
+          created_at: string
+          created_by_user_id: string
+          current_breaker_side: string
+          first_breaker_side: string
+          id: string
+          last_rack_winner_side: string | null
+          live_game_id: string | null
+          score_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          break_rule: string
+          created_at?: string
+          created_by_user_id: string
+          current_breaker_side: string
+          first_breaker_side: string
+          id?: string
+          last_rack_winner_side?: string | null
+          live_game_id?: string | null
+          score_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          break_rule?: string
+          created_at?: string
+          created_by_user_id?: string
+          current_breaker_side?: string
+          first_breaker_side?: string
+          id?: string
+          last_rack_winner_side?: string | null
+          live_game_id?: string | null
+          score_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

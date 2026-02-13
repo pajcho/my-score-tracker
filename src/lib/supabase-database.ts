@@ -1,4 +1,28 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+export type PlayerSide = 'player1' | 'player2';
+export type BreakRule = 'alternate' | 'winner_stays';
+
+export interface PoolGameSettings {
+  id: string;
+  live_game_id: string | null;
+  score_id: string | null;
+  created_by_user_id: string;
+  break_rule: BreakRule;
+  first_breaker_side: PlayerSide;
+  current_breaker_side: PlayerSide;
+  last_rack_winner_side: PlayerSide | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PoolGameSettingsInput {
+  break_rule: BreakRule;
+  first_breaker_side: PlayerSide;
+  current_breaker_side: PlayerSide;
+  last_rack_winner_side: PlayerSide | null;
+}
 
 export interface Score {
   id: string;
@@ -10,6 +34,7 @@ export interface Score {
   date: string;
   created_at: string;
   updated_at: string;
+  pool_settings?: PoolGameSettings;
 }
 
 export interface LiveGame {
@@ -29,6 +54,7 @@ export interface LiveGame {
 export interface LiveGameView extends LiveGame {
   creator_name?: string;
   opponent_user_name?: string;
+  pool_settings?: PoolGameSettings;
 }
 
 class SupabaseDatabaseService {
@@ -105,7 +131,28 @@ class SupabaseDatabaseService {
       };
     }));
     
-    return enrichedScores as (Score & { friend_name?: string })[];
+    const scoreIds = (enrichedScores || []).map((score) => score.id);
+    const poolSettingsByScoreId = new Map<string, PoolGameSettings>();
+
+    if (scoreIds.length > 0) {
+      const { data: poolSettingsRows, error: poolSettingsError } = await supabase
+        .from('pool_game_settings')
+        .select('*')
+        .in('score_id', scoreIds);
+
+      if (poolSettingsError) throw poolSettingsError;
+
+      for (const poolSettings of poolSettingsRows || []) {
+        if (poolSettings.score_id) {
+          poolSettingsByScoreId.set(poolSettings.score_id, poolSettings as PoolGameSettings);
+        }
+      }
+    }
+
+    return enrichedScores.map((score) => ({
+      ...score,
+      pool_settings: poolSettingsByScoreId.get(score.id),
+    })) as (Score & { friend_name?: string })[];
   }
 
   async deleteScore(id: string): Promise<void> {
@@ -207,7 +254,8 @@ class SupabaseDatabaseService {
     game: string,
     opponent_name: string | null,
     date: string,
-    opponent_user_id?: string
+    opponent_user_id?: string,
+    poolSettings?: PoolGameSettingsInput
   ): Promise<LiveGame> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -225,6 +273,23 @@ class SupabaseDatabaseService {
       .single();
 
     if (error) throw error;
+
+    if (game === 'Pool' && poolSettings) {
+      const { error: poolSettingsError } = await supabase
+        .from('pool_game_settings')
+        .insert({
+          live_game_id: data.id,
+          score_id: null,
+          created_by_user_id: user.id,
+          break_rule: poolSettings.break_rule,
+          first_breaker_side: poolSettings.first_breaker_side,
+          current_breaker_side: poolSettings.current_breaker_side,
+          last_rack_winner_side: poolSettings.last_rack_winner_side,
+        });
+
+      if (poolSettingsError) throw poolSettingsError;
+    }
+
     return data as LiveGame;
   }
 
@@ -262,22 +327,73 @@ class SupabaseDatabaseService {
       }
     }
 
+    const liveGameIds = (data || []).map((game) => game.id);
+    const poolSettingsByLiveGameId = new Map<string, PoolGameSettings>();
+
+    if (liveGameIds.length > 0) {
+      const { data: poolSettingsRows, error: poolSettingsError } = await supabase
+        .from('pool_game_settings')
+        .select('*')
+        .in('live_game_id', liveGameIds);
+
+      if (poolSettingsError) throw poolSettingsError;
+
+      for (const poolSettings of poolSettingsRows || []) {
+        if (poolSettings.live_game_id) {
+          poolSettingsByLiveGameId.set(poolSettings.live_game_id, poolSettings as PoolGameSettings);
+        }
+      }
+    }
+
     return (data || []).map((game) => ({
       ...game,
       creator_name: profileNameById.get(game.created_by_user_id) || undefined,
       opponent_user_name: game.opponent_user_id
         ? profileNameById.get(game.opponent_user_id) || undefined
         : undefined,
+      pool_settings: poolSettingsByLiveGameId.get(game.id),
     })) as LiveGameView[];
   }
 
-  async updateLiveGameScore(id: string, score1: number, score2: number): Promise<void> {
+  async updateLiveGameScore(
+    id: string,
+    score1: number,
+    score2: number,
+    poolSettingsPatch?: Partial<PoolGameSettingsInput>
+  ): Promise<void> {
+    const payload: Database['public']['Tables']['live_games']['Update'] = {
+      score1,
+      score2,
+    };
+
     const { error } = await supabase
       .from('live_games')
-      .update({ score1, score2 })
+      .update(payload)
       .eq('id', id);
 
     if (error) throw error;
+
+    if (poolSettingsPatch && Object.keys(poolSettingsPatch).length > 0) {
+      const poolPayload: Database['public']['Tables']['pool_game_settings']['Update'] = {
+        ...(poolSettingsPatch.break_rule !== undefined ? { break_rule: poolSettingsPatch.break_rule } : {}),
+        ...(poolSettingsPatch.first_breaker_side !== undefined
+          ? { first_breaker_side: poolSettingsPatch.first_breaker_side }
+          : {}),
+        ...(poolSettingsPatch.current_breaker_side !== undefined
+          ? { current_breaker_side: poolSettingsPatch.current_breaker_side }
+          : {}),
+        ...(poolSettingsPatch.last_rack_winner_side !== undefined
+          ? { last_rack_winner_side: poolSettingsPatch.last_rack_winner_side }
+          : {}),
+      };
+
+      const { error: poolSettingsError } = await supabase
+        .from('pool_game_settings')
+        .update(poolPayload)
+        .eq('live_game_id', id);
+
+      if (poolSettingsError) throw poolSettingsError;
+    }
   }
 
   async deleteLiveGame(id: string): Promise<void> {
@@ -305,13 +421,25 @@ class SupabaseDatabaseService {
       throw new Error('Only the game creator can save the final score');
     }
 
-    await this.createScore(
+    const createdScore = await this.createScore(
       liveGame.game,
       liveGame.opponent_user_id ? null : liveGame.opponent_name,
       `${liveGame.score1}-${liveGame.score2}`,
       liveGame.date,
       liveGame.opponent_user_id || undefined
     );
+
+    if (liveGame.game === 'Pool') {
+      const { error: poolSettingsTransferError } = await supabase
+        .from('pool_game_settings')
+        .update({
+          score_id: createdScore.id,
+          live_game_id: null,
+        })
+        .eq('live_game_id', id);
+
+      if (poolSettingsTransferError) throw poolSettingsTransferError;
+    }
 
     await this.deleteLiveGame(id);
   }
