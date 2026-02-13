@@ -10,7 +10,7 @@ export interface Profile {
   updated_at: string;
 }
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
@@ -44,22 +44,27 @@ class SupabaseAuthService {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only synchronous state updates here
+        // Keep loading true until profile is loaded for authenticated users.
         this.state.session = session;
         this.state.user = session?.user ?? null;
         this.state.isAuthenticated = !!session?.user;
 
         if (session?.user) {
+          this.state.isLoading = true;
+          this.notifyListeners();
+
           // Defer Supabase calls with setTimeout to avoid deadlock
           setTimeout(() => {
-            this.loadProfile(session.user!.id);
+            void this.loadProfile(session.user!.id).finally(() => {
+              this.state.isLoading = false;
+              this.notifyListeners();
+            });
           }, 0);
         } else {
           this.state.profile = null;
+          this.state.isLoading = false;
+          this.notifyListeners();
         }
-
-        this.state.isLoading = false;
-        this.notifyListeners();
       }
     );
 
@@ -69,10 +74,15 @@ class SupabaseAuthService {
       this.state.session = session;
       this.state.user = session.user;
       this.state.isAuthenticated = true;
+      this.state.isLoading = true;
+      this.notifyListeners();
       await this.loadProfile(session.user.id);
+      this.state.isLoading = false;
     }
-    
-    this.state.isLoading = false;
+
+    if (!session?.user) {
+      this.state.isLoading = false;
+    }
     this.notifyListeners();
 
     // Clean up subscription on page unload

@@ -14,17 +14,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { useAuth } from '@/components/auth/auth-context';
 
 export function Navigation() {
   const location = useLocation();
-  const [authState, setAuthState] = useState(() => supabaseAuth.getState());
+  const authState = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    return supabaseAuth.subscribe((newState) => {
-      setAuthState(newState);
-    });
-  }, []);
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },

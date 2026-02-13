@@ -9,7 +9,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
 import {
   supabaseDb,
   BreakRule,
@@ -39,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/components/auth/auth-context';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -94,7 +94,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
   const hasLoadedAfterAuth = useRef(false);
   const { toast } = useToast();
-  const currentUser = supabaseAuth.getCurrentUser();
+  const { user: currentUser, isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   const updateGameLocally = (
     gameId: string,
@@ -170,7 +170,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
           setLastSyncedAt(new Date());
         }
       } catch (error) {
-        if (isMounted && supabaseAuth.isAuthenticated()) {
+        if (isMounted && isAuthenticated) {
           console.error('Failed to load live games:', error);
         }
       } finally {
@@ -195,28 +195,33 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       }
     };
 
-    const unsubscribeAuth = supabaseAuth.subscribe((authState) => {
-      if (!isMounted || authState.isLoading) return;
+    if (isAuthLoading) {
+      return () => {
+        isMounted = false;
+      };
+    }
 
-      if (!authState.isAuthenticated) {
-        hasLoadedAfterAuth.current = false;
-        setGames([]);
-        setIsInitialLoading(false);
-        return;
-      }
+    if (!isAuthenticated) {
+      hasLoadedAfterAuth.current = false;
+      setGames([]);
+      setIsInitialLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
 
-      if (hasLoadedAfterAuth.current) return;
+    if (!hasLoadedAfterAuth.current) {
       hasLoadedAfterAuth.current = true;
+      setIsInitialLoading(true);
       void loadData();
       void loadLiveGames();
-    });
+    }
 
     const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
       void loadLiveGames();
     });
 
     const refreshLiveGamesIfAuthenticated = () => {
-      if (!supabaseAuth.isAuthenticated()) return;
       void loadLiveGames();
     };
 
@@ -249,10 +254,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('online', handleNetworkReconnect);
-      unsubscribeAuth();
       unsubscribe();
     };
-  }, []);
+  }, [isAuthLoading, isAuthenticated]);
 
   useEffect(() => {
     onActiveGamesChange?.(games.length > 0);
@@ -499,7 +503,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   };
 
   const saveGame = async (game: LiveGameView) => {
-    if (!supabaseAuth.isAuthenticated()) return;
+    if (!isAuthenticated) return;
     if (!currentUser || game.created_by_user_id !== currentUser.id) {
       toast({
         title: "Cannot save game",

@@ -1,23 +1,12 @@
-import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabaseAuth } from '@/lib/supabase-auth';
+import { useAuth } from '@/components/auth/auth-context';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((state) => {
-      setIsAuthenticated(state.isAuthenticated);
-      setIsLoading(state.isLoading);
-    });
-
-    return unsubscribe;
-  }, []);
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (

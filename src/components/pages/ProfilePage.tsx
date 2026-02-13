@@ -7,23 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
+import { useAuth } from '@/components/auth/auth-context';
 
 export function ProfilePage() {
-  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
-  const [name, setName] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const { profile } = useAuth();
+  const [name, setName] = useState(profile?.name || '');
+  const [email, setEmail] = useState(profile?.email || '');
 
   useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((authState) => {
-      setUser(authState.profile);
-      setName(authState.profile?.name || '');
-      setEmail(authState.profile?.email || '');
-    });
-
-    return unsubscribe;
-  }, []);
+    setName(profile?.name || '');
+    setEmail(profile?.email || '');
+  }, [profile?.email, profile?.name]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -1,26 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import { ToastAction } from '@/components/ui/toast';
 import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/components/auth/auth-context';
 
 type LiveGameRow = Database['public']['Tables']['live_games']['Row'];
 
 export function LiveGameInviteNotifier() {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(supabaseAuth.getCurrentUser()?.id ?? null);
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const unsubscribeAuth = supabaseAuth.subscribe((authState) => {
-      setCurrentUserId(authState.user?.id ?? null);
-    });
-
-    return unsubscribeAuth;
-  }, []);
 
   const notifyLiveGameInvite = useCallback(async (payload: RealtimePostgresInsertPayload<LiveGameRow>) => {
     const liveGame = payload.new;

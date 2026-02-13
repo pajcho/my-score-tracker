@@ -6,10 +6,10 @@ import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
-import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, Training, supabaseDb} from '@/lib/supabase-database';
 import {getGameTypeLabel} from '@/lib/game-types';
 import {cn} from '@/lib/utils';
+import { useAuth } from '@/components/auth/auth-context';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -25,7 +25,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
   const [scoreGameFilter, setScoreGameFilter] = useState<string>('all');
   const [trainingSearchTerm, setTrainingSearchTerm] = useState('');
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
-  const [, setUser] = useState(supabaseAuth.getCurrentProfile());
+  const { isAuthenticated } = useAuth();
 
   const loadData = async () => {
     try {
@@ -44,18 +44,14 @@ export function HistoryPage({ view }: HistoryPageProps) {
   };
 
   useEffect(() => {
-    return supabaseAuth.subscribe((authState) => {
-      setUser(authState.profile);
-
-      if (authState.isAuthenticated) {
-        void loadData();
-      } else {
-        setScores([]);
-        setTrainings([]);
-        setIsLoading(false);
-      }
-    });
-  }, []);
+    if (isAuthenticated) {
+      void loadData();
+    } else {
+      setScores([]);
+      setTrainings([]);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {

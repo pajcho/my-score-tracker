@@ -4,10 +4,10 @@ import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, T
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
-import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, Training, supabaseDb} from '@/lib/supabase-database';
 import {cn} from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
+import { useAuth } from '@/components/auth/auth-context';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -166,7 +166,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
   const [activeHeatmapCellKey, setActiveHeatmapCellKey] = useState<string | null>(null);
   const [activeTrainingHeatmapCellKey, setActiveTrainingHeatmapCellKey] = useState<string | null>(null);
-  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
+  const { profile, isAuthenticated } = useAuth();
 
   const loadData = async () => {
     try {
@@ -185,17 +185,15 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   };
 
   useEffect(() => {
-    return supabaseAuth.subscribe((authState) => {
-      setUser(authState.profile);
-      if (authState.isAuthenticated) {
-        void loadData();
-      } else {
-        setScores([]);
-        setTrainings([]);
-        setIsLoading(false);
-      }
-    });
-  }, []);
+    if (isAuthenticated) {
+      void loadData();
+      return;
+    }
+
+    setScores([]);
+    setTrainings([]);
+    setIsLoading(false);
+  }, [isAuthenticated]);
 
   const uniqueGames = useMemo(() => [...new Set(scores.map((score) => score.game))], [scores]);
 
@@ -236,8 +234,8 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   }, [gameFilter, opponentFilter, poolTypeFilter, scores]);
 
   const perspectiveScores = useMemo(
-    () => filteredScores.map((score) => parsePerspective(score, user?.user_id)),
-    [filteredScores, user?.user_id]
+    () => filteredScores.map((score) => parsePerspective(score, profile?.user_id)),
+    [filteredScores, profile?.user_id]
   );
 
   const totalGames = filteredScores.length;
@@ -282,10 +280,10 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
       filteredScores
         .map((score) => ({
           score,
-          perspective: parsePerspective(score, user?.user_id),
+          perspective: parsePerspective(score, profile?.user_id),
         }))
         .sort((leftItem, rightItem) => rightItem.perspective.playedAt.getTime() - leftItem.perspective.playedAt.getTime()),
-    [filteredScores, user?.user_id]
+    [filteredScores, profile?.user_id]
   );
 
   const lastTenForm = useMemo(() => sortedMatches.slice(0, 10), [sortedMatches]);

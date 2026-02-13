@@ -6,10 +6,10 @@ import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
-import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, Training, supabaseDb} from '@/lib/supabase-database';
 import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
+import { useAuth } from '@/components/auth/auth-context';
 
 export function HomePage() {
   const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
@@ -18,7 +18,7 @@ export function HomePage() {
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [liveGameCount, setLiveGameCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
+  const { profile, user, isAuthenticated } = useAuth();
 
   const loadDashboardData = async () => {
     try {
@@ -39,19 +39,15 @@ export function HomePage() {
   };
 
   useEffect(() => {
-    return supabaseAuth.subscribe((authState) => {
-      setUser(authState.profile);
-
-      if (authState.isAuthenticated) {
-        void loadDashboardData();
-      } else {
-        setScores([]);
-        setTrainings([]);
-        setLiveGameCount(0);
-        setIsLoading(false);
-      }
-    });
-  }, []);
+    if (isAuthenticated) {
+      void loadDashboardData();
+    } else {
+      setScores([]);
+      setTrainings([]);
+      setLiveGameCount(0);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const handleScoreAdded = () => {
     setActiveQuickAction(null);
@@ -63,7 +59,7 @@ export function HomePage() {
     void loadDashboardData();
   };
 
-  const currentUserId = supabaseAuth.getCurrentUser()?.id;
+  const currentUserId = user?.id;
   const winCount = scores.filter((scoreEntry) => {
     const [firstScore, secondScore] = scoreEntry.score.split('-').map((scoreValue) => Number(scoreValue));
     if (Number.isNaN(firstScore) || Number.isNaN(secondScore) || !currentUserId) {
@@ -94,7 +90,7 @@ export function HomePage() {
       {/* Welcome Section */}
       <div className="text-center py-2 sm:py-8">
         <h1 className="mx-auto max-w-full bg-gradient-primary bg-clip-text text-xl font-bold leading-tight text-transparent sm:mb-3 sm:text-4xl">
-          Welcome back, {user?.name}!
+          Welcome back, {profile?.name}!
         </h1>
         <p className="mt-1 text-sm text-muted-foreground sm:text-lg">Ready to track your game scores?</p>
       </div>
