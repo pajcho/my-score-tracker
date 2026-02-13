@@ -30,7 +30,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "history",
-        element: <ProtectedRoute><HistoryPage /></ProtectedRoute>
+        element: <Navigate to="/history/scores" replace />
+      },
+      {
+        path: "history/scores",
+        element: <ProtectedRoute><HistoryPage view="scores" /></ProtectedRoute>
+      },
+      {
+        path: "history/training",
+        element: <ProtectedRoute><HistoryPage view="training" /></ProtectedRoute>
       },
       {
         path: "profile",
@@ -38,7 +46,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "statistics",
-        element: <ProtectedRoute><StatisticsPage /></ProtectedRoute>
+        element: <Navigate to="/statistics/matches" replace />
+      },
+      {
+        path: "statistics/matches",
+        element: <ProtectedRoute><StatisticsPage view="matches" /></ProtectedRoute>
+      },
+      {
+        path: "statistics/training",
+        element: <ProtectedRoute><StatisticsPage view="training" /></ProtectedRoute>
       },
       {
         path: "friends",

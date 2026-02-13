@@ -1,11 +1,11 @@
 import {useEffect, useMemo, useState} from 'react';
-import {useSearchParams} from 'react-router-dom';
-import {BarChart3, CalendarRange, Filter, Flame, Target, TrendingUp, Trophy, Users,} from 'lucide-react';
+import {Link, useSearchParams} from 'react-router-dom';
+import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, Trophy, Users,} from 'lucide-react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {supabaseAuth} from '@/lib/supabase-auth';
-import {Score, supabaseDb} from '@/lib/supabase-database';
+import {Score, Training, supabaseDb} from '@/lib/supabase-database';
 import {cn} from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
 
@@ -27,6 +27,12 @@ interface OpponentSummary {
   losses: number;
 }
 
+interface TrainingGameSummary {
+  gameType: string;
+  sessionCount: number;
+  totalDurationMinutes: number;
+}
+
 interface HeatmapCell {
   date: Date;
   key: string;
@@ -41,6 +47,13 @@ function formatDateKey(dateValue: Date): string {
   const month = String(dateValue.getMonth() + 1).padStart(2, '0');
   const day = String(dateValue.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function formatTooltipDate(dateValue: Date): string {
+  const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+  const day = String(dateValue.getDate()).padStart(2, '0');
+  const year = dateValue.getFullYear();
+  return `${month}-${day}-${year}`;
 }
 
 function parsePerspective(matchScore: ScoreWithFriend, currentUserId?: string): MatchPerspective {
@@ -67,7 +80,21 @@ function startOfWeekMonday(dateValue: Date): Date {
   return normalizedDate;
 }
 
-function buildHeatmapData(scoreList: ScoreWithFriend[]): { weeks: HeatmapCell[][]; maxCount: number } {
+interface WeightedDateEntry {
+  dateValue: string;
+  weight: number;
+}
+
+function buildHeatmapDataFromDateValues(dateValues: string[]): { weeks: HeatmapCell[][]; maxCount: number } {
+  const weightedDateEntries: WeightedDateEntry[] = dateValues.map((dateValue) => ({
+    dateValue,
+    weight: 1,
+  }));
+
+  return buildWeightedHeatmapData(weightedDateEntries);
+}
+
+function buildWeightedHeatmapData(weightedDateEntries: WeightedDateEntry[]): { weeks: HeatmapCell[][]; maxCount: number } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const currentWeekMonday = startOfWeekMonday(today);
@@ -76,10 +103,10 @@ function buildHeatmapData(scoreList: ScoreWithFriend[]): { weeks: HeatmapCell[][
 
   const countsByDate = new Map<string, number>();
 
-  for (const score of scoreList) {
-    const playedAt = new Date(score.date);
+  for (const weightedDateEntry of weightedDateEntries) {
+    const playedAt = new Date(weightedDateEntry.dateValue);
     const key = formatDateKey(playedAt);
-    countsByDate.set(key, (countsByDate.get(key) || 0) + 1);
+    countsByDate.set(key, (countsByDate.get(key) || 0) + weightedDateEntry.weight);
   }
 
   const weeks: HeatmapCell[][] = [];
@@ -109,6 +136,10 @@ function buildHeatmapData(scoreList: ScoreWithFriend[]): { weeks: HeatmapCell[][
   return { weeks, maxCount };
 }
 
+function buildHeatmapData(scoreList: ScoreWithFriend[]): { weeks: HeatmapCell[][]; maxCount: number } {
+  return buildHeatmapDataFromDateValues(scoreList.map((score) => score.date));
+}
+
 function getHeatmapIntensityClass(activityCount: number, maxCount: number, isFuture: boolean): string {
   if (isFuture) return 'bg-muted/35 border-dashed';
   if (activityCount === 0 || maxCount === 0) return 'bg-muted/60';
@@ -119,22 +150,33 @@ function getHeatmapIntensityClass(activityCount: number, maxCount: number, isFut
   return 'bg-primary/80';
 }
 
-export function StatisticsPage() {
+interface StatisticsPageProps {
+  view: 'matches' | 'training';
+}
+
+export function StatisticsPage({ view }: StatisticsPageProps) {
   const [searchParams] = useSearchParams();
   const [scores, setScores] = useState<ScoreWithFriend[]>([]);
+  const [trainings, setTrainings] = useState<Training[]>([]);
   const [gameFilter, setGameFilter] = useState<string>(searchParams.get('game') || 'all');
   const [poolTypeFilter, setPoolTypeFilter] = useState<string>(searchParams.get('poolType') || 'all');
   const [opponentFilter, setOpponentFilter] = useState<string>(searchParams.get('opponent') || 'all');
+  const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
   const [activeHeatmapCellKey, setActiveHeatmapCellKey] = useState<string | null>(null);
+  const [activeTrainingHeatmapCellKey, setActiveTrainingHeatmapCellKey] = useState<string | null>(null);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const userScores = await supabaseDb.getScoresByUserId();
+      const [userScores, userTrainings] = await Promise.all([
+        supabaseDb.getScoresByUserId(),
+        supabaseDb.getTrainingsByUserId(),
+      ]);
       setScores(userScores as ScoreWithFriend[]);
+      setTrainings(userTrainings);
     } catch (error) {
       console.error('Failed to load scores:', error);
     } finally {
@@ -149,6 +191,7 @@ export function StatisticsPage() {
         void loadData();
       } else {
         setScores([]);
+        setTrainings([]);
         setIsLoading(false);
       }
     });
@@ -369,14 +412,351 @@ export function StatisticsPage() {
 
   const heatmapWeekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+  const trainingGames = useMemo(
+    () => [...new Set(trainings.map((training) => training.game))],
+    [trainings]
+  );
+
+  const filteredTrainings = useMemo(
+    () =>
+      trainings.filter((training) => {
+        if (trainingGameFilter === 'all') return true;
+        return training.game === trainingGameFilter;
+      }),
+    [trainingGameFilter, trainings]
+  );
+
+  const totalTrainingSessions = filteredTrainings.length;
+  const totalTrainingMinutes = useMemo(
+    () => filteredTrainings.reduce((sumValue, training) => sumValue + training.duration_minutes, 0),
+    [filteredTrainings]
+  );
+  const averageTrainingDurationMinutes = totalTrainingSessions > 0
+    ? totalTrainingMinutes / totalTrainingSessions
+    : 0;
+
+  const trainingHeatmapData = useMemo(
+    () => buildWeightedHeatmapData(
+      filteredTrainings.map((training) => ({
+        dateValue: training.training_date,
+        weight: training.duration_minutes,
+      }))
+    ),
+    [filteredTrainings]
+  );
+  const trainingMinutesInHeatmapRange = useMemo(
+    () => trainingHeatmapData.weeks.flat().reduce((sumValue, cell) => sumValue + cell.count, 0),
+    [trainingHeatmapData.weeks]
+  );
+  const trainingHeatmapMonthLabels = useMemo(() => {
+    return trainingHeatmapData.weeks.map((weekColumn, weekIndex) => {
+      const currentMonth = weekColumn[0].date.getMonth();
+      if (weekIndex === 0) {
+        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
+      }
+
+      const previousMonth = trainingHeatmapData.weeks[weekIndex - 1][0].date.getMonth();
+      if (currentMonth !== previousMonth) {
+        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
+      }
+
+      return '';
+    });
+  }, [trainingHeatmapData.weeks]);
+
+  const trainingSummaryByGame = useMemo(() => {
+    const summaryMap = new Map<string, TrainingGameSummary>();
+
+    for (const training of filteredTrainings) {
+      const existingSummary = summaryMap.get(training.game) || {
+        gameType: training.game,
+        sessionCount: 0,
+        totalDurationMinutes: 0,
+      };
+      existingSummary.sessionCount += 1;
+      existingSummary.totalDurationMinutes += training.duration_minutes;
+      summaryMap.set(training.game, existingSummary);
+    }
+
+    return Array.from(summaryMap.values()).sort((leftSummary, rightSummary) => rightSummary.sessionCount - leftSummary.sessionCount);
+  }, [filteredTrainings]);
+
+  const longestTrainingSessionMinutes = useMemo(
+    () => filteredTrainings.reduce((maxValue, training) => Math.max(maxValue, training.duration_minutes), 0),
+    [filteredTrainings]
+  );
+
+  const mostTrainedGame = trainingSummaryByGame[0]?.gameType;
+  const trainingDaysInHeatmapRange = useMemo(
+    () => trainingHeatmapData.weeks.flat().filter((cell) => !cell.isFuture && cell.count > 0).length,
+    [trainingHeatmapData.weeks]
+  );
+
+  const currentTrainingStreakDays = useMemo(() => {
+    const uniqueTrainingDates = Array.from(new Set(filteredTrainings.map((training) => training.training_date)))
+      .map((dateValue) => {
+        const normalizedDate = new Date(dateValue);
+        normalizedDate.setHours(0, 0, 0, 0);
+        return normalizedDate;
+      })
+      .sort((leftDate, rightDate) => rightDate.getTime() - leftDate.getTime());
+
+    if (uniqueTrainingDates.length === 0) return 0;
+
+    let streakDays = 1;
+    for (let index = 1; index < uniqueTrainingDates.length; index += 1) {
+      const previousDate = uniqueTrainingDates[index - 1];
+      const currentDate = uniqueTrainingDates[index];
+      const dayDifference = Math.round((previousDate.getTime() - currentDate.getTime()) / (24 * 60 * 60 * 1000));
+
+      if (dayDifference === 1) {
+        streakDays += 1;
+      } else if (dayDifference > 1) {
+        break;
+      }
+    }
+
+    return streakDays;
+  }, [filteredTrainings]);
+  const statisticsViewTabs = (
+    <div className="flex items-center gap-2">
+      <Link
+        to="/statistics/matches"
+        className={cn(
+          'rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth',
+          view === 'matches'
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:text-foreground'
+        )}
+      >
+        Matches
+      </Link>
+      <Link
+        to="/statistics/training"
+        className={cn(
+          'rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth',
+          view === 'training'
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-border text-muted-foreground hover:text-foreground'
+        )}
+      >
+        Training
+      </Link>
+    </div>
+  );
+
+  const trainingStatisticsSection = (
+    <>
+      <Card className="shadow-card border-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+          <CardDescription>Filter training statistics by game type</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="w-full sm:w-48">
+            <Select value={trainingGameFilter} onValueChange={setTrainingGameFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter trainings by game" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Games</SelectItem>
+                {trainingGames.map((game) => (
+                  <SelectItem key={game} value={game}>
+                    {getGameTypeLabel(game)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        <Card className="shadow-card border-0 order-1 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarRange className="h-5 w-5 text-primary" />
+              Training Heatmap
+            </CardTitle>
+            <CardDescription>Last 12 weeks ({(trainingMinutesInHeatmapRange / 60).toFixed(1)}h)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1">
+              <div />
+              <div className="grid grid-cols-12 gap-1">
+                {trainingHeatmapMonthLabels.map((monthLabel, index) => (
+                  <div key={`training-month-${index}`} className="text-[10px] text-muted-foreground leading-none h-3">
+                    {monthLabel}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-rows-7 gap-1">
+                {heatmapWeekdayLabels.map((dayLabel, dayIndex) => (
+                  <div
+                    key={`training-day-${dayIndex}`}
+                    className="h-full flex items-center justify-start text-[10px] text-muted-foreground leading-none"
+                  >
+                    {dayLabel}
+                  </div>
+                ))}
+              </div>
+
+              <div className="w-full grid grid-cols-12 gap-1">
+                {trainingHeatmapData.weeks.map((weekColumn, weekIndex) => (
+                  <div key={`training-week-${weekIndex}`} className="grid grid-rows-7 gap-1">
+                    {weekColumn.map((cell) => (
+                      <Popover
+                        key={`training-${cell.key}`}
+                        open={activeTrainingHeatmapCellKey === cell.key}
+                        onOpenChange={(isOpen) => {
+                          setActiveTrainingHeatmapCellKey(isOpen ? cell.key : null);
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`${formatTooltipDate(cell.date)}: ${cell.count} training minutes`}
+                            className={cn(
+                              'w-full aspect-square rounded-[3px] border border-border/60',
+                              getHeatmapIntensityClass(cell.count, trainingHeatmapData.maxCount, cell.isFuture)
+                            )}
+                          />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
+                          {formatTooltipDate(cell.date)}: {cell.count} min ({(cell.count / 60).toFixed(1)}h)
+                        </PopoverContent>
+                      </Popover>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>Less</span>
+              <div className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-sm bg-muted/60 border border-border/60" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-primary/30 border border-border/60" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-primary/55 border border-border/60" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-primary/80 border border-border/60" />
+              </div>
+              <span>More</span>
+            </div>
+            {totalTrainingSessions === 0 ? (
+              <div className="mt-4 text-sm text-muted-foreground">
+                No trainings found for the selected filter.
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <div className="order-2 lg:col-span-3 grid grid-cols-2 gap-6">
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <Dumbbell className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalTrainingSessions}</div>
+              <p className="text-xs text-muted-foreground">Training sessions</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Duration</CardTitle>
+              <CalendarRange className="h-4 w-4 text-secondary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(totalTrainingMinutes / 60).toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">Time spent training</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Session</CardTitle>
+              <Target className="h-4 w-4 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{averageTrainingDurationMinutes.toFixed(0)} min</div>
+              <p className="text-xs text-muted-foreground">Average session length</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Most Trained Game</CardTitle>
+              <Users className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{mostTrainedGame ? getGameTypeLabel(mostTrainedGame) : 'N/A'}</div>
+              <p className="text-xs text-muted-foreground">Longest: {longestTrainingSessionMinutes} min</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Training Days (12w)</CardTitle>
+              <CalendarRange className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{trainingDaysInHeatmapRange}</div>
+              <p className="text-xs text-muted-foreground">Days with at least one training</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card border-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
+              <Flame className="h-4 w-4 text-secondary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentTrainingStreakDays} days</div>
+              <p className="text-xs text-muted-foreground">Consecutive training days</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+
+  if (view === 'training') {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-3xl font-bold">Statistics</h1>
+              <p className="text-muted-foreground">Analyze your training consistency and load</p>
+            </div>
+          </div>
+          {statisticsViewTabs}
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
+        ) : (
+          trainingStatisticsSection
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">Statistics</h1>
-          <p className="text-muted-foreground">Analyze your gaming performance and track your progress</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="h-8 w-8 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold">Statistics</h1>
+            <p className="text-muted-foreground">Analyze your gaming performance</p>
+          </div>
         </div>
+        {statisticsViewTabs}
       </div>
 
       <Card className="shadow-card border-0">
@@ -618,7 +998,7 @@ export function StatisticsPage() {
                             <PopoverTrigger asChild>
                               <button
                                 type="button"
-                                aria-label={`${cell.key}: ${cell.count} game${cell.count === 1 ? '' : 's'}`}
+                                aria-label={`${formatTooltipDate(cell.date)}: ${cell.count} game${cell.count === 1 ? '' : 's'}`}
                                 className={cn(
                                   'w-full aspect-square rounded-[3px] border border-border/60',
                                   getHeatmapIntensityClass(cell.count, heatmapData.maxCount, cell.isFuture)
@@ -626,7 +1006,7 @@ export function StatisticsPage() {
                               />
                             </PopoverTrigger>
                             <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                              {cell.key}: {cell.count} game{cell.count === 1 ? '' : 's'}
+                              {formatTooltipDate(cell.date)}: {cell.count} game{cell.count === 1 ? '' : 's'}
                             </PopoverContent>
                           </Popover>
                         ))}
@@ -716,6 +1096,7 @@ export function StatisticsPage() {
               </CardContent>
             </Card>
           </div>
+
         </>
       )}
     </div>

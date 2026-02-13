@@ -40,6 +40,18 @@ export interface Score {
   pool_settings?: PoolGameSettings;
 }
 
+export interface Training {
+  id: string;
+  user_id: string;
+  game: GameType;
+  title: string;
+  training_date: string;
+  notes: string | null;
+  duration_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LiveGame {
   id: string;
   created_by_user_id: string;
@@ -278,6 +290,50 @@ class SupabaseDatabaseService {
     }));
 
     return Array.from(opponents).sort();
+  }
+
+  async createTraining(
+    game: GameType,
+    title: string,
+    trainingDate: string,
+    durationMinutes: number,
+    notes?: string
+  ): Promise<Training> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const payload: Database['public']['Tables']['trainings']['Insert'] = {
+      user_id: user.id,
+      game,
+      title,
+      training_date: trainingDate,
+      duration_minutes: durationMinutes,
+      notes: notes && notes.trim().length > 0 ? notes.trim() : null,
+    };
+
+    const { data, error } = await supabase
+      .from('trainings')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Training;
+  }
+
+  async getTrainingsByUserId(): Promise<Training[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('trainings')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('training_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as Training[];
   }
 
   async updateProfile(name: string, email: string): Promise<void> {

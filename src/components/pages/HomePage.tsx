@@ -1,17 +1,19 @@
 import {useEffect, useState} from 'react';
-import {Calendar, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-react';
+import {Calendar, Dumbbell, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
+import {TrainingForm} from '@/components/trainings/TrainingForm';
 import {supabaseAuth} from '@/lib/supabase-auth';
-import {Score, supabaseDb} from '@/lib/supabase-database';
-import { GAME_TYPE_OPTIONS } from '@/lib/game-types';
+import {Score, Training, supabaseDb} from '@/lib/supabase-database';
+import {GAME_TYPE_OPTIONS, getGameTypeLabel} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 
 export function HomePage() {
-  const [showScoreForm, setShowScoreForm] = useState(false);
+  const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
   const [scores, setScores] = useState<Score[]>([]);
+  const [trainings, setTrainings] = useState<Training[]>([]);
   const [liveGameCount, setLiveGameCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
@@ -19,12 +21,14 @@ export function HomePage() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const [userScores, liveGames] = await Promise.all([
+      const [userScores, liveGames, userTrainings] = await Promise.all([
         supabaseDb.getScoresByUserId(),
         supabaseDb.getLiveGames(),
+        supabaseDb.getTrainingsByUserId(),
       ]);
       setScores(userScores);
       setLiveGameCount(liveGames.length);
+      setTrainings(userTrainings);
     } catch (error) {
       console.error('Failed to load scores:', error);
     } finally {
@@ -40,6 +44,7 @@ export function HomePage() {
         void loadDashboardData();
       } else {
         setScores([]);
+        setTrainings([]);
         setLiveGameCount(0);
         setIsLoading(false);
       }
@@ -47,7 +52,12 @@ export function HomePage() {
   }, []);
 
   const handleScoreAdded = () => {
-    setShowScoreForm(false);
+    setActiveQuickAction(null);
+    void loadDashboardData();
+  };
+
+  const handleTrainingAdded = () => {
+    setActiveQuickAction(null);
     void loadDashboardData();
   };
 
@@ -77,7 +87,7 @@ export function HomePage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="shadow-card border-0 hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Games</CardTitle>
@@ -130,6 +140,19 @@ export function HomePage() {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="shadow-card border-0 hover-scale">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Training Sessions</CardTitle>
+            <Dumbbell className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{trainings.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Logged sessions
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Add Score Section */}
@@ -137,14 +160,18 @@ export function HomePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            {showScoreForm ? 'Add New Score' : 'Quick Actions'}
+            {activeQuickAction === 'score' ? 'Add New Score' : activeQuickAction === 'training' ? 'Add Training' : 'Quick Actions'}
           </CardTitle>
           <CardDescription>
-            {showScoreForm ? 'Fill in the details of your game' : 'Start tracking your games'}
+            {activeQuickAction === 'score'
+              ? 'Fill in the details of your game'
+              : activeQuickAction === 'training'
+                ? 'Log what and how long you trained'
+                : 'Start tracking your games and trainings'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {!showScoreForm ? (
+          {!activeQuickAction ? (
             <div className="flex flex-wrap gap-3">
               <Link to="/live" className="w-full sm:w-[280px]">
                 <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
@@ -165,7 +192,7 @@ export function HomePage() {
               </Link>
               <button
                 type="button"
-                onClick={() => setShowScoreForm(true)}
+                onClick={() => setActiveQuickAction('score')}
                 className="w-full sm:w-[280px] text-left"
               >
                 <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
@@ -180,12 +207,77 @@ export function HomePage() {
                   </div>
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveQuickAction('training')}
+                className="w-full sm:w-[280px] text-left"
+              >
+                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-primary/10 p-2">
+                      <Dumbbell className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Add Training</p>
+                      <p className="text-sm text-muted-foreground">Save a training session with notes and duration</p>
+                    </div>
+                  </div>
+                </div>
+              </button>
             </div>
-          ) : (
-            <ScoreForm 
-              onCancel={() => setShowScoreForm(false)}
+          ) : activeQuickAction === 'score' ? (
+            <ScoreForm
+              onCancel={() => setActiveQuickAction(null)}
               onSuccess={handleScoreAdded}
             />
+          ) : (
+            <TrainingForm
+              onCancel={() => setActiveQuickAction(null)}
+              onSuccess={handleTrainingAdded}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card border-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Dumbbell className="h-5 w-5" />
+            Recent Trainings
+          </CardTitle>
+          <CardDescription>
+            Your latest training sessions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading trainings...
+            </div>
+          ) : trainings.length > 0 ? (
+            <div className="space-y-3">
+              {trainings.slice(0, 5).map((training) => (
+                <div
+                  key={training.id}
+                  className="rounded-lg border border-border bg-card p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-foreground">{training.title}</p>
+                    <p className="text-sm text-muted-foreground">{training.duration_minutes} min</p>
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {getGameTypeLabel(training.game)} • {new Date(training.training_date).toLocaleDateString()}
+                  </div>
+                  {training.notes ? (
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{training.notes}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No trainings recorded yet. Add your first training above.
+            </div>
           )}
         </CardContent>
       </Card>

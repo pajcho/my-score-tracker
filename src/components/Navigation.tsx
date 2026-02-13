@@ -1,9 +1,9 @@
-import {Link, useLocation} from 'react-router-dom';
-import {useEffect, useState} from 'react';
-import {BarChart3, History, Home, LogOut, Trophy, User, Users} from 'lucide-react';
-import {supabaseAuth} from '@/lib/supabase-auth';
-import {cn} from '@/lib/utils';
-import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
+import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BarChart3, History, Home, LogOut, Trophy, User, Users } from 'lucide-react';
+import { supabaseAuth } from '@/lib/supabase-auth';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import {useToast} from '@/hooks/use-toast';
-import {ThemeModeToggle} from '@/components/ThemeModeToggle';
+import { useToast } from '@/hooks/use-toast';
+import { ThemeModeToggle } from '@/components/ThemeModeToggle';
 
 export function Navigation() {
   const location = useLocation();
@@ -27,9 +27,21 @@ export function Navigation() {
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
-    { to: '/history', icon: History, label: 'History' },
-    { to: '/statistics', icon: BarChart3, label: 'Statistics' },
+    { to: '/history/scores', icon: History, label: 'History' },
+    { to: '/statistics/matches', icon: BarChart3, label: 'Statistics' },
   ];
+
+  const isNavItemActive = (path: string): boolean => {
+    if (path.startsWith('/history')) {
+      return location.pathname.startsWith('/history');
+    }
+
+    if (path.startsWith('/statistics')) {
+      return location.pathname.startsWith('/statistics');
+    }
+
+    return location.pathname === path;
+  };
 
   const getGravatarUrl = async (email: string) => {
     const normalizedEmail = email.toLowerCase().trim();
@@ -57,7 +69,7 @@ export function Navigation() {
       });
     } catch (error) {
       toast({
-        title: "Logout failed", 
+        title: "Logout failed",
         description: "Failed to log out. Please try again.",
         variant: "destructive",
       });
@@ -68,13 +80,11 @@ export function Navigation() {
     <nav className="bg-card border-b border-border shadow-card">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
             <Trophy className="h-6 w-6" />
             <span className="hidden sm:inline">ScoreTracker</span>
           </Link>
 
-          {/* Navigation Links - Centered */}
           <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {navItems.map(({ to, icon: Icon, label }) => (
               <Link
@@ -82,7 +92,7 @@ export function Navigation() {
                 to={to}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-smooth hover:bg-muted",
-                  location.pathname === to
+                  isNavItemActive(to)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
@@ -96,7 +106,6 @@ export function Navigation() {
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeModeToggle />
 
-            {/* User Avatar Dropdown */}
             {authState.profile && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-3 hover:bg-muted/50 rounded-lg p-2 transition-smooth">
@@ -137,7 +146,6 @@ export function Navigation() {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         <div className="md:hidden pb-4">
           <div className="flex items-center justify-around">
             {navItems.map(({ to, icon: Icon, label }) => (
@@ -146,7 +154,7 @@ export function Navigation() {
                 to={to}
                 className={cn(
                   "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
-                  location.pathname === to
+                  isNavItemActive(to)
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
