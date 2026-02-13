@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit, Trash2, Triangle, Zap, Calendar, User, Trophy } from 'lucide-react';
+import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 import { cn } from '@/lib/utils';
 import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
+import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -34,11 +36,6 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<Score | null>(null);
   const { toast } = useToast();
-
-  const gameIcons = {
-    Pool: Triangle,
-    'Ping Pong': Zap,
-  };
 
   const getScoreResult = (scoreString: string, isCreator: boolean) => {
     const [score1, score2] = scoreString.split('-').map(Number);
@@ -76,7 +73,6 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
     }
   };
 
-  const Icon = gameIcons[score.game as keyof typeof gameIcons] || Trophy;
   const currentUser = supabaseAuth.getCurrentUser();
   const isOwnScore = currentUser && score.user_id === currentUser.id;
   const result = getScoreResult(score.score, isOwnScore);
@@ -86,6 +82,8 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
     loss: "border-destructive/70 bg-destructive/10 text-destructive",
     tie: "border-accent/70 bg-accent/10 text-accent",
   } as const;
+  const poolType = score.pool_settings?.pool_type || DEFAULT_POOL_TYPE;
+  const showPoolTypeIcon = isPoolGameType(score.game);
 
   return (
     <>
@@ -96,26 +94,36 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
       >
         <CardContent className={cn("p-4 sm:p-5", compact && "p-3 sm:p-4")}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Game Icon */}
-              <div className={cn(
-                "mt-0.5 hidden rounded-full p-2.5 sm:block",
-                result === 'win' && "bg-secondary/12",
-                result === 'loss' && "bg-destructive/12",
-                result === 'tie' && "bg-accent/12"
-              )}>
-                <Icon className={cn(
-                  "h-4 w-4",
-                  result === 'win' && "text-secondary",
-                  result === 'loss' && "text-destructive",
-                  result === 'tie' && "text-accent"
-                )} />
+              <div className={cn("mt-0.5 hidden rounded-full border p-0.5 sm:block")}>
+                {showPoolTypeIcon ? (
+                  <PoolTypeIcon
+                    poolType={poolType}
+                    className={cn("h-6 w-6")}
+                  />
+                ) : (
+                  <GameTypeIcon
+                    gameType={score.game}
+                    className={cn(
+                      "h-6 w-6",
+                      result === 'win' && "text-secondary",
+                      result === 'loss' && "text-destructive",
+                      result === 'tie' && "text-amber-400"
+                    )}
+                  />
+                )}
               </div>
 
               {/* Game Info */}
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-base font-semibold text-foreground">{score.game}</h4>
+                  <h4 className="text-base font-semibold text-foreground">{getGameTypeLabel(score.game)}</h4>
+                  {isPoolGameType(score.game) && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {getPoolTypeLabel(poolType)}
+                    </span>
+                  )}
                   <Badge
                     variant="outline"
                     className={cn(

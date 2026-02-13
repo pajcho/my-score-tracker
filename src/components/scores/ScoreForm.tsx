@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,13 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
+import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 
 interface ScoreFormProps {
   onCancel: () => void;
   onSuccess: () => void;
   initialData?: {
-    game: string;
+    game: GameType;
     opponent_name?: string | null;
     opponent_user_id?: string | null;
     score: string;
@@ -21,7 +22,8 @@ interface ScoreFormProps {
 }
 
 export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) {
-  const [game, setGame] = useState(initialData?.game || 'Pool');
+  const [game, setGame] = useState<GameType>(initialData?.game || DEFAULT_GAME_TYPE);
+  const [poolType, setPoolType] = useState<PoolType>(DEFAULT_POOL_TYPE);
   const [opponent, setOpponent] = useState(initialData?.opponent_name || '');
   const [yourScore, setYourScore] = useState(initialData?.score ? initialData.score.split('-')[0] : '');
   const [opponentScore, setOpponentScore] = useState(initialData?.score ? initialData.score.split('-')[1] : '');
@@ -86,13 +88,17 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
         opponentName = opponent;
       }
       
-      await supabaseDb.createScore(
+      const createdScore = await supabaseDb.createScore(
         game,
         opponentName,
         combinedScore,
         format(date, 'yyyy-MM-dd'),
         opponentUserId
       );
+
+      if (isPoolGameType(game)) {
+        await supabaseDb.setScorePoolType(createdScore.id, poolType);
+      }
 
       toast({
         title: "Score added!",
@@ -101,9 +107,10 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
 
       onSuccess();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Please try again';
       toast({
         title: "Failed to save score",
-        description: "Please try again",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -118,6 +125,8 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
           <ScoreFormFields
             game={game}
             setGame={setGame}
+            poolType={poolType}
+            setPoolType={setPoolType}
             opponent={opponent}
             setOpponent={setOpponent}
             yourScore={yourScore}

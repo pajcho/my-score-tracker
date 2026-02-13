@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 
 export type PlayerSide = 'player1' | 'player2';
 export type BreakRule = 'alternate' | 'winner_stays';
@@ -9,6 +10,7 @@ export interface PoolGameSettings {
   live_game_id: string | null;
   score_id: string | null;
   created_by_user_id: string;
+  pool_type: PoolType;
   break_rule: BreakRule;
   first_breaker_side: PlayerSide;
   current_breaker_side: PlayerSide;
@@ -18,6 +20,7 @@ export interface PoolGameSettings {
 }
 
 export interface PoolGameSettingsInput {
+  pool_type: PoolType;
   break_rule: BreakRule;
   first_breaker_side: PlayerSide;
   current_breaker_side: PlayerSide;
@@ -27,7 +30,7 @@ export interface PoolGameSettingsInput {
 export interface Score {
   id: string;
   user_id: string;
-  game: 'Pool' | 'Ping Pong';
+  game: GameType;
   opponent_name: string | null;
   opponent_user_id: string | null;
   score: string;
@@ -40,7 +43,7 @@ export interface Score {
 export interface LiveGame {
   id: string;
   created_by_user_id: string;
-  game: 'Pool' | 'Ping Pong';
+  game: GameType;
   opponent_name: string | null;
   opponent_user_id: string | null;
   score1: number;
@@ -59,7 +62,7 @@ export interface LiveGameView extends LiveGame {
 
 class SupabaseDatabaseService {
   async createScore(
-    game: string,
+    game: GameType,
     opponent_name: string | null,
     score: string,
     date: string,
@@ -188,6 +191,61 @@ class SupabaseDatabaseService {
     if (error) throw error;
   }
 
+  async setScorePoolType(scoreId: string, poolType: PoolType): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data: existingSettings, error: existingSettingsError } = await supabase
+      .from('pool_game_settings')
+      .select('id')
+      .eq('score_id', scoreId)
+      .maybeSingle();
+
+    if (existingSettingsError) throw existingSettingsError;
+
+    if (existingSettings?.id) {
+      const { error: updateError } = await supabase
+        .from('pool_game_settings')
+        .update({
+          pool_type: poolType,
+        })
+        .eq('score_id', scoreId);
+
+      if (updateError) throw updateError;
+      return;
+    }
+
+    const payload: Database['public']['Tables']['pool_game_settings']['Insert'] = {
+      live_game_id: null,
+      score_id: scoreId,
+      created_by_user_id: user.id,
+      pool_type: poolType,
+      break_rule: 'alternate',
+      first_breaker_side: 'player1',
+      current_breaker_side: 'player1',
+      last_rack_winner_side: null,
+    };
+
+    const { error: insertError } = await supabase
+      .from('pool_game_settings')
+      .insert(payload);
+
+    if (insertError) throw insertError;
+  }
+
+  async deleteScorePoolSettings(scoreId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('pool_game_settings')
+      .delete()
+      .eq('score_id', scoreId)
+      .eq('created_by_user_id', user.id);
+
+    if (error) throw error;
+  }
+
   async getUniqueOpponents(): Promise<string[]> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -251,7 +309,7 @@ class SupabaseDatabaseService {
   }
 
   async createLiveGame(
-    game: string,
+    game: GameType,
     opponent_name: string | null,
     date: string,
     opponent_user_id?: string,
@@ -274,13 +332,14 @@ class SupabaseDatabaseService {
 
     if (error) throw error;
 
-    if (game === 'Pool' && poolSettings) {
+    if (isPoolGameType(game) && poolSettings) {
       const { error: poolSettingsError } = await supabase
         .from('pool_game_settings')
         .insert({
           live_game_id: data.id,
           score_id: null,
           created_by_user_id: user.id,
+          pool_type: poolSettings.pool_type,
           break_rule: poolSettings.break_rule,
           first_breaker_side: poolSettings.first_breaker_side,
           current_breaker_side: poolSettings.current_breaker_side,
@@ -375,6 +434,7 @@ class SupabaseDatabaseService {
 
     if (poolSettingsPatch && Object.keys(poolSettingsPatch).length > 0) {
       const poolPayload: Database['public']['Tables']['pool_game_settings']['Update'] = {
+        ...(poolSettingsPatch.pool_type !== undefined ? { pool_type: poolSettingsPatch.pool_type } : {}),
         ...(poolSettingsPatch.break_rule !== undefined ? { break_rule: poolSettingsPatch.break_rule } : {}),
         ...(poolSettingsPatch.first_breaker_side !== undefined
           ? { first_breaker_side: poolSettingsPatch.first_breaker_side }
@@ -429,7 +489,7 @@ class SupabaseDatabaseService {
       liveGame.opponent_user_id || undefined
     );
 
-    if (liveGame.game === 'Pool') {
+    if (isPoolGameType(liveGame.game)) {
       const { error: poolSettingsTransferError } = await supabase
         .from('pool_game_settings')
         .update({

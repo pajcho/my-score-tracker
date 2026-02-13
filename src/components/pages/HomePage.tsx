@@ -1,11 +1,13 @@
 import {useEffect, useState} from 'react';
-import {Calendar, Medal, Play, Plus, TrendingUp, Triangle, Trophy, Zap} from 'lucide-react';
+import {Calendar, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, supabaseDb} from '@/lib/supabase-database';
+import { GAME_TYPE_OPTIONS } from '@/lib/game-types';
+import { GameTypeIcon } from '@/components/ui/game-type-icon';
 
 export function HomePage() {
   const [showScoreForm, setShowScoreForm] = useState(false);
@@ -49,10 +51,6 @@ export function HomePage() {
     void loadDashboardData();
   };
 
-  const gameIcons = {
-    Pool: Triangle,
-    'Ping Pong': Zap,
-  };
   const currentUserId = supabaseAuth.getCurrentUser()?.id;
   const winCount = scores.filter((scoreEntry) => {
     const [firstScore, secondScore] = scoreEntry.score.split('-').map((scoreValue) => Number(scoreValue));
@@ -222,12 +220,12 @@ export function HomePage() {
                 No scores recorded yet. Start your first game above!
               </div>
               <div className="flex justify-center gap-4">
-                {Object.entries(gameIcons).map(([game, Icon]) => (
-                  <div key={game} className="flex flex-col items-center gap-2">
+                {GAME_TYPE_OPTIONS.map(({ value, label }) => (
+                  <div key={value} className="flex flex-col items-center gap-2">
                     <div className="p-3 bg-muted rounded-full">
-                      <Icon className="h-6 w-6 text-muted-foreground" />
+                      <GameTypeIcon gameType={value} className="h-6 w-6 text-muted-foreground" />
                     </div>
-                    <span className="text-xs text-muted-foreground">{game}</span>
+                    <span className="text-xs text-muted-foreground">{label}</span>
                   </div>
                 ))}
               </div>

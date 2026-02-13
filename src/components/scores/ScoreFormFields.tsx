@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Triangle, Zap, Users, User } from 'lucide-react';
+import { Calendar, Users, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,13 +12,17 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
+import { GAME_TYPE_OPTIONS, POOL_TYPE_OPTIONS, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
 
 const toggleOptionClassName =
   "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
 
 interface ScoreFormFieldsProps {
-  game: string;
-  setGame: (game: string) => void;
+  game: GameType;
+  setGame: (game: GameType) => void;
+  poolType: PoolType;
+  setPoolType: (poolType: PoolType) => void;
   opponent: string;
   setOpponent: (opponent: string) => void;
   yourScore: string;
@@ -40,6 +44,8 @@ interface ScoreFormFieldsProps {
 export function ScoreFormFields({
   game,
   setGame,
+  poolType,
+  setPoolType,
   opponent,
   setOpponent,
   yourScore,
@@ -57,10 +63,6 @@ export function ScoreFormFields({
   const [opponents, setOpponents] = useState<string[]>([]);
   const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
 
-  const games = [
-    { value: 'Pool', label: 'Pool', icon: Triangle },
-    { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
-  ];
   const initialOpponentUserId = initialData?.opponent_user_id;
   const initialOpponentName = initialData?.opponent_name;
 
@@ -110,18 +112,18 @@ export function ScoreFormFields({
             value={game}
             onValueChange={(value) => {
               if (!value) return;
-              setGame(value);
+              setGame(value as GameType);
             }}
-            className="grid grid-cols-2 gap-2"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2"
           >
-            {games.map(({ value, label, icon: Icon }) => (
+            {GAME_TYPE_OPTIONS.map(({ value, label }) => (
               <ToggleGroupItem
                 key={value}
                 value={value}
                 variant="outline"
                 className={toggleOptionClassName}
               >
-                <Icon className="mr-2 h-4 w-4" />
+                <GameTypeIcon gameType={value} className="mr-2 h-4 w-4" />
                 {label}
                 <span
                   className={`ml-auto h-2.5 w-2.5 rounded-full border ${game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
@@ -158,6 +160,36 @@ export function ScoreFormFields({
           </Popover>
         </div>
       </div>
+
+      {isPoolGameType(game) && (
+        <div className="space-y-2">
+          <Label>Pool Type *</Label>
+          <ToggleGroup
+            type="single"
+            value={poolType}
+            onValueChange={(value) => {
+              if (!value) return;
+              setPoolType(value as PoolType);
+            }}
+            className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+          >
+            {POOL_TYPE_OPTIONS.map(({ value, label }) => (
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                variant="outline"
+                className={toggleOptionClassName}
+              >
+                <PoolTypeIcon poolType={value} className="mr-2 h-4 w-4" />
+                {label}
+                <span
+                  className={`ml-auto h-2.5 w-2.5 rounded-full border ${poolType === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                />
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+      )}
 
       <div className="space-y-3">
         <Label>Opponent *</Label>

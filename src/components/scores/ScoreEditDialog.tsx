@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
+import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 
 interface ScoreEditDialogProps {
   score: Score | null;
@@ -16,7 +17,8 @@ interface ScoreEditDialogProps {
 }
 
 export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreEditDialogProps) {
-  const [game, setGame] = useState(score?.game || '');
+  const [game, setGame] = useState<GameType>(score?.game || DEFAULT_GAME_TYPE);
+  const [poolType, setPoolType] = useState<PoolType>(score?.pool_settings?.pool_type || DEFAULT_POOL_TYPE);
   const [opponent, setOpponent] = useState(score?.opponent_name || '');
   const [yourScore, setYourScore] = useState(score?.score ? score.score.split('-')[0] : '');
   const [opponentScore, setOpponentScore] = useState(score?.score ? score.score.split('-')[1] : '');
@@ -30,6 +32,7 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
   useEffect(() => {
     if (score) {
       setGame(score.game);
+      setPoolType(score.pool_settings?.pool_type || DEFAULT_POOL_TYPE);
       setOpponent(score.opponent_name || '');
       const [your, opponent] = score.score.split('-');
       setYourScore(your);
@@ -101,12 +104,18 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       }
       
       await supabaseDb.updateScore(score.id, {
-        game: game as 'Pool' | 'Ping Pong',
+        game,
         opponent_name: opponentName,
         opponent_user_id: opponentUserId,
         score: combinedScore,
         date: format(date, 'yyyy-MM-dd')
       });
+
+      if (isPoolGameType(game)) {
+        await supabaseDb.setScorePoolType(score.id, poolType);
+      } else {
+        await supabaseDb.deleteScorePoolSettings(score.id);
+      }
 
       toast({
         title: "Score updated!",
@@ -116,9 +125,10 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       onSuccess();
       onOpenChange(false);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Please try again';
       toast({
         title: "Failed to update score",
-        description: "Please try again",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -137,6 +147,8 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
           <ScoreFormFields
             game={game}
             setGame={setGame}
+            poolType={poolType}
+            setPoolType={setPoolType}
             opponent={opponent}
             setOpponent={setOpponent}
             yourScore={yourScore}

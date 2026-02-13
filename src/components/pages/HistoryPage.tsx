@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { History, Filter, Search } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScoreList } from '@/components/scores/ScoreList';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Score } from '@/lib/supabase-database';
+import {useEffect, useState} from 'react';
+import {Filter, History, Search} from 'lucide-react';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {Input} from '@/components/ui/input';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {ScoreList} from '@/components/scores/ScoreList';
+import {supabaseAuth} from '@/lib/supabase-auth';
+import {Score, supabaseDb} from '@/lib/supabase-database';
+import {getGameTypeLabel} from '@/lib/game-types';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -15,7 +16,7 @@ export function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [gameFilter, setGameFilter] = useState<string>('all');
-  const [user, setUser] = useState(supabaseAuth.getCurrentProfile());
+  const [, setUser] = useState(supabaseAuth.getCurrentProfile());
 
   const loadScores = async () => {
     try {
@@ -31,7 +32,7 @@ export function HistoryPage() {
   };
 
   useEffect(() => {
-    const unsubscribe = supabaseAuth.subscribe((authState) => {
+    return supabaseAuth.subscribe((authState) => {
       setUser(authState.profile);
 
       if (authState.isAuthenticated) {
@@ -42,8 +43,6 @@ export function HistoryPage() {
         setIsLoading(false);
       }
     });
-
-    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -115,7 +114,7 @@ export function HistoryPage() {
                   <SelectItem value="all">All Games</SelectItem>
                   {uniqueGames.map(game => (
                     <SelectItem key={game} value={game}>
-                      {game}
+                      {getGameTypeLabel(game)}
                     </SelectItem>
                   ))}
                 </SelectContent>

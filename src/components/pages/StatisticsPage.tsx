@@ -7,6 +7,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, supabaseDb} from '@/lib/supabase-database';
 import {cn} from '@/lib/utils';
+import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -122,6 +123,7 @@ export function StatisticsPage() {
   const [searchParams] = useSearchParams();
   const [scores, setScores] = useState<ScoreWithFriend[]>([]);
   const [gameFilter, setGameFilter] = useState<string>(searchParams.get('game') || 'all');
+  const [poolTypeFilter, setPoolTypeFilter] = useState<string>(searchParams.get('poolType') || 'all');
   const [opponentFilter, setOpponentFilter] = useState<string>(searchParams.get('opponent') || 'all');
   const [isLoading, setIsLoading] = useState(true);
   const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
@@ -159,17 +161,36 @@ export function StatisticsPage() {
     [scores]
   );
 
+  const uniquePoolTypes = useMemo(
+    () =>
+      [...new Set(scores
+        .filter((score) => isPoolGameType(score.game))
+        .map((score) => score.pool_settings?.pool_type)
+        .filter(Boolean))] as string[],
+    [scores]
+  );
+
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {
       if (gameFilter !== 'all' && score.game !== gameFilter) {
         return false;
       }
 
+      if (poolTypeFilter !== 'all') {
+        if (!isPoolGameType(score.game)) {
+          return false;
+        }
+
+        if (score.pool_settings?.pool_type !== poolTypeFilter) {
+          return false;
+        }
+      }
+
       const scoreOpponentName = score.friend_name || score.opponent_name;
 
       return !(opponentFilter !== 'all' && scoreOpponentName !== opponentFilter);
     });
-  }, [gameFilter, opponentFilter, scores]);
+  }, [gameFilter, opponentFilter, poolTypeFilter, scores]);
 
   const perspectiveScores = useMemo(
     () => filteredScores.map((score) => parsePerspective(score, user?.user_id)),
@@ -194,7 +215,9 @@ export function StatisticsPage() {
       gameCountMap.set(score.game, (gameCountMap.get(score.game) || 0) + 1);
     }
 
-    return Array.from(gameCountMap.entries()).sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1])[0]?.[0] || 'N/A';
+    return getGameTypeLabel(
+      Array.from(gameCountMap.entries()).sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1])[0]?.[0] || 'N/A'
+    );
   }, [filteredScores]);
 
   const mostPlayedOpponent = useMemo(() => {
@@ -375,7 +398,23 @@ export function StatisticsPage() {
                   <SelectItem value="all">All Games</SelectItem>
                   {uniqueGames.map((game) => (
                     <SelectItem key={game} value={game}>
-                      {game}
+                      {getGameTypeLabel(game)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full sm:w-48">
+              <Select value={poolTypeFilter} onValueChange={setPoolTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by pool type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Pool Types</SelectItem>
+                  {uniquePoolTypes.map((poolType) => (
+                    <SelectItem key={poolType} value={poolType}>
+                      {getPoolTypeLabel(poolType)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -621,7 +660,7 @@ export function StatisticsPage() {
                     <div className="font-medium text-secondary">Best Game</div>
                     <div className="text-sm text-muted-foreground">
                       {bestScore
-                        ? `${bestScore.score.game} vs ${bestScore.perspective.opponentName}`
+                        ? `${getDisplayGameLabel(bestScore.score.game, bestScore.score.pool_settings?.pool_type)} vs ${bestScore.perspective.opponentName}`
                         : 'N/A'}
                     </div>
                   </div>
@@ -633,7 +672,7 @@ export function StatisticsPage() {
                     <div className="font-medium">Worst Game</div>
                     <div className="text-sm text-muted-foreground">
                       {worstScore
-                        ? `${worstScore.score.game} vs ${worstScore.perspective.opponentName}`
+                        ? `${getDisplayGameLabel(worstScore.score.game, worstScore.score.pool_settings?.pool_type)} vs ${worstScore.perspective.opponentName}`
                         : 'N/A'}
                     </div>
                   </div>

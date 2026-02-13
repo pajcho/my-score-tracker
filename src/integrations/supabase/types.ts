@@ -120,6 +120,7 @@ export type Database = {
           id: string
           last_rack_winner_side: string | null
           live_game_id: string | null
+          pool_type: string
           score_id: string | null
           updated_at: string
         }
@@ -132,6 +133,7 @@ export type Database = {
           id?: string
           last_rack_winner_side?: string | null
           live_game_id?: string | null
+          pool_type?: string
           score_id?: string | null
           updated_at?: string
         }
@@ -144,6 +146,7 @@ export type Database = {
           id?: string
           last_rack_winner_side?: string | null
           live_game_id?: string | null
+          pool_type?: string
           score_id?: string | null
           updated_at?: string
         }

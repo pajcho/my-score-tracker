@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Triangle, Trophy, Zap, Users, User, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,19 @@ import {
   PoolGameSettingsInput,
   PlayerSide,
 } from '@/lib/supabase-database';
+import {
+  DEFAULT_GAME_TYPE,
+  DEFAULT_POOL_TYPE,
+  GAME_TYPE_OPTIONS,
+  POOL_TYPE_OPTIONS,
+  getDisplayGameLabel,
+  getGameTypeLabel,
+  getPoolTypeLabel,
+  isPoolGameType,
+  type GameType,
+  type PoolType,
+} from '@/lib/game-types';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -58,7 +71,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
-    game: 'Pool',
+    game: DEFAULT_GAME_TYPE as GameType,
+    poolType: DEFAULT_POOL_TYPE as PoolType,
     opponent: '',
     opponentType: 'friend' as 'custom' | 'friend',
     selectedFriend: '',
@@ -82,11 +96,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const { toast } = useToast();
   const currentUser = supabaseAuth.getCurrentUser();
 
-  const gameTypes = [
-    { value: 'Pool', label: 'Pool', icon: Triangle },
-    { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
-  ];
-
   const updateGameLocally = (
     gameId: string,
     nextScore1: number,
@@ -104,6 +113,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               pool_settings: game.pool_settings
                 ? {
                     ...game.pool_settings,
+                    ...(poolSettingsPatch?.pool_type !== undefined ? { pool_type: poolSettingsPatch.pool_type } : {}),
                     ...(poolSettingsPatch?.break_rule !== undefined ? { break_rule: poolSettingsPatch.break_rule } : {}),
                     ...(poolSettingsPatch?.first_breaker_side !== undefined
                       ? { first_breaker_side: poolSettingsPatch.first_breaker_side }
@@ -291,8 +301,9 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
     try {
       const firstBreakerSide = getFirstBreakerSide(newGame.firstBreakerSelection);
-      const initialPoolSettings = newGame.game === 'Pool'
+      const initialPoolSettings = isPoolGameType(newGame.game)
         ? {
+            pool_type: newGame.poolType,
             break_rule: newGame.breakRule,
             first_breaker_side: firstBreakerSide,
             current_breaker_side: firstBreakerSide,
@@ -328,7 +339,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         },
       ]);
       setNewGame({
-        game: 'Pool',
+        game: DEFAULT_GAME_TYPE,
+        poolType: DEFAULT_POOL_TYPE,
         opponent: '',
         opponentType: 'friend',
         selectedFriend: '',
@@ -340,7 +352,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
       toast({
         title: "Game started!",
-        description: `${newGame.game} game vs ${opponentName}`,
+        description: `${getDisplayGameLabel(newGame.game, initialPoolSettings?.pool_type)} game vs ${opponentName}`,
       });
     } catch (error) {
       toast({
@@ -369,7 +381,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       return;
     }
 
-    if (gameToUpdate.game !== 'Pool' || !gameToUpdate.pool_settings) {
+    if (!isPoolGameType(gameToUpdate.game) || !gameToUpdate.pool_settings) {
       void persistScoreUpdate(gameId, nextScore1, nextScore2);
       return;
     }
@@ -461,6 +473,14 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     });
   };
 
+  const changePoolType = (game: LiveGameView, poolType: PoolType) => {
+    if (!game.pool_settings) return;
+
+    void persistScoreUpdate(game.id, game.score1, game.score2, {
+      pool_type: poolType,
+    });
+  };
+
   const removeGame = async (gameId: string) => {
     try {
       await supabaseDb.deleteLiveGame(gameId);
@@ -497,7 +517,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
       toast({
         title: "Score saved!",
-        description: `${game.game}: ${game.score1}-${game.score2}`,
+        description: `${getDisplayGameLabel(game.game, game.pool_settings?.pool_type)}: ${game.score1}-${game.score2}`,
       });
     } catch (error) {
       toast({
@@ -544,11 +564,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     if (savedCount > 0) {
       onScoresSaved();
     }
-  };
-
-  const getGameIcon = (gameType: string) => {
-    const gameConfig = gameTypes.find(g => g.value === gameType);
-    return gameConfig?.icon || Trophy;
   };
 
   const ownGamesCount = currentUser
@@ -634,8 +649,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       {/* Active Games */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {orderedGames.map((game) => {
-          const Icon = getGameIcon(game.game);
-          const isPoolGame = game.game === 'Pool' && !!game.pool_settings;
+          const isPoolGame = isPoolGameType(game.game) && !!game.pool_settings;
           const isGameCreator = currentUser?.id === game.created_by_user_id;
           const isGameOpponent = currentUser?.id === game.opponent_user_id;
           const isSpectator = !isGameCreator && !isGameOpponent;
@@ -655,8 +669,17 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between min-h-8 gap-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Icon className="h-4 w-4" />
-                    {game.game}
+                    {isPoolGame && game.pool_settings?.pool_type ? (
+                      <PoolTypeIcon poolType={game.pool_settings.pool_type} className="h-4 w-4" />
+                    ) : (
+                      <GameTypeIcon gameType={game.game} className="h-4 w-4" />
+                    )}
+                    <span>{getGameTypeLabel(game.game)}</span>
+                    {isPoolGame && game.pool_settings?.pool_type && (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {getPoolTypeLabel(game.pool_settings.pool_type)}
+                      </span>
+                    )}
                   </CardTitle>
                   <div className="shrink-0 flex items-center justify-end gap-1">
                     {isPoolGame && (
@@ -702,7 +725,26 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 <div className="space-y-3">
                   {isPoolGame && isPoolSettingsExpanded && (
                     <div className="rounded-md border border-border p-2 text-xs">
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Pool Type</Label>
+                          <Select
+                            value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
+                            onValueChange={(value) => changePoolType(game, value as PoolType)}
+                            disabled={isSpectator || isLoading}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {POOL_TYPE_OPTIONS.map(({ value, label }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Break Rule</Label>
                           <Select
@@ -768,7 +810,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Your Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {game.game === 'Pool' && nextBreakerSide === 'player1' && (
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && (
                             <span className="relative flex h-2.5 w-2.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -787,7 +829,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {game.game === 'Pool' && nextBreakerSide === 'player2' && (
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && (
                             <span className="relative flex h-2.5 w-2.5">
                               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
@@ -864,18 +906,18 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   value={newGame.game}
                   onValueChange={(value) => {
                     if (!value) return;
-                    setNewGame((previousGame) => ({ ...previousGame, game: value }));
+                    setNewGame((previousGame) => ({ ...previousGame, game: value as GameType }));
                   }}
-                  className="grid grid-cols-2 gap-2"
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-2"
                 >
-                  {gameTypes.map(({ value, label, icon: Icon }) => (
+                  {GAME_TYPE_OPTIONS.map(({ value, label }) => (
                     <ToggleGroupItem
                       key={value}
                       value={value}
                       variant="outline"
                       className={toggleOptionClassName}
                     >
-                      <Icon className="mr-2 h-4 w-4" />
+                      <GameTypeIcon gameType={value} className="mr-2 h-4 w-4" />
                       {label}
                       <span
                         className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
@@ -885,7 +927,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 </ToggleGroup>
               </div>
 
-              {newGame.game === 'Pool' && (
+              {isPoolGameType(newGame.game) && (
                 <div className="rounded-md border border-border p-3 space-y-3">
                   <button
                     type="button"
@@ -895,7 +937,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                     <div>
                       <Label className="text-xs text-muted-foreground">Rule</Label>
                       <p className="text-sm mt-0.5">
-                        {newGame.breakRule === 'winner_stays' ? 'Winner stays' : 'Alternate'} • {newGame.firstBreakerSelection === 'random' ? 'First break: Random' : newGame.firstBreakerSelection === 'player1' ? 'First break: Game creator' : 'First break: Opponent'}
+                        {getPoolTypeLabel(newGame.poolType)} • {newGame.breakRule === 'winner_stays' ? 'Winner stays' : 'Alternate'} • {newGame.firstBreakerSelection === 'random' ? 'First break: Random' : newGame.firstBreakerSelection === 'player1' ? 'First break: Game creator' : 'First break: Opponent'}
                       </p>
                     </div>
                     {isRuleSectionExpanded ? (
@@ -907,6 +949,37 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
                   {isRuleSectionExpanded && (
                     <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Pool type</Label>
+                        <ToggleGroup
+                          type="single"
+                          value={newGame.poolType}
+                          onValueChange={(value) => {
+                            if (!value) return;
+                            setNewGame((previousGame) => ({
+                              ...previousGame,
+                              poolType: value as PoolType,
+                            }));
+                          }}
+                          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                        >
+                          {POOL_TYPE_OPTIONS.map(({ value, label }) => (
+                            <ToggleGroupItem
+                              key={value}
+                              value={value}
+                              variant="outline"
+                              className={compactToggleOptionClassName}
+                            >
+                              <PoolTypeIcon poolType={value} className="mr-2 h-3.5 w-3.5" />
+                              {label}
+                              <span
+                                className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.poolType === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                              />
+                            </ToggleGroupItem>
+                          ))}
+                        </ToggleGroup>
+                      </div>
+
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Break rule</Label>
                         <ToggleGroup
@@ -1049,7 +1122,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                     setShowNewGameForm(false);
                     setIsRuleSectionExpanded(false);
                     setNewGame({
-                      game: 'Pool',
+                      game: DEFAULT_GAME_TYPE,
+                      poolType: DEFAULT_POOL_TYPE,
                       opponent: '',
                       opponentType: 'friend',
                       selectedFriend: '',
