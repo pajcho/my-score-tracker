@@ -3,7 +3,7 @@ import { User, Lock, Trash2, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { EnhancedButton } from '@/components/ui/enhanced-button';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -169,14 +169,14 @@ export function ProfilePage() {
               />
             </div>
 
-            <EnhancedButton
+            <Button
               type="submit"
               disabled={isLoading}
               className="w-full sm:w-auto"
             >
               <Save className="h-4 w-4" />
               {isLoading ? "Saving..." : "Save Changes"}
-            </EnhancedButton>
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -227,14 +227,14 @@ export function ProfilePage() {
               />
             </div>
 
-            <EnhancedButton
+            <Button
               type="submit"
               disabled={isLoading || !currentPassword || !newPassword || !confirmPassword}
               className="w-full sm:w-auto"
             >
               <Lock className="h-4 w-4" />
               {isLoading ? "Changing..." : "Change Password"}
-            </EnhancedButton>
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -259,14 +259,14 @@ export function ProfilePage() {
               </p>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <EnhancedButton
+                  <Button
                     variant="destructive"
                     className="w-full sm:w-auto"
                     disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Account
-                  </EnhancedButton>
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>

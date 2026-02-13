@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { EnhancedButton } from '@/components/ui/enhanced-button';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 
@@ -126,13 +126,13 @@ export function LoginPage() {
                 </Label>
               </div>
 
-              <EnhancedButton
+              <Button
                 type="submit"
                 className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}
-              </EnhancedButton>
+              </Button>
 
               <div className="text-center space-y-2">
                 <Link 

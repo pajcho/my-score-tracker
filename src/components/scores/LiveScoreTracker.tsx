@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EnhancedButton } from '@/components/ui/enhanced-button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
@@ -46,6 +45,12 @@ const getFirstBreakerSide = (selection: 'player1' | 'player2' | 'random'): Playe
 const getAlternateBreakerFromRackCount = (firstBreakerSide: PlayerSide, completedRackCount: number): PlayerSide => {
   return completedRackCount % 2 === 0 ? firstBreakerSide : getOppositePlayerSide(firstBreakerSide);
 };
+
+const toggleOptionClassName =
+  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-none";
+
+const compactToggleOptionClassName =
+  "h-9 justify-start rounded-md px-3 text-xs text-foreground hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-none";
 
 export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
   const [games, setGames] = useState<LiveGameView[]>([]);
@@ -811,51 +816,76 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               <CardTitle className="text-base">New Game</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Game Type Selection */}
+              {/* Quick Game Type */}
               <div className="space-y-2">
-                <Label>Game Type</Label>
-                <Select value={newGame.game} onValueChange={(value) => setNewGame(prev => ({ ...prev, game: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select game" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gameTypes.map(({ value, label, icon: Icon }) => (
-                      <SelectItem key={value} value={value}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          {label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Game</Label>
+                <ToggleGroup
+                  type="single"
+                  value={newGame.game}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setNewGame((previousGame) => ({ ...previousGame, game: value }));
+                  }}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  {gameTypes.map(({ value, label, icon: Icon }) => (
+                    <ToggleGroupItem
+                      key={value}
+                      value={value}
+                      variant="outline"
+                      className={toggleOptionClassName}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      {label}
+                      <span
+                        className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                      />
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
 
               {newGame.game === 'Pool' && (
-                <>
+                <div className="rounded-md border border-border p-3 space-y-3">
                   <div className="space-y-2">
-                    <Label>Break Rule</Label>
-                    <Select
+                    <Label className="text-xs text-muted-foreground">Rule</Label>
+                    <ToggleGroup
+                      type="single"
                       value={newGame.breakRule}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        if (!value) return;
                         setNewGame((previousGame) => ({
                           ...previousGame,
                           breakRule: value as BreakRule,
-                        }))
-                      }
+                        }));
+                      }}
+                      className="grid grid-cols-2 gap-2"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select break rule" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="alternate">Alternate breaks</SelectItem>
-                        <SelectItem value="winner_stays">Winner stays</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <ToggleGroupItem
+                        value="alternate"
+                        variant="outline"
+                        className={compactToggleOptionClassName}
+                      >
+                        Alternate
+                        <span
+                          className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'alternate' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                        />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="winner_stays"
+                        variant="outline"
+                        className={compactToggleOptionClassName}
+                      >
+                        Winner stays
+                        <span
+                          className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'winner_stays' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                        />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>First Breaker</Label>
+                    <Label className="text-xs text-muted-foreground">First break</Label>
                     <Select
                       value={newGame.firstBreakerSelection}
                       onValueChange={(value) =>
@@ -865,8 +895,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                         }))
                       }
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select first breaker" />
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="random">Random</SelectItem>
@@ -875,61 +905,82 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                       </SelectContent>
                     </Select>
                   </div>
-                </>
+                </div>
               )}
 
-              {/* Opponent Selection */}
-              <div className="space-y-4">
+              {/* Quick Opponent Selection */}
+              <div className="space-y-3">
                 <Label>Opponent</Label>
-                <Tabs value={newGame.opponentType} onValueChange={(value) => setNewGame(prev => ({ ...prev, opponentType: value as 'custom' | 'friend' }))}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="custom" className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Custom
-                    </TabsTrigger>
-                    <TabsTrigger value="friend" className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Friend
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="custom" className="space-y-2">
-                    <OpponentAutocomplete
-                      value={newGame.opponent}
-                      onChange={(value) => setNewGame(prev => ({ ...prev, opponent: value, selectedFriend: '' }))}
-                      opponents={opponents}
-                      required={newGame.opponentType === 'custom'}
+                <ToggleGroup
+                  type="single"
+                  value={newGame.opponentType}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setNewGame((previousGame) => ({ ...previousGame, opponentType: value as 'custom' | 'friend' }));
+                  }}
+                  className="grid grid-cols-2 gap-2"
+                >
+                  <ToggleGroupItem
+                    value="custom"
+                    variant="outline"
+                    className={toggleOptionClassName}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Custom
+                    <span
+                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
                     />
-                  </TabsContent>
-                  
-                  <TabsContent value="friend" className="space-y-2">
-                    <Select value={newGame.selectedFriend} onValueChange={(value) => setNewGame(prev => ({ ...prev, selectedFriend: value, opponent: '' }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a friend" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {friends.length === 0 ? (
-                          <div className="p-2 text-sm text-muted-foreground">
-                            No friends yet. Add friends to play against them!
-                          </div>
-                        ) : (
-                          friends.map((friend) => (
-                            <SelectItem key={friend.id} value={friend.id}>
-                              {friend.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </TabsContent>
-                </Tabs>
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="friend"
+                    variant="outline"
+                    className={toggleOptionClassName}
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    Friend
+                    <span
+                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                    />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+
+                {newGame.opponentType === 'custom' ? (
+                  <OpponentAutocomplete
+                    value={newGame.opponent}
+                    onChange={(value) => setNewGame((previousGame) => ({ ...previousGame, opponent: value, selectedFriend: '' }))}
+                    opponents={opponents}
+                    required
+                  />
+                ) : (
+                  <Select
+                    value={newGame.selectedFriend}
+                    onValueChange={(value) => setNewGame((previousGame) => ({ ...previousGame, selectedFriend: value, opponent: '' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a friend" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {friends.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          No friends yet. Add friends to play against them!
+                        </div>
+                      ) : (
+                        friends.map((friend) => (
+                          <SelectItem key={friend.id} value={friend.id}>
+                            {friend.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <EnhancedButton onClick={addNewGame} size="sm" className="flex-1" disabled={isLoading}>
+                <Button onClick={addNewGame} size="sm" className="flex-1" disabled={isLoading}>
                   Start Game
-                </EnhancedButton>
+                </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => {

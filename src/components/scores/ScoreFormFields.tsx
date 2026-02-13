@@ -7,11 +7,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
+
+const toggleOptionClassName =
+  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-background hover:text-foreground data-[state=on]:border-primary data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-none";
 
 interface ScoreFormFieldsProps {
   game: string;
@@ -58,6 +61,8 @@ export function ScoreFormFields({
     { value: 'Pool', label: 'Pool', icon: Triangle },
     { value: 'Ping Pong', label: 'Ping Pong', icon: Zap },
   ];
+  const initialOpponentUserId = initialData?.opponent_user_id;
+  const initialOpponentName = initialData?.opponent_name;
 
   // Load opponents and friends for autocomplete
   useEffect(() => {
@@ -79,150 +84,177 @@ export function ScoreFormFields({
 
   // Set initial opponent type and selection based on initialData (only once)
   useEffect(() => {
-    if (!initialData) return;
+    if (!initialOpponentUserId && !initialOpponentName) return;
     
-    if (initialData.opponent_user_id && friends.length > 0) {
-      const friend = friends.find(f => f.id === initialData.opponent_user_id);
+    if (initialOpponentUserId && friends.length > 0) {
+      const friend = friends.find(f => f.id === initialOpponentUserId);
       if (friend) {
         setOpponentType('friend');
         setSelectedFriend(friend.id);
         setOpponent(''); // Clear custom opponent when friend is selected
       }
-    } else if (initialData.opponent_name && !initialData.opponent_user_id) {
+    } else if (initialOpponentName && !initialOpponentUserId) {
       setOpponentType('custom');
-      setOpponent(initialData.opponent_name);
+      setOpponent(initialOpponentName);
       setSelectedFriend(''); // Clear friend selection when custom opponent is set
     }
-  }, [initialData?.opponent_user_id, initialData?.opponent_name, friends.length]); // Only run when these specific values change
+  }, [friends, initialOpponentName, initialOpponentUserId, setOpponent, setOpponentType, setSelectedFriend]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Game Selection */}
-      <div className="space-y-2">
-        <Label htmlFor="game">Game Type *</Label>
-        <Select value={game} onValueChange={setGame} required>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a game" />
-          </SelectTrigger>
-          <SelectContent>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label>Game Type *</Label>
+          <ToggleGroup
+            type="single"
+            value={game}
+            onValueChange={(value) => {
+              if (!value) return;
+              setGame(value);
+            }}
+            className="grid grid-cols-2 gap-2"
+          >
             {games.map(({ value, label, icon: Icon }) => (
-              <SelectItem key={value} value={value}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </div>
-              </SelectItem>
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                variant="outline"
+                className={toggleOptionClassName}
+              >
+                <Icon className="mr-2 h-4 w-4" />
+                {label}
+                <span
+                  className={`ml-auto h-2.5 w-2.5 rounded-full border ${game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                />
+              </ToggleGroupItem>
             ))}
-          </SelectContent>
-        </Select>
-      </div>
+          </ToggleGroup>
+        </div>
 
-      {/* Date Picker */}
-      <div className="space-y-2">
-        <Label>Date *</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              mode="single"
-              selected={date}
-              onSelect={(newDate) => newDate && setDate(newDate)}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Opponent Selection */}
-      <div className="md:col-span-2 space-y-4">
-        <Label>Opponent *</Label>
-        <Tabs value={opponentType} onValueChange={(value) => setOpponentType(value as 'custom' | 'friend')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="custom" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Custom
-            </TabsTrigger>
-            <TabsTrigger value="friend" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Friend
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="custom">
-            <OpponentAutocomplete
-              value={opponent}
-              onChange={(value) => {
-                setOpponent(value);
-                setSelectedFriend(''); // Clear friend selection when custom opponent is entered
-              }}
-              opponents={opponents}
-              required={opponentType === 'custom'}
-            />
-          </TabsContent>
-          
-          <TabsContent value="friend">
-            <Select value={selectedFriend} onValueChange={(value) => {
-              setSelectedFriend(value);
-              setOpponent(''); // Clear custom opponent when friend is selected
-            }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a friend" />
-              </SelectTrigger>
-              <SelectContent>
-                {friends.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground">
-                    No friends yet. Add friends to play against them!
-                  </div>
-                ) : (
-                  friends.map((friend) => (
-                    <SelectItem key={friend.id} value={friend.id}>
-                      {friend.name}
-                    </SelectItem>
-                  ))
+        <div className="space-y-2">
+          <Label>Date *</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
                 )}
-              </SelectContent>
-            </Select>
-          </TabsContent>
-        </Tabs>
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {date ? format(date, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={date}
+                onSelect={(newDate) => newDate && setDate(newDate)}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
-      {/* Scores */}
-      <div className="space-y-2">
-        <Label htmlFor="yourScore">Your Score *</Label>
-        <Input
-          id="yourScore"
-          type="number"
-          min="0"
-          value={yourScore}
-          onChange={(e) => setYourScore(e.target.value)}
-          placeholder="Your score"
-          required
-        />
+      <div className="space-y-3">
+        <Label>Opponent *</Label>
+        <ToggleGroup
+          type="single"
+          value={opponentType}
+          onValueChange={(value) => {
+            if (!value) return;
+            setOpponentType(value as 'custom' | 'friend');
+          }}
+          className="grid grid-cols-2 gap-2"
+        >
+          <ToggleGroupItem
+            value="custom"
+            variant="outline"
+            className={toggleOptionClassName}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Custom
+            <span
+              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+            />
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="friend"
+            variant="outline"
+            className={toggleOptionClassName}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Friend
+            <span
+              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+            />
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {opponentType === 'custom' ? (
+          <OpponentAutocomplete
+            value={opponent}
+            onChange={(value) => {
+              setOpponent(value);
+              setSelectedFriend('');
+            }}
+            opponents={opponents}
+            required
+          />
+        ) : (
+          <Select value={selectedFriend} onValueChange={(value) => {
+            setSelectedFriend(value);
+            setOpponent('');
+          }}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a friend" />
+            </SelectTrigger>
+            <SelectContent>
+              {friends.length === 0 ? (
+                <div className="p-2 text-sm text-muted-foreground">
+                  No friends yet. Add friends to play against them!
+                </div>
+              ) : (
+                friends.map((friend) => (
+                  <SelectItem key={friend.id} value={friend.id}>
+                    {friend.name}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="opponentScore">Opponent Score *</Label>
-        <Input
-          id="opponentScore"
-          type="number"
-          min="0"
-          value={opponentScore}
-          onChange={(e) => setOpponentScore(e.target.value)}
-          placeholder="Opponent score"
-          required
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="yourScore">Your Score *</Label>
+          <Input
+            id="yourScore"
+            type="number"
+            min="0"
+            value={yourScore}
+            onChange={(e) => setYourScore(e.target.value)}
+            placeholder="Your score"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="opponentScore">Opponent Score *</Label>
+          <Input
+            id="opponentScore"
+            type="number"
+            min="0"
+            value={opponentScore}
+            onChange={(e) => setOpponentScore(e.target.value)}
+            placeholder="Opponent score"
+            required
+          />
+        </div>
       </div>
     </div>
   );

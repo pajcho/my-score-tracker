@@ -3,7 +3,6 @@ import { Plus, Triangle, Trophy, Zap, TrendingUp, Calendar, Medal, Play } from '
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { ScoreForm } from '@/components/scores/ScoreForm';
 import { ScoreList } from '@/components/scores/ScoreList';
 import { supabaseAuth } from '@/lib/supabase-auth';
@@ -136,10 +135,10 @@ export function HomePage() {
           {!showScoreForm ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Link to="/live">
-                <EnhancedButton className="w-full">
+                <Button className="w-full">
                   <Play className="h-4 w-4" />
                   Start Live Game
-                </EnhancedButton>
+                </Button>
               </Link>
               <Button 
                 variant="outline"

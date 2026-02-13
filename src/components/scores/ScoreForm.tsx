@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { EnhancedButton } from '@/components/ui/enhanced-button';
 import { ScoreFormFields } from './ScoreFormFields';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -136,14 +135,14 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <EnhancedButton
+            <Button
               type="submit"
               disabled={isLoading}
               className="flex-1"
             >
               <Save className="h-4 w-4" />
               {isLoading ? "Saving..." : "Save Score"}
-            </EnhancedButton>
+            </Button>
             <Button
               type="button"
               variant="outline"
