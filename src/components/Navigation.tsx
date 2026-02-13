@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { BarChart3, History, Home, LogOut, Trophy, User, Users } from 'lucide-react';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { cn } from '@/lib/utils';
+import { getBaseName } from '@/routerBase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -81,10 +82,10 @@ export function Navigation() {
       <nav className="bg-card border-b border-border shadow-card">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
+          <a href={getBaseName()} className="flex items-center gap-2 font-bold text-xl text-primary">
             <Trophy className="h-6 w-6" />
             <span>ScoreTracker</span>
-          </Link>
+          </a>
 
           <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
             {navItems.map(({ to, icon: Icon, label }) => (
