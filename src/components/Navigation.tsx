@@ -77,9 +77,10 @@ export function Navigation() {
   };
 
   return (
-    <nav className="bg-card border-b border-border shadow-card">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <>
+      <nav className="bg-card border-b border-border shadow-card">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
             <Trophy className="h-6 w-6" />
             <span className="hidden sm:inline">ScoreTracker</span>
@@ -145,15 +146,18 @@ export function Navigation() {
             )}
           </div>
         </div>
+        </div>
+      </nav>
 
-        <div className="md:hidden pb-4">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 backdrop-blur md:hidden">
+        <div className="container mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
           <div className="flex items-center justify-around">
             {navItems.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
                 to={to}
                 className={cn(
-                  "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
+                  "flex min-w-20 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth",
                   isNavItemActive(to)
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
@@ -163,33 +167,9 @@ export function Navigation() {
                 {label}
               </Link>
             ))}
-            <Link
-              to="/friends"
-              className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
-                location.pathname === "/friends"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Users className="h-5 w-5" />
-              Friends
-            </Link>
-            <Link
-              to="/profile"
-              className={cn(
-                "flex flex-col items-center gap-1 p-2 rounded-md text-xs transition-smooth",
-                location.pathname === "/profile"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <User className="h-5 w-5" />
-              Profile
-            </Link>
           </div>
         </div>
       </div>
-    </nav>
+    </>
   );
 }
