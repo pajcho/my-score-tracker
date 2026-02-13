@@ -14,6 +14,7 @@ import {
   AlertDialogTitle, 
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabaseAuth } from '@/lib/supabase-auth';
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
 import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
 import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -33,7 +35,9 @@ interface GameCardProps {
 }
 
 export function GameCard({ score, onScoreUpdated, compact = false, showActions = true }: GameCardProps) {
+  const isMobile = useIsMobile();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
   const [editingScore, setEditingScore] = useState<Score | null>(null);
   const { toast } = useToast();
 
@@ -167,35 +171,47 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
                     <Edit className="h-3.5 w-3.5" />
                   </Button>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={deletingId === score.id}
-                        className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Score</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this score? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter className="flex-row justify-end gap-2 space-x-0">
-                        <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(score.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  {isMobile ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={deletingId === score.id}
+                      onClick={() => setIsDeleteSheetOpen(true)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deletingId === score.id}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Score</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this score? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-row justify-end gap-2 space-x-0">
+                          <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(score.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               )}
 
@@ -226,6 +242,35 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
         onOpenChange={(open) => !open && setEditingScore(null)}
         onSuccess={onScoreUpdated}
       />
+
+      <Drawer open={isDeleteSheetOpen} onOpenChange={setIsDeleteSheetOpen}>
+        <DrawerContent className="px-4 pb-4">
+          <DrawerHeader className="text-left">
+            <DrawerTitle>Delete Score</DrawerTitle>
+          </DrawerHeader>
+          <p className="px-4 pb-4 text-sm text-muted-foreground">
+            Are you sure you want to delete this score? This action cannot be undone.
+          </p>
+          <div className="flex flex-row gap-3 px-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsDeleteSheetOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                await handleDelete(score.id);
+                setIsDeleteSheetOpen(false);
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

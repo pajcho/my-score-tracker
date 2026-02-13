@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { ScoreFormFields } from './ScoreFormFields';
 import { format } from 'date-fns';
@@ -8,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ScoreEditDialogProps {
   score: Score | null;
@@ -17,6 +19,7 @@ interface ScoreEditDialogProps {
 }
 
 export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreEditDialogProps) {
+  const isMobile = useIsMobile();
   const [game, setGame] = useState<GameType>(score?.game || DEFAULT_GAME_TYPE);
   const [poolType, setPoolType] = useState<PoolType>(score?.pool_settings?.pool_type || DEFAULT_POOL_TYPE);
   const [opponent, setOpponent] = useState(score?.opponent_name || '');
@@ -136,60 +139,75 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
     }
   };
 
+  const formContent = (
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 sm:pr-0">
+        <ScoreFormFields
+          game={game}
+          setGame={setGame}
+          poolType={poolType}
+          setPoolType={setPoolType}
+          opponent={opponent}
+          setOpponent={setOpponent}
+          yourScore={yourScore}
+          setYourScore={setYourScore}
+          opponentScore={opponentScore}
+          setOpponentScore={setOpponentScore}
+          date={date}
+          setDate={setDate}
+          opponentType={opponentType}
+          setOpponentType={setOpponentType}
+          selectedFriend={selectedFriend}
+          setSelectedFriend={setSelectedFriend}
+          initialData={{
+            opponent_user_id: score?.opponent_user_id,
+            opponent_name: score?.opponent_name
+          }}
+        />
+      </div>
+
+      <div className="flex flex-row gap-3 pt-2">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="flex-1"
+        >
+          <Save className="h-4 w-4" />
+          {isLoading ? "Updating..." : "Update Score"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          className="flex-1"
+        >
+          <X className="h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="flex h-[90vh] flex-col overflow-hidden px-4 pb-4">
+          <DrawerHeader className="pb-2 text-left">
+            <DrawerTitle>Edit Score</DrawerTitle>
+          </DrawerHeader>
+          {formContent}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-4 sm:h-auto sm:max-h-[85vh] sm:p-6">
+      <DialogContent className="flex h-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-6">
         <DialogHeader>
           <DialogTitle>Edit Score</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden sm:flex-none sm:overflow-visible">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 sm:flex-none sm:overflow-visible sm:pr-0">
-            <ScoreFormFields
-              game={game}
-              setGame={setGame}
-              poolType={poolType}
-              setPoolType={setPoolType}
-              opponent={opponent}
-              setOpponent={setOpponent}
-              yourScore={yourScore}
-              setYourScore={setYourScore}
-              opponentScore={opponentScore}
-              setOpponentScore={setOpponentScore}
-              date={date}
-              setDate={setDate}
-              opponentType={opponentType}
-              setOpponentType={setOpponentType}
-              selectedFriend={selectedFriend}
-              setSelectedFriend={setSelectedFriend}
-              initialData={{
-                opponent_user_id: score?.opponent_user_id,
-                opponent_name: score?.opponent_name
-              }}
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-row gap-3 pt-2">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4" />
-              {isLoading ? "Updating..." : "Update Score"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-          </div>
-        </form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );
