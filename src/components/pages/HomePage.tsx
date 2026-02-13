@@ -4,14 +4,16 @@ import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
+import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
 import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, Training, supabaseDb} from '@/lib/supabase-database';
-import {GAME_TYPE_OPTIONS, getGameTypeLabel} from '@/lib/game-types';
+import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 
 export function HomePage() {
   const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
+  const [activeRecentTab, setActiveRecentTab] = useState<'scores' | 'trainings'>('scores');
   const [scores, setScores] = useState<Score[]>([]);
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [liveGameCount, setLiveGameCount] = useState(0);
@@ -240,87 +242,93 @@ export function HomePage() {
       </Card>
 
       <Card className="shadow-card border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Dumbbell className="h-5 w-5" />
-            Recent Trainings
-          </CardTitle>
-          <CardDescription>
-            Your latest training sessions
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="order-2 sm:order-1">
+            <CardTitle className="flex items-center gap-2">
+              {activeRecentTab === 'scores' ? <Calendar className="h-5 w-5" /> : <Dumbbell className="h-5 w-5" />}
+              {activeRecentTab === 'scores' ? 'Recent Scores' : 'Recent Trainings'}
+            </CardTitle>
+            <CardDescription>
+              {activeRecentTab === 'scores' ? 'Your latest score entries' : 'Your latest training sessions'}
+            </CardDescription>
+          </div>
+          <div className="order-1 sm:order-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveRecentTab('scores')}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth ${
+                activeRecentTab === 'scores'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Scores
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveRecentTab('trainings')}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth ${
+                activeRecentTab === 'trainings'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Trainings
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {activeRecentTab === 'scores' ? (
+            isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading scores...
+              </div>
+            ) : scores.length > 0 ? (
+              <ScoreList
+                scores={scores.slice(0, 5)}
+                onScoreUpdated={() => {
+                  void loadDashboardData();
+                }}
+                compact={true}
+              />
+            ) : (
+              <div className="text-center py-8 space-y-4">
+                <div className="text-muted-foreground">
+                  No scores recorded yet. Start your first game above!
+                </div>
+                <div className="flex justify-center gap-4">
+                  {GAME_TYPE_OPTIONS.map(({ value, label }) => (
+                    <div key={value} className="flex flex-col items-center gap-2">
+                      <div className="p-3 bg-muted rounded-full">
+                        <GameTypeIcon gameType={value} className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          ) : isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               Loading trainings...
             </div>
           ) : trainings.length > 0 ? (
             <div className="space-y-3">
               {trainings.slice(0, 5).map((training) => (
-                <div
+                <TrainingCard
                   key={training.id}
-                  className="rounded-lg border border-border bg-card p-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold text-foreground">{training.title}</p>
-                    <p className="text-sm text-muted-foreground">{training.duration_minutes} min</p>
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {getGameTypeLabel(training.game)} • {new Date(training.training_date).toLocaleDateString()}
-                  </div>
-                  {training.notes ? (
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{training.notes}</p>
-                  ) : null}
-                </div>
+                  training={training}
+                  notesClassName="mt-2 text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2"
+                  showActions={true}
+                  onTrainingUpdated={() => {
+                    void loadDashboardData();
+                  }}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No trainings recorded yet. Add your first training above.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Scores */}
-      <Card className="shadow-card border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Recent Games
-          </CardTitle>
-          <CardDescription>
-            Your latest score entries
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading scores...
-            </div>
-          ) : scores.length > 0 ? (
-            <ScoreList 
-              scores={scores.slice(0, 5)} 
-              onScoreUpdated={() => {
-                void loadDashboardData();
-              }}
-              compact={true}
-            />
-          ) : (
-            <div className="text-center py-8 space-y-4">
-              <div className="text-muted-foreground">
-                No scores recorded yet. Start your first game above!
-              </div>
-              <div className="flex justify-center gap-4">
-                {GAME_TYPE_OPTIONS.map(({ value, label }) => (
-                  <div key={value} className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-muted rounded-full">
-                      <GameTypeIcon gameType={value} className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </CardContent>

@@ -336,6 +336,38 @@ class SupabaseDatabaseService {
     return (data || []) as Training[];
   }
 
+  async updateTraining(id: string, updates: Partial<Training>): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const allowedUpdates = { ...updates };
+    delete allowedUpdates.id;
+    delete allowedUpdates.user_id;
+    delete allowedUpdates.created_at;
+    delete allowedUpdates.updated_at;
+
+    const { error } = await supabase
+      .from('trainings')
+      .update(allowedUpdates)
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+  }
+
+  async deleteTraining(id: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('trainings')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+  }
+
   async updateProfile(name: string, email: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');

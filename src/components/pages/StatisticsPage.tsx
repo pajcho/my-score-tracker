@@ -151,7 +151,7 @@ function getHeatmapIntensityClass(activityCount: number, maxCount: number, isFut
 }
 
 interface StatisticsPageProps {
-  view: 'matches' | 'training';
+  view: 'score' | 'training';
 }
 
 export function StatisticsPage({ view }: StatisticsPageProps) {
@@ -521,15 +521,15 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const statisticsViewTabs = (
     <div className="flex items-center gap-2">
       <Link
-        to="/statistics/matches"
+        to="/statistics/score"
         className={cn(
           'rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth',
-          view === 'matches'
+          view === 'score'
             ? 'border-primary bg-primary/10 text-primary'
             : 'border-border text-muted-foreground hover:text-foreground'
         )}
       >
-        Matches
+        Scores
       </Link>
       <Link
         to="/statistics/training"
@@ -540,7 +540,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
             : 'border-border text-muted-foreground hover:text-foreground'
         )}
       >
-        Training
+        Trainings
       </Link>
     </div>
   );

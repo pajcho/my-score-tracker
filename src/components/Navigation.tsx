@@ -27,8 +27,8 @@ export function Navigation() {
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
-    { to: '/history/scores', icon: History, label: 'History' },
-    { to: '/statistics/matches', icon: BarChart3, label: 'Statistics' },
+    { to: '/history/score', icon: History, label: 'History' },
+    { to: '/statistics/score', icon: BarChart3, label: 'Statistics' },
   ];
 
   const isNavItemActive = (path: string): boolean => {

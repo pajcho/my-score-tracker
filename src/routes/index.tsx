@@ -30,11 +30,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "history",
-        element: <Navigate to="/history/scores" replace />
+        element: <Navigate to="/history/score" replace />
       },
       {
-        path: "history/scores",
-        element: <ProtectedRoute><HistoryPage view="scores" /></ProtectedRoute>
+        path: "history/score",
+        element: <ProtectedRoute><HistoryPage view="score" /></ProtectedRoute>
       },
       {
         path: "history/training",
@@ -46,11 +46,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "statistics",
-        element: <Navigate to="/statistics/matches" replace />
+        element: <Navigate to="/statistics/score" replace />
       },
       {
-        path: "statistics/matches",
-        element: <ProtectedRoute><StatisticsPage view="matches" /></ProtectedRoute>
+        path: "statistics/score",
+        element: <ProtectedRoute><StatisticsPage view="score" /></ProtectedRoute>
       },
       {
         path: "statistics/training",

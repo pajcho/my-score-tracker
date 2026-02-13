@@ -5,7 +5,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {ScoreList} from '@/components/scores/ScoreList';
-import {GameTypeIcon} from '@/components/ui/game-type-icon';
+import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {supabaseAuth} from '@/lib/supabase-auth';
 import {Score, Training, supabaseDb} from '@/lib/supabase-database';
 import {getGameTypeLabel} from '@/lib/game-types';
@@ -14,7 +14,7 @@ import {cn} from '@/lib/utils';
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
 interface HistoryPageProps {
-  view: 'scores' | 'training';
+  view: 'score' | 'training';
 }
 
 export function HistoryPage({ view }: HistoryPageProps) {
@@ -95,10 +95,10 @@ export function HistoryPage({ view }: HistoryPageProps) {
   const historyViewTabs = (
     <div className="flex items-center gap-2">
       <Link
-        to="/history/scores"
+        to="/history/score"
         className={cn(
           'rounded-md border px-3 py-1.5 text-sm font-medium transition-smooth',
-          view === 'scores'
+          view === 'score'
             ? 'border-primary bg-primary/10 text-primary'
             : 'border-border text-muted-foreground hover:text-foreground'
         )}
@@ -114,7 +114,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
             : 'border-border text-muted-foreground hover:text-foreground'
         )}
       >
-        Training
+        Trainings
       </Link>
     </div>
   );
@@ -197,27 +197,14 @@ export function HistoryPage({ view }: HistoryPageProps) {
             ) : filteredTrainings.length > 0 ? (
               <div className="space-y-3">
                 {filteredTrainings.map((training) => (
-                  <div key={training.id} className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <GameTypeIcon gameType={training.game} className="mt-2 hidden h-8 w-8 shrink-0 text-muted-foreground sm:block" />
-                        <div>
-                          <p className="font-semibold text-foreground">{training.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {getGameTypeLabel(training.game)} • {new Date(training.training_date).toLocaleDateString()}
-                          </p>
-                          {training.notes ? (
-                            <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                              {training.notes}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="text-sm font-medium text-foreground">
-                        {training.duration_minutes} min
-                      </div>
-                    </div>
-                  </div>
+                  <TrainingCard
+                    key={training.id}
+                    training={training}
+                    showActions={true}
+                    onTrainingUpdated={() => {
+                      void loadData();
+                    }}
+                  />
                 ))}
               </div>
             ) : trainings.length > 0 ? (
