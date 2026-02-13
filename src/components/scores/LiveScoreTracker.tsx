@@ -107,8 +107,40 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       void loadLiveGames();
     });
 
+    const refreshLiveGamesIfAuthenticated = () => {
+      if (!supabaseAuth.isAuthenticated()) return;
+      void loadLiveGames();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshLiveGamesIfAuthenticated();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      refreshLiveGamesIfAuthenticated();
+    };
+
+    const handleNetworkReconnect = () => {
+      refreshLiveGamesIfAuthenticated();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('online', handleNetworkReconnect);
+
+    const fallbackRefreshInterval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshLiveGamesIfAuthenticated();
+    }, 15000);
+
     return () => {
       isMounted = false;
+      window.clearInterval(fallbackRefreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('online', handleNetworkReconnect);
       unsubscribeAuth();
       unsubscribe();
     };
@@ -355,21 +387,14 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
           const isGameCreator = currentUser?.id === game.created_by_user_id;
           const isGameOpponent = currentUser?.id === game.opponent_user_id;
           const isSpectator = !isGameCreator && !isGameOpponent;
-          const creatorName = isGameCreator ? 'You' : (game.creator_name || 'Unknown player');
+          const creatorName = game.creator_name || 'Unknown player';
           const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
-          const opponentLabel = isGameOpponent ? 'You' : opponentName;
-          const leftPlayerLabel = isSpectator ? creatorName : 'You';
-          const rightPlayerLabel = isSpectator ? opponentName : opponentLabel;
-          const yourPlayer = isGameCreator ? 'player1' : 'player2';
-          const opponentPlayer = isGameCreator ? 'player2' : 'player1';
-          const leftPlayer = isSpectator ? 'player1' : yourPlayer;
-          const rightPlayer = isSpectator ? 'player2' : opponentPlayer;
-          const leftScore = isSpectator
-            ? game.score1
-            : (isGameCreator ? game.score1 : game.score2);
-          const rightScore = isSpectator
-            ? game.score2
-            : (isGameCreator ? game.score2 : game.score1);
+          const leftPlayerLabel = isGameCreator ? 'You' : creatorName;
+          const rightPlayerLabel = isGameOpponent ? 'You' : opponentName;
+          const leftPlayer: 'player1' | 'player2' = 'player1';
+          const rightPlayer: 'player1' | 'player2' = 'player2';
+          const leftScore = game.score1;
+          const rightScore = game.score2;
           const disableGameInteractions = isSpectator || isLoading;
           return (
             <Card key={game.id} className="shadow-card border-0">
