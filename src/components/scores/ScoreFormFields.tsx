@@ -171,17 +171,6 @@ export function ScoreFormFields({
           className="grid grid-cols-2 gap-2"
         >
           <ToggleGroupItem
-            value="custom"
-            variant="outline"
-            className={toggleOptionClassName}
-          >
-            <User className="mr-2 h-4 w-4" />
-            Custom
-            <span
-              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-            />
-          </ToggleGroupItem>
-          <ToggleGroupItem
             value="friend"
             variant="outline"
             className={toggleOptionClassName}
@@ -190,6 +179,17 @@ export function ScoreFormFields({
             Friend
             <span
               className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+            />
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="custom"
+            variant="outline"
+            className={toggleOptionClassName}
+          >
+            <User className="mr-2 h-4 w-4" />
+            Custom
+            <span
+              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
             />
           </ToggleGroupItem>
         </ToggleGroup>

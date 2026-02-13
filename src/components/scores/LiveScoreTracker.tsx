@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { Plus, Minus, Save, X, Trash2, Triangle, Trophy, Zap, Users, User, Settings2 } from 'lucide-react';
+import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
+import { Plus, Minus, Save, Trash2, Triangle, Trophy, Zap, Users, User, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import {
@@ -64,10 +65,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     breakRule: 'alternate' as BreakRule,
     firstBreakerSelection: 'random' as 'player1' | 'player2' | 'random',
   });
+  const [isRuleSectionExpanded, setIsRuleSectionExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [opponents, setOpponents] = useState<string[]>([]);
   const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
-  const [, setTimeTicker] = useState(new Date());
+  const [syncClock, setSyncClock] = useState(new Date());
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [decrementBreakerPrompt, setDecrementBreakerPrompt] = useState<{
     gameId: string;
     nextScore1: number;
@@ -139,8 +142,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   // Update timer every minute
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeTicker(new Date());
-    }, 60000); // Update every minute
+      setSyncClock(new Date());
+    }, 1000);
 
     return () => clearInterval(timer);
   }, []);
@@ -154,6 +157,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         const userLiveGames = await supabaseDb.getLiveGames();
         if (isMounted) {
           setGames(userLiveGames);
+          setLastSyncedAt(new Date());
         }
       } catch (error) {
         if (isMounted && supabaseAuth.isAuthenticated()) {
@@ -331,6 +335,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         breakRule: 'alternate',
         firstBreakerSelection: 'random',
       });
+      setIsRuleSectionExpanded(false);
       setShowNewGameForm(false);
 
       toast({
@@ -549,6 +554,14 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const ownGamesCount = currentUser
     ? games.filter((game) => game.created_by_user_id === currentUser.id).length
     : 0;
+  const secondsSinceLastSync = lastSyncedAt
+    ? Math.floor((syncClock.getTime() - lastSyncedAt.getTime()) / 1000)
+    : null;
+  const syncStatusText = (() => {
+    if (!lastSyncedAt) return 'Syncing...';
+    if ((secondsSinceLastSync ?? 0) <= 1) return 'Synced now';
+    return `Synced ${formatDistanceToNowStrict(lastSyncedAt, { addSuffix: true })}`;
+  })();
   const orderedGames = [...games]
     .sort((firstGame, secondGame) =>
       new Date(firstGame.started_at).getTime() - new Date(secondGame.started_at).getTime()
@@ -576,21 +589,48 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Live Score Tracking</h2>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold leading-tight">Live Score Tracking</h2>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-5 w-5 items-center justify-center self-center"
+                aria-label={syncStatusText}
+                title={syncStatusText}
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto px-3 py-1.5 text-sm" align="start">
+              {syncStatusText}
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="flex items-center gap-4 sm:gap-3 text-sm">
           {ownGamesCount > 0 && (
-            <Button onClick={saveAllGames} disabled={isLoading} size="sm">
-              <Save className="h-4 w-4 mr-2" />
-              Save All ({ownGamesCount})
-            </Button>
+            <button
+              type="button"
+              onClick={saveAllGames}
+              disabled={isLoading}
+              className="text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
+            >
+              Save all ({ownGamesCount})
+            </button>
           )}
-          <Button variant="outline" onClick={onClose} size="sm">
-            <X className="h-4 w-4" />
-          </Button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Close
+          </button>
         </div>
       </div>
-
       {/* Active Games */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {orderedGames.map((game) => {
@@ -847,64 +887,86 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
               {newGame.game === 'Pool' && (
                 <div className="rounded-md border border-border p-3 space-y-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Rule</Label>
-                    <ToggleGroup
-                      type="single"
-                      value={newGame.breakRule}
-                      onValueChange={(value) => {
-                        if (!value) return;
-                        setNewGame((previousGame) => ({
-                          ...previousGame,
-                          breakRule: value as BreakRule,
-                        }));
-                      }}
-                      className="grid grid-cols-2 gap-2"
-                    >
-                      <ToggleGroupItem
-                        value="alternate"
-                        variant="outline"
-                        className={compactToggleOptionClassName}
-                      >
-                        Alternate
-                        <span
-                          className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'alternate' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                        />
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value="winner_stays"
-                        variant="outline"
-                        className={compactToggleOptionClassName}
-                      >
-                        Winner stays
-                        <span
-                          className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'winner_stays' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                        />
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRuleSectionExpanded((previousState) => !previousState)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Rule</Label>
+                      <p className="text-sm mt-0.5">
+                        {newGame.breakRule === 'winner_stays' ? 'Winner stays' : 'Alternate'} • {newGame.firstBreakerSelection === 'random' ? 'First break: Random' : newGame.firstBreakerSelection === 'player1' ? 'First break: Game creator' : 'First break: Opponent'}
+                      </p>
+                    </div>
+                    {isRuleSectionExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">First break</Label>
-                    <Select
-                      value={newGame.firstBreakerSelection}
-                      onValueChange={(value) =>
-                        setNewGame((previousGame) => ({
-                          ...previousGame,
-                          firstBreakerSelection: value as 'player1' | 'player2' | 'random',
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="random">Random</SelectItem>
-                        <SelectItem value="player1">Game creator</SelectItem>
-                        <SelectItem value="player2">Opponent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {isRuleSectionExpanded && (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Break rule</Label>
+                        <ToggleGroup
+                          type="single"
+                          value={newGame.breakRule}
+                          onValueChange={(value) => {
+                            if (!value) return;
+                            setNewGame((previousGame) => ({
+                              ...previousGame,
+                              breakRule: value as BreakRule,
+                            }));
+                          }}
+                          className="grid grid-cols-2 gap-2"
+                        >
+                          <ToggleGroupItem
+                            value="alternate"
+                            variant="outline"
+                            className={compactToggleOptionClassName}
+                          >
+                            Alternate
+                            <span
+                              className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'alternate' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                            />
+                          </ToggleGroupItem>
+                          <ToggleGroupItem
+                            value="winner_stays"
+                            variant="outline"
+                            className={compactToggleOptionClassName}
+                          >
+                            Winner stays
+                            <span
+                              className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'winner_stays' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                            />
+                          </ToggleGroupItem>
+                        </ToggleGroup>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">First break</Label>
+                        <Select
+                          value={newGame.firstBreakerSelection}
+                          onValueChange={(value) =>
+                            setNewGame((previousGame) => ({
+                              ...previousGame,
+                              firstBreakerSelection: value as 'player1' | 'player2' | 'random',
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="random">Random</SelectItem>
+                            <SelectItem value="player1">Game creator</SelectItem>
+                            <SelectItem value="player2">Opponent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -921,17 +983,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   className="grid grid-cols-2 gap-2"
                 >
                   <ToggleGroupItem
-                    value="custom"
-                    variant="outline"
-                    className={toggleOptionClassName}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Custom
-                    <span
-                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                    />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
                     value="friend"
                     variant="outline"
                     className={toggleOptionClassName}
@@ -940,6 +991,17 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                     Friend
                     <span
                       className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
+                    />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="custom"
+                    variant="outline"
+                    className={toggleOptionClassName}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Custom
+                    <span
+                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
                     />
                   </ToggleGroupItem>
                 </ToggleGroup>
@@ -985,6 +1047,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                   variant="outline" 
                   onClick={() => {
                     setShowNewGameForm(false);
+                    setIsRuleSectionExpanded(false);
                     setNewGame({
                       game: 'Pool',
                       opponent: '',
