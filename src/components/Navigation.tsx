@@ -83,7 +83,7 @@ export function Navigation() {
           <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
             <Trophy className="h-6 w-6" />
-            <span className="hidden sm:inline">ScoreTracker</span>
+            <span>ScoreTracker</span>
           </Link>
 
           <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
