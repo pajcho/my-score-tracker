@@ -77,6 +77,17 @@ export function HomePage() {
     return userScore > opponentScore;
   }).length;
   const winRate = scores.length > 0 ? Math.round((winCount / scores.length) * 100) : 0;
+  const favoriteGame = (() => {
+    if (scores.length === 0) return 'Pool';
+    const gameCounts = scores.reduce((acc, score) => {
+      acc[score.game] = (acc[score.game] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.keys(gameCounts).reduce((a, b) =>
+      gameCounts[a] > gameCounts[b] ? a : b
+    );
+  })();
 
   return (
     <div className="space-y-8">
@@ -89,7 +100,40 @@ export function HomePage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Card className="border-0 shadow-card md:hidden">
+        <CardContent className="grid grid-cols-2 gap-2 p-3">
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] font-medium text-muted-foreground">Total Games</p>
+              <Trophy className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <p className="text-lg font-semibold leading-tight">{scores.length}</p>
+          </div>
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] font-medium text-muted-foreground">Win Rate</p>
+              <TrendingUp className="h-3.5 w-3.5 text-secondary" />
+            </div>
+            <p className="text-lg font-semibold leading-tight text-secondary">{winRate}%</p>
+          </div>
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] font-medium text-muted-foreground">Favorite Game</p>
+              <Medal className="h-3.5 w-3.5 text-accent" />
+            </div>
+            <p className="text-lg font-semibold leading-tight">{favoriteGame}</p>
+          </div>
+          <div className="rounded-md border border-border bg-card px-3 py-2">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[11px] font-medium text-muted-foreground">Trainings</p>
+              <Dumbbell className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <p className="text-lg font-semibold leading-tight">{trainings.length}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-card border-0 hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Games</CardTitle>
@@ -124,19 +168,7 @@ export function HomePage() {
             <Medal className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {(() => {
-                if (scores.length === 0) return 'Pool';
-                const gameCounts = scores.reduce((acc, score) => {
-                  acc[score.game] = (acc[score.game] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>);
-                
-                return Object.keys(gameCounts).reduce((a, b) => 
-                  gameCounts[a] > gameCounts[b] ? a : b
-                );
-              })()}
-            </div>
+            <div className="text-2xl font-bold">{favoriteGame}</div>
             <p className="text-xs text-muted-foreground">
               Most played game
             </p>
