@@ -138,37 +138,39 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[680px]">
+      <DialogContent className="flex h-[90vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-4 sm:h-auto sm:max-h-[85vh] sm:p-6">
         <DialogHeader>
           <DialogTitle>Edit Score</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <ScoreFormFields
-            game={game}
-            setGame={setGame}
-            poolType={poolType}
-            setPoolType={setPoolType}
-            opponent={opponent}
-            setOpponent={setOpponent}
-            yourScore={yourScore}
-            setYourScore={setYourScore}
-            opponentScore={opponentScore}
-            setOpponentScore={setOpponentScore}
-            date={date}
-            setDate={setDate}
-            opponentType={opponentType}
-            setOpponentType={setOpponentType}
-            selectedFriend={selectedFriend}
-            setSelectedFriend={setSelectedFriend}
-            initialData={{
-              opponent_user_id: score?.opponent_user_id,
-              opponent_name: score?.opponent_name
-            }}
-          />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden sm:flex-none sm:overflow-visible">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 sm:flex-none sm:overflow-visible sm:pr-0">
+            <ScoreFormFields
+              game={game}
+              setGame={setGame}
+              poolType={poolType}
+              setPoolType={setPoolType}
+              opponent={opponent}
+              setOpponent={setOpponent}
+              yourScore={yourScore}
+              setYourScore={setYourScore}
+              opponentScore={opponentScore}
+              setOpponentScore={setOpponentScore}
+              date={date}
+              setDate={setDate}
+              opponentType={opponentType}
+              setOpponentType={setOpponentType}
+              selectedFriend={selectedFriend}
+              setSelectedFriend={setSelectedFriend}
+              initialData={{
+                opponent_user_id: score?.opponent_user_id,
+                opponent_name: score?.opponent_name
+              }}
+            />
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-row gap-3 pt-2">
             <Button
               type="submit"
               disabled={isLoading}

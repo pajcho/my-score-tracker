@@ -185,8 +185,8 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
                           Are you sure you want to delete this score? This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogFooter className="flex-row justify-end gap-2 space-x-0">
+                        <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleDelete(score.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
