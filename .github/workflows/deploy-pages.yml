@@ -15,7 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     environment: github-pages
     steps:

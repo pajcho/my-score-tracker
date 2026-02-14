@@ -6,6 +6,9 @@ My Team Tracker is a Vite + React + TypeScript app for tracking game scores.
 - **Package manager:** `npm`
 - **Format/lint:** `npm run lint` (ESlint)
 - **After every change:** run `npm run lint` to verify format and linting are ok.
+- **Testing policy:** after each code change, write or update corresponding tests for the changed behavior.
+- **Coverage gate:** test coverage must never be below `98%`.
+- **Coverage check:** after changes, run coverage (`npm run test:coverage`) and ensure the threshold is satisfied.
 - **Code language:** All comments, variable names, and function names must be in English.
 - **Naming:** Use readable, meaningful names for variables and function parameters; avoid single-letter or cryptic abbreviations (e.g. prefer `payment` over `p`, `selectedMonthValue` over `sel`). Names should not be excessively long.
 
