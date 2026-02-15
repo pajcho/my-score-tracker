@@ -11,16 +11,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui/alertDialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { GameTypeIcon } from '@/components/ui/game-type-icon';
-import { getGameTypeLabel } from '@/lib/game-types';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Training } from '@/lib/supabase-database';
+import { useToast } from '@/hooks/useToast';
+import { useIsMobile } from '@/hooks/useMobile';
+import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
+import { getGameTypeLabel } from '@/lib/gameTypes';
+import { supabaseAuth } from '@/lib/supabaseAuth';
+import { supabaseDb, Training } from '@/lib/supabaseDatabase';
 import { TrainingEditDialog } from '@/components/trainings/TrainingEditDialog';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
 
 interface TrainingCardProps {
   training: Training;

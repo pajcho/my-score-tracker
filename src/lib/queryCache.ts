@@ -1,4 +1,4 @@
-import { queryClient } from '@/lib/query-client';
+import { queryClient } from '@/lib/queryClient';
 
 export const trackerQueryKeys = {
   scores: ['tracker', 'scores'] as const,

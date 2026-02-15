@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { BarChart3, History, Home, LogOut, Trophy, User, Users } from 'lucide-react';
-import { supabaseAuth } from '@/lib/supabase-auth';
+import { supabaseAuth } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 import { getBaseName } from '@/routerBase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,10 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
+} from '@/components/ui/dropdownMenu';
+import { useToast } from '@/hooks/useToast';
 import { ThemeSelector } from '@/components/ThemeSelector';
-import { useAuth } from '@/components/auth/auth-context';
+import { useAuth } from '@/components/auth/authContext';
 
 export function Navigation() {
   const location = useLocation();

@@ -1,20 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthContext } from "@/components/auth/auth-context";
+import { AuthContext } from "@/components/auth/authContext";
 
 const { signOutMock, toastMock } = vi.hoisted(() => ({
   signOutMock: vi.fn(),
   toastMock: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase-auth", () => ({
+vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuth: {
     signOut: signOutMock,
   },
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
@@ -26,7 +26,7 @@ vi.mock("@/components/ThemeSelector", () => ({
   ThemeSelector: () => <div>ThemeSelector</div>,
 }));
 
-vi.mock("@/components/ui/dropdown-menu", () => ({
+vi.mock("@/components/ui/dropdownMenu", () => ({
   DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

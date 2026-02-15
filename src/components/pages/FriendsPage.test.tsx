@@ -27,11 +27,11 @@ const {
   getCurrentProfileMock: vi.fn(),
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-vi.mock("@/lib/supabase-auth", () => ({
+vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuth: {
     isAuthenticated: isAuthenticatedMock,
     getCurrentUser: getCurrentUserMock,
@@ -39,7 +39,7 @@ vi.mock("@/lib/supabase-auth", () => ({
   },
 }));
 
-vi.mock("@/lib/supabase-friends", () => ({
+vi.mock("@/lib/supabaseFriends", () => ({
   supabaseFriends: {
     getFriends: getFriendsMock,
     getSentInvitations: getSentInvitationsMock,
@@ -58,7 +58,7 @@ vi.mock("@/components/ui/tabs", () => ({
   TabsContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/alert-dialog", () => ({
+vi.mock("@/components/ui/alertDialog", () => ({
   AlertDialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

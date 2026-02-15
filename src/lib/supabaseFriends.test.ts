@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabase-mock";
+import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabaseMock";
 
 let harness: SupabaseMockHarness;
-let supabaseFriends: typeof import("@/lib/supabase-friends").supabaseFriends;
+let supabaseFriends: typeof import("@/lib/supabaseFriends").supabaseFriends;
 
 describe("supabaseFriends", () => {
   beforeEach(async () => {
@@ -11,7 +11,7 @@ describe("supabaseFriends", () => {
     vi.doMock("@/integrations/supabase/client", () => ({
       supabase: harness.supabase,
     }));
-    ({ supabaseFriends } = await import("@/lib/supabase-friends"));
+    ({ supabaseFriends } = await import("@/lib/supabaseFriends"));
   });
 
   it("rejects self invitation", async () => {

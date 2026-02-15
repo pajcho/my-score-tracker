@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { isGameType, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
+import { isGameType, isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
 
 export type PlayerSide = 'player1' | 'player2';
 export type BreakRule = 'alternate' | 'winner_stays';

@@ -13,18 +13,18 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle, 
   AlertDialogTrigger 
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui/alertDialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { format } from 'date-fns';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Score } from '@/lib/supabase-database';
+import { supabaseAuth } from '@/lib/supabaseAuth';
+import { supabaseDb, Score } from '@/lib/supabaseDatabase';
 import { cn } from '@/lib/utils';
 import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
-import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
-import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
+import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
+import { useIsMobile } from '@/hooks/useMobile';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 

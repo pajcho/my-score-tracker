@@ -10,15 +10,15 @@ const { useAuthMock, getScoresByUserIdMock, getLiveGamesMock, getTrainingsByUser
   getTrainingsByUserIdMock: vi.fn(),
 }));
 
-vi.mock("@/components/auth/auth-context", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => useAuthMock(),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/useMobile", () => ({
   useIsMobile: () => false,
 }));
 
-vi.mock("@/lib/supabase-database", () => ({
+vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
     getScoresByUserId: getScoresByUserIdMock,
     getLiveGames: getLiveGamesMock,
@@ -68,12 +68,12 @@ vi.mock("@/components/trainings/TrainingCard", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/game-type-icon", () => ({
+vi.mock("@/components/ui/gameTypeIcon", () => ({
   GameTypeIcon: () => <span>GameTypeIcon</span>,
 }));
 
 import { HomePage } from "@/components/pages/HomePage";
-import { queryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/queryClient";
 
 function renderHomePage() {
   return render(

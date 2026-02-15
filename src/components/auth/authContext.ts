@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { AuthState } from '@/lib/supabase-auth';
+import { AuthState } from '@/lib/supabaseAuth';
 
 export const AuthContext = createContext<AuthState | undefined>(undefined);
 

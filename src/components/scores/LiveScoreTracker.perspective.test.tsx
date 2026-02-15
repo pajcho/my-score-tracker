@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { queryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/queryClient";
 
 const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, toastMock } =
   vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     toastMock: vi.fn(),
   }));
 
-vi.mock("@/components/auth/auth-context", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: authState.currentUserId, user_metadata: { name: "Current User" } },
     profile: { user_id: authState.currentUserId, name: "Current User" },
@@ -24,11 +24,11 @@ vi.mock("@/components/auth/auth-context", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-vi.mock("@/lib/supabase-database", () => ({
+vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
     getLiveGames: getLiveGamesMock,
     getUniqueOpponents: getUniqueOpponentsMock,
@@ -55,12 +55,12 @@ vi.mock("@/components/ui/popover", () => ({
   PopoverContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/toggle-group", () => ({
+vi.mock("@/components/ui/toggleGroup", () => ({
   ToggleGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ToggleGroupItem: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
 }));
 
-vi.mock("@/components/ui/opponent-autocomplete", () => ({
+vi.mock("@/components/ui/opponentAutocomplete", () => ({
   OpponentAutocomplete: () => <div>OpponentAutocomplete</div>,
 }));
 

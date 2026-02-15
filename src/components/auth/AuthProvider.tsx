@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AuthState, supabaseAuth } from '@/lib/supabase-auth';
-import { AuthContext } from '@/components/auth/auth-context';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
+import { AuthState, supabaseAuth } from '@/lib/supabaseAuth';
+import { AuthContext } from '@/components/auth/authContext';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
 
 interface AuthProviderProps {
   children: React.ReactNode;

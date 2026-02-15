@@ -7,14 +7,14 @@ const { getStateMock, subscribeMock } = vi.hoisted(() => ({
   subscribeMock: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase-auth", () => ({
+vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuth: {
     getState: getStateMock,
     subscribe: subscribeMock,
   },
 }));
 
-import { useAuth } from "@/components/auth/auth-context";
+import { useAuth } from "@/components/auth/authContext";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
 function AuthProbe() {

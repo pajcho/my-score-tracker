@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabaseDb, type LiveGameView, type Score, type Training } from '@/lib/supabase-database';
-import { trackerQueryKeys } from '@/lib/query-cache';
+import { supabaseDb, type LiveGameView, type Score, type Training } from '@/lib/supabaseDatabase';
+import { trackerQueryKeys } from '@/lib/queryCache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 

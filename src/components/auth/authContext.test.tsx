@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AuthContext, useAuth } from "@/components/auth/auth-context";
+import { AuthContext, useAuth } from "@/components/auth/authContext";
 
 describe("useAuth", () => {
   it("throws when used outside provider", () => {

@@ -2,10 +2,10 @@ import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import { ToastAction } from '@/components/ui/toast';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
-import { useAuth } from '@/components/auth/auth-context';
+import { useAuth } from '@/components/auth/authContext';
 
 type LiveGameRow = Database['public']['Tables']['live_games']['Row'];
 

@@ -5,17 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
+import { OpponentAutocomplete } from '@/components/ui/opponentAutocomplete';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import {
   supabaseDb,
   BreakRule,
   LiveGameView,
   PoolGameSettingsInput,
   PlayerSide,
-} from '@/lib/supabase-database';
+} from '@/lib/supabaseDatabase';
 import {
   DEFAULT_GAME_TYPE,
   DEFAULT_POOL_TYPE,
@@ -27,8 +27,8 @@ import {
   isPoolGameType,
   type GameType,
   type PoolType,
-} from '@/lib/game-types';
-import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
+} from '@/lib/gameTypes';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -38,9 +38,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useAuth } from '@/components/auth/auth-context';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
-import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery } from '@/hooks/use-tracker-data';
+import { useAuth } from '@/components/auth/authContext';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery } from '@/hooks/useTrackerData';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;

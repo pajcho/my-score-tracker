@@ -16,11 +16,11 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-vi.mock("@/lib/supabase-auth", () => ({
+vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuth: {
     signUp: signUpMock,
   },

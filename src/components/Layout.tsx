@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Navigation } from './Navigation';
 import { LiveGameInviteNotifier } from '@/components/scores/LiveGameInviteNotifier';
-import { useAuth } from '@/components/auth/auth-context';
+import { useAuth } from '@/components/auth/authContext';
 
 export function Layout() {
   const authState = useAuth();

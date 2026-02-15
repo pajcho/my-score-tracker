@@ -7,22 +7,22 @@ const { authState } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/useMobile", () => ({
   useIsMobile: () => false,
 }));
 
-vi.mock("@/lib/supabase-auth", () => ({
+vi.mock("@/lib/supabaseAuth", () => ({
   supabaseAuth: {
     isAuthenticated: () => true,
     getCurrentUser: () => ({ id: authState.currentUserId }),
   },
 }));
 
-vi.mock("@/lib/supabase-database", () => ({
+vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
     deleteScore: vi.fn(),
   },

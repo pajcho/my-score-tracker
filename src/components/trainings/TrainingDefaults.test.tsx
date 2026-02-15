@@ -15,28 +15,28 @@ const {
   invalidateTrackerQueriesMock: vi.fn(),
 }));
 
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock('@/hooks/useToast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-vi.mock('@/lib/supabase-auth', () => ({
+vi.mock('@/lib/supabaseAuth', () => ({
   supabaseAuth: {
     isAuthenticated: isAuthenticatedMock,
   },
 }));
 
-vi.mock('@/lib/supabase-database', () => ({
+vi.mock('@/lib/supabaseDatabase', () => ({
   supabaseDb: {
     createTraining: createTrainingMock,
     updateTraining: updateTrainingMock,
   },
 }));
 
-vi.mock('@/lib/query-cache', () => ({
+vi.mock('@/lib/queryCache', () => ({
   invalidateTrackerQueries: invalidateTrackerQueriesMock,
 }));
 
-vi.mock('@/hooks/use-mobile', () => ({
+vi.mock('@/hooks/useMobile', () => ({
   useIsMobile: () => false,
 }));
 
@@ -50,7 +50,7 @@ vi.mock('@/components/ui/calendar', () => ({
   Calendar: () => <div>calendar</div>,
 }));
 
-vi.mock('@/components/ui/toggle-group', () => ({
+vi.mock('@/components/ui/toggleGroup', () => ({
   ToggleGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ToggleGroupItem: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
 }));

@@ -5,7 +5,7 @@ const { useIsMobileMock } = vi.hoisted(() => ({
   useIsMobileMock: vi.fn(),
 }));
 
-vi.mock('@/hooks/use-mobile', () => ({
+vi.mock('@/hooks/useMobile', () => ({
   useIsMobile: () => useIsMobileMock(),
 }));
 
@@ -25,7 +25,7 @@ vi.mock('@/components/ui/drawer', () => ({
   DrawerDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
-import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
+import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 
 describe('ResponsiveFormModal', () => {
   it('renders dialog variant on desktop', () => {

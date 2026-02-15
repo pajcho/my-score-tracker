@@ -9,11 +9,11 @@ const { useAuthMock, getScoresByUserIdMock, getTrainingsByUserIdMock } = vi.hois
   getTrainingsByUserIdMock: vi.fn(),
 }));
 
-vi.mock("@/components/auth/auth-context", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => useAuthMock(),
 }));
 
-vi.mock("@/lib/supabase-database", () => ({
+vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
     getScoresByUserId: getScoresByUserIdMock,
     getTrainingsByUserId: getTrainingsByUserIdMock,
@@ -79,7 +79,7 @@ vi.mock("@/components/ui/popover", () => ({
 }));
 
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
-import { queryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/queryClient";
 
 function renderStatisticsPage(view: "score" | "training") {
   return render(

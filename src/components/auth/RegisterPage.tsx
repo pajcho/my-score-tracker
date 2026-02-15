@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
+import { useToast } from '@/hooks/useToast';
+import { supabaseAuth } from '@/lib/supabaseAuth';
 
 export function RegisterPage() {
   const [name, setName] = useState('');

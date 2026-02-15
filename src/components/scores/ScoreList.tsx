@@ -1,5 +1,5 @@
-import { Score } from '@/lib/supabase-database';
-import { GameList } from '@/components/ui/game-list';
+import { Score } from '@/lib/supabaseDatabase';
+import { GameList } from '@/components/ui/gameList';
 
 interface ScoreListProps {
   scores: Score[];

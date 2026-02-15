@@ -4,11 +4,11 @@ import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, T
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
-import { Score, Training } from '@/lib/supabase-database';
+import { Score, Training } from '@/lib/supabaseDatabase';
 import {cn} from '@/lib/utils';
-import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
-import { useAuth } from '@/components/auth/auth-context';
-import { useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
+import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
+import { useAuth } from '@/components/auth/authContext';
+import { useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 

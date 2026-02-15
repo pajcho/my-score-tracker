@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabase-mock";
+import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabaseMock";
 
 let harness: SupabaseMockHarness;
 
@@ -15,7 +15,7 @@ describe("supabaseAuth", () => {
 
   it("starts unauthenticated when no session exists", async () => {
     harness.supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
 
     await Promise.resolve();
 
@@ -24,7 +24,7 @@ describe("supabaseAuth", () => {
   });
 
   it("calls signUp with redirect and metadata", async () => {
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     await supabaseAuth.signUp("new@example.com", "password123", "Nikola");
 
     expect(harness.supabase.auth.signUp).toHaveBeenCalledWith({
@@ -40,7 +40,7 @@ describe("supabaseAuth", () => {
   });
 
   it("calls signIn with password credentials", async () => {
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     await supabaseAuth.signIn("new@example.com", "password123");
     expect(harness.supabase.auth.signInWithPassword).toHaveBeenCalledWith({
       email: "new@example.com",
@@ -49,7 +49,7 @@ describe("supabaseAuth", () => {
   });
 
   it("resets local auth state on successful signOut", async () => {
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     await supabaseAuth.signOut();
     expect(supabaseAuth.getState()).toEqual({
       user: null,
@@ -81,7 +81,7 @@ describe("supabaseAuth", () => {
       error: null,
     });
 
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     const observedStates: Array<{ isLoading: boolean; isAuthenticated: boolean; hasProfile: boolean }> = [];
     supabaseAuth.subscribe((state) => {
       observedStates.push({
@@ -107,7 +107,7 @@ describe("supabaseAuth", () => {
     harness.supabase.auth.signOut.mockResolvedValueOnce({
       error: { message: "cannot sign out" },
     });
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     const previousState = supabaseAuth.getState();
 
     const result = await supabaseAuth.signOut();
@@ -136,7 +136,7 @@ describe("supabaseAuth", () => {
     });
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     authStateListener?.("SIGNED_IN", {
       user: { id: "user-1", email: "user@example.com" },
     });
@@ -161,7 +161,7 @@ describe("supabaseAuth", () => {
       };
     });
 
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     authStateListener?.("SIGNED_OUT", null);
     await vi.runAllTimersAsync();
 
@@ -175,7 +175,7 @@ describe("supabaseAuth", () => {
   });
 
   it("exposes getter helpers and unsubscribe from subscribe", async () => {
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     const listener = vi.fn();
     const unsubscribe = supabaseAuth.subscribe(listener);
 
@@ -210,7 +210,7 @@ describe("supabaseAuth", () => {
       error: null,
     });
 
-    const { supabaseAuth } = await import("@/lib/supabase-auth");
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
     await Promise.resolve();
 
     expect(supabaseAuth.getState()).toEqual(

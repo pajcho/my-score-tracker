@@ -7,7 +7,7 @@ import {
   getPoolTypeLabel,
   isGameType,
   isPoolGameType,
-} from "@/lib/game-types";
+} from "@/lib/gameTypes";
 
 describe("game-types", () => {
   it("returns expected default values", () => {

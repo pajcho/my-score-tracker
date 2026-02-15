@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabase-mock";
+import { createSupabaseMockHarness, type SupabaseMockHarness } from "@/test/supabaseMock";
 
 let harness: SupabaseMockHarness;
-let supabaseDb: typeof import("@/lib/supabase-database").supabaseDb;
+let supabaseDb: typeof import("@/lib/supabaseDatabase").supabaseDb;
 
 describe("supabaseDb", () => {
   beforeEach(async () => {
@@ -11,7 +11,7 @@ describe("supabaseDb", () => {
     vi.doMock("@/integrations/supabase/client", () => ({
       supabase: harness.supabase,
     }));
-    ({ supabaseDb } = await import("@/lib/supabase-database"));
+    ({ supabaseDb } = await import("@/lib/supabaseDatabase"));
   });
 
   it("creates a score for authenticated users", async () => {

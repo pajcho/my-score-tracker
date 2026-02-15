@@ -8,22 +8,22 @@ const { updateProfileMock, deleteAccountMock, toastMock, useAuthMock } = vi.hois
   useAuthMock: vi.fn(),
 }));
 
-vi.mock("@/components/auth/auth-context", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => useAuthMock(),
 }));
 
-vi.mock("@/hooks/use-toast", () => ({
+vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 
-vi.mock("@/lib/supabase-database", () => ({
+vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
     updateProfile: updateProfileMock,
     deleteAccount: deleteAccountMock,
   },
 }));
 
-vi.mock("@/components/ui/alert-dialog", () => ({
+vi.mock("@/components/ui/alertDialog", () => ({
   AlertDialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   AlertDialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

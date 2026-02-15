@@ -3,12 +3,12 @@ import { Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScoreFormFields } from './ScoreFormFields';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Score } from '@/lib/supabase-database';
-import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
-import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
+import { useToast } from '@/hooks/useToast';
+import { supabaseAuth } from '@/lib/supabaseAuth';
+import { supabaseDb, Score } from '@/lib/supabaseDatabase';
+import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 
 interface ScoreEditDialogProps {
   score: Score | null;

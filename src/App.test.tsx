@@ -9,7 +9,7 @@ vi.mock("@/components/ui/sonner", () => ({
   Toaster: () => <div>Sonner</div>,
 }));
 
-vi.mock("@/components/ui/theme-provider", () => ({
+vi.mock("@/components/ui/themeProvider", () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

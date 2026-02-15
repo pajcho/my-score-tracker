@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { AuthContext } from "@/components/auth/auth-context";
+import { AuthContext } from "@/components/auth/authContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import type { AuthState } from "@/lib/supabase-auth";
+import type { AuthState } from "@/lib/supabaseAuth";
 
 const baseAuthState: AuthState = {
   user: null,

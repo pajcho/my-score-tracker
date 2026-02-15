@@ -6,12 +6,12 @@ import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
-import { Score, Training } from '@/lib/supabase-database';
-import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
-import { GameTypeIcon } from '@/components/ui/game-type-icon';
-import { useAuth } from '@/components/auth/auth-context';
-import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
-import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
+import { Score, Training } from '@/lib/supabaseDatabase';
+import {GAME_TYPE_OPTIONS} from '@/lib/gameTypes';
+import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
+import { useAuth } from '@/components/auth/authContext';
+import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
+import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 
 export function HomePage() {
   const [isScoreDialogOpen, setIsScoreDialogOpen] = useState(false);

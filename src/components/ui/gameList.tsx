@@ -1,5 +1,5 @@
-import { Score } from '@/lib/supabase-database';
-import { GameCard } from './game-card';
+import { Score } from '@/lib/supabaseDatabase';
+import { GameCard } from './gameCard';
 import { cn } from '@/lib/utils';
 
 interface GameListProps {

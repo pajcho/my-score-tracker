@@ -7,15 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useToast } from '@/hooks/use-toast';
-import { DEFAULT_GAME_TYPE, GAME_TYPE_OPTIONS, type GameType } from '@/lib/game-types';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb, Training } from '@/lib/supabase-database';
-import { GameTypeIcon } from '@/components/ui/game-type-icon';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
+import { useToast } from '@/hooks/useToast';
+import { DEFAULT_GAME_TYPE, GAME_TYPE_OPTIONS, type GameType } from '@/lib/gameTypes';
+import { supabaseAuth } from '@/lib/supabaseAuth';
+import { supabaseDb, Training } from '@/lib/supabaseDatabase';
+import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
 import { cn } from '@/lib/utils';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
-import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 
 const toggleOptionClassName =
   'h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65';

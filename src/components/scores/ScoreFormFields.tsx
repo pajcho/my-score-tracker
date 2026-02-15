@@ -6,14 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { OpponentAutocomplete } from '@/components/ui/opponentAutocomplete';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { GAME_TYPE_OPTIONS, POOL_TYPE_OPTIONS, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
-import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
-import { useAuth } from '@/components/auth/auth-context';
-import { useFriendsQuery, useOpponentsQuery } from '@/hooks/use-tracker-data';
+import { GAME_TYPE_OPTIONS, POOL_TYPE_OPTIONS, isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
+import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
+import { useAuth } from '@/components/auth/authContext';
+import { useFriendsQuery, useOpponentsQuery } from '@/hooks/useTrackerData';
 
 const toggleOptionClassName =
   "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";

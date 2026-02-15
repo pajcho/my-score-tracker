@@ -6,11 +6,11 @@ import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
-import { Score, Training } from '@/lib/supabase-database';
-import {getGameTypeLabel} from '@/lib/game-types';
+import { Score, Training } from '@/lib/supabaseDatabase';
+import {getGameTypeLabel} from '@/lib/gameTypes';
 import {cn} from '@/lib/utils';
-import { useAuth } from '@/components/auth/auth-context';
-import { useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
+import { useAuth } from '@/components/auth/authContext';
+import { useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 

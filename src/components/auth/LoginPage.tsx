@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { supabaseAuth } from '@/lib/supabase-auth';
+import { useToast } from '@/hooks/useToast';
+import { supabaseAuth } from '@/lib/supabaseAuth';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
