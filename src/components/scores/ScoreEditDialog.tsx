@@ -122,7 +122,6 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       }
       await invalidateTrackerQueries({
         scores: true,
-        liveGames: true,
         opponents: true,
       });
 

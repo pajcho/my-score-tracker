@@ -171,7 +171,7 @@ describe("HistoryPage", () => {
     fireEvent.click(screen.getByText("TrainingCard"));
 
     await waitFor(() => {
-      expect(getTrainingsByUserIdMock).toHaveBeenCalledTimes(2);
+      expect(getTrainingsByUserIdMock).toHaveBeenCalledTimes(1);
     });
   });
 

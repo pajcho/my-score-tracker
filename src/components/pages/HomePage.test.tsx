@@ -167,7 +167,7 @@ describe("HomePage", () => {
     fireEvent.click(screen.getByText("ScoreFormSuccess"));
 
     await waitFor(() => {
-      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(2);
+      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
       expect(screen.queryByText("ScoreFormSuccess")).not.toBeInTheDocument();
     });
   });
@@ -197,7 +197,7 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByText("ScoreListUpdate"));
     await waitFor(() => {
-      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(2);
+      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Trainings" }));
@@ -207,7 +207,7 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByText("TrainingCardUpdate"));
     await waitFor(() => {
-      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(2);
+      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
     });
   });
 

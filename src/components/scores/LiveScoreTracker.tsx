@@ -93,10 +93,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   const { user: currentUser, isAuthenticated } = useAuth();
-  const isQueryEnabled = isAuthenticated && !!currentUser?.id;
-  const liveGamesQuery = useLiveGamesQuery(isQueryEnabled);
-  const opponentsQuery = useOpponentsQuery(isQueryEnabled);
-  const friendsQuery = useFriendsQuery(isQueryEnabled);
+  const currentUserId = isAuthenticated ? currentUser?.id : undefined;
+  const isQueryEnabled = !!currentUserId;
+  const liveGamesQuery = useLiveGamesQuery(currentUserId);
+  const opponentsQuery = useOpponentsQuery(currentUserId);
+  const friendsQuery = useFriendsQuery(currentUserId);
   const opponents = opponentsQuery.data ?? [];
   const friends = friendsQuery.data ?? [];
   const isInitialLoading = isQueryEnabled && liveGamesQuery.isLoading && games.length === 0;
@@ -145,7 +146,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     updateGameLocally(gameId, nextScore1, nextScore2, poolSettingsPatch);
     try {
       await supabaseDb.updateLiveGameScore(gameId, nextScore1, nextScore2, poolSettingsPatch);
-      await invalidateTrackerQueries({ liveGames: true });
     } catch (error) {
       toast({
         title: "Failed to sync score",

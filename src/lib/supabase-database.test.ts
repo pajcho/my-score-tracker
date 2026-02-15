@@ -62,8 +62,8 @@ describe("supabaseDb", () => {
       })
     );
 
-    profilesBuilder.maybeSingle.mockResolvedValue({
-      data: { name: "Friend Name" },
+    profilesBuilder.in.mockResolvedValue({
+      data: [{ user_id: "friend-1", name: "Friend Name" }],
       error: null,
     });
 
@@ -113,8 +113,8 @@ describe("supabaseDb", () => {
         error: null,
       })
     );
-    profilesBuilder.maybeSingle.mockResolvedValue({
-      data: { name: "Creator Name" },
+    profilesBuilder.in.mockResolvedValue({
+      data: [{ user_id: "friend-2", name: "Creator Name" }],
       error: null,
     });
 
@@ -180,8 +180,8 @@ describe("supabaseDb", () => {
       error: null,
     });
 
-    profilesBuilder.single.mockResolvedValue({
-      data: { name: "Ana" },
+    profilesBuilder.in.mockResolvedValue({
+      data: [{ name: "Ana" }],
       error: null,
     });
 
@@ -606,7 +606,7 @@ describe("supabaseDb", () => {
       data: [{ opponent_name: null, opponent_user_id: "friend-1" }],
       error: null,
     });
-    profilesBuilder.single.mockResolvedValueOnce({ data: null, error: null });
+    profilesBuilder.in.mockResolvedValueOnce({ data: [], error: null });
     await expect(supabaseDb.getUniqueOpponents()).resolves.toEqual([]);
 
     harness.supabase.auth.getUser.mockResolvedValueOnce({ data: { user: null } });

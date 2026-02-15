@@ -4,27 +4,27 @@ import { trackerQueryKeys } from '@/lib/query-cache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
-export function useScoresQuery(isEnabled: boolean) {
+export function useScoresQuery(userId?: string | null) {
   return useQuery<ScoreWithFriend[]>({
     queryKey: trackerQueryKeys.scores,
-    queryFn: async () => (await supabaseDb.getScoresByUserId()) as ScoreWithFriend[],
-    enabled: isEnabled,
+    queryFn: async () => (await supabaseDb.getScoresByUserId(userId ?? undefined)) as ScoreWithFriend[],
+    enabled: !!userId,
   });
 }
 
-export function useTrainingsQuery(isEnabled: boolean) {
+export function useTrainingsQuery(userId?: string | null) {
   return useQuery<Training[]>({
     queryKey: trackerQueryKeys.trainings,
-    queryFn: async () => await supabaseDb.getTrainingsByUserId(),
-    enabled: isEnabled,
+    queryFn: async () => await supabaseDb.getTrainingsByUserId(userId ?? undefined),
+    enabled: !!userId,
   });
 }
 
-export function useLiveGamesQuery(isEnabled: boolean) {
+export function useLiveGamesQuery(userId?: string | null) {
   return useQuery<LiveGameView[]>({
     queryKey: trackerQueryKeys.liveGames,
-    queryFn: async () => await supabaseDb.getLiveGames(),
-    enabled: isEnabled,
+    queryFn: async () => await supabaseDb.getLiveGames(userId ?? undefined),
+    enabled: !!userId,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchOnMount: 'always',
@@ -32,18 +32,18 @@ export function useLiveGamesQuery(isEnabled: boolean) {
   });
 }
 
-export function useOpponentsQuery(isEnabled: boolean) {
+export function useOpponentsQuery(userId?: string | null) {
   return useQuery<string[]>({
     queryKey: trackerQueryKeys.opponents,
-    queryFn: async () => await supabaseDb.getUniqueOpponents(),
-    enabled: isEnabled,
+    queryFn: async () => await supabaseDb.getUniqueOpponents(userId ?? undefined),
+    enabled: !!userId,
   });
 }
 
-export function useFriendsQuery(isEnabled: boolean) {
+export function useFriendsQuery(userId?: string | null) {
   return useQuery<{ id: string; name: string; email: string }[]>({
     queryKey: trackerQueryKeys.friends,
-    queryFn: async () => await supabaseDb.getFriends(),
-    enabled: isEnabled,
+    queryFn: async () => await supabaseDb.getFriends(userId ?? undefined),
+    enabled: !!userId,
   });
 }

@@ -11,16 +11,16 @@ import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 import { useAuth } from '@/components/auth/auth-context';
 import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 export function HomePage() {
   const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
   const [activeRecentTab, setActiveRecentTab] = useState<'scores' | 'trainings'>('scores');
   const { profile, user, isAuthenticated } = useAuth();
-  const isQueryEnabled = isAuthenticated && !!user?.id;
-  const scoresQuery = useScoresQuery(isQueryEnabled);
-  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
-  const liveGamesQuery = useLiveGamesQuery(isQueryEnabled);
+  const currentUserId = isAuthenticated ? user?.id : undefined;
+  const isQueryEnabled = !!currentUserId;
+  const scoresQuery = useScoresQuery(currentUserId);
+  const trainingsQuery = useTrainingsQuery(currentUserId);
+  const liveGamesQuery = useLiveGamesQuery(currentUserId);
 
   useEffect(() => {
     if (!scoresQuery.error) return;
@@ -34,21 +34,12 @@ export function HomePage() {
 
   const handleScoreAdded = () => {
     setActiveQuickAction(null);
-    void invalidateTrackerQueries({
-      scores: true,
-      liveGames: true,
-      opponents: true,
-    });
   };
 
   const handleTrainingAdded = () => {
     setActiveQuickAction(null);
-    void invalidateTrackerQueries({
-      trainings: true,
-    });
   };
 
-  const currentUserId = user?.id;
   const winCount = scores.filter((scoreEntry) => {
     const [firstScore, secondScore] = scoreEntry.score.split('-').map((scoreValue) => Number(scoreValue));
     if (Number.isNaN(firstScore) || Number.isNaN(secondScore) || !currentUserId) {
@@ -303,9 +294,7 @@ export function HomePage() {
             ) : scores.length > 0 ? (
               <ScoreList
                 scores={scores.slice(0, 5)}
-                onScoreUpdated={() => {
-                  void invalidateTrackerQueries({ scores: true, liveGames: true });
-                }}
+                onScoreUpdated={() => undefined}
                 compact={true}
               />
             ) : (
@@ -337,9 +326,7 @@ export function HomePage() {
                   training={training}
                   notesClassName="mt-2 text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2"
                   showActions={true}
-                  onTrainingUpdated={() => {
-                    void invalidateTrackerQueries({ trainings: true });
-                  }}
+                  onTrainingUpdated={() => undefined}
                 />
               ))}
             </div>

@@ -102,7 +102,6 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
       }
       await invalidateTrackerQueries({
         scores: true,
-        liveGames: true,
         opponents: true,
       });
 

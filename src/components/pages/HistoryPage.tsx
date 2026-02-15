@@ -11,7 +11,6 @@ import {getGameTypeLabel} from '@/lib/game-types';
 import {cn} from '@/lib/utils';
 import { useAuth } from '@/components/auth/auth-context';
 import { useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
-import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -25,9 +24,10 @@ export function HistoryPage({ view }: HistoryPageProps) {
   const [trainingSearchTerm, setTrainingSearchTerm] = useState('');
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
   const { isAuthenticated, user } = useAuth();
-  const isQueryEnabled = isAuthenticated && !!user?.id;
-  const scoresQuery = useScoresQuery(isQueryEnabled);
-  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
+  const currentUserId = isAuthenticated ? user?.id : undefined;
+  const isQueryEnabled = !!currentUserId;
+  const scoresQuery = useScoresQuery(currentUserId);
+  const trainingsQuery = useTrainingsQuery(currentUserId);
   const scores: ScoreWithFriend[] = isAuthenticated ? (scoresQuery.data ?? []) : [];
   const trainings: Training[] = isAuthenticated ? (trainingsQuery.data ?? []) : [];
   const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading);
@@ -181,9 +181,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
                     key={training.id}
                     training={training}
                     showActions={true}
-                    onTrainingUpdated={() => {
-                      void invalidateTrackerQueries({ trainings: true });
-                    }}
+                    onTrainingUpdated={() => undefined}
                   />
                 ))}
               </div>
@@ -289,9 +287,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
           ) : filteredScores.length > 0 ? (
             <ScoreList
               scores={filteredScores}
-              onScoreUpdated={() => {
-                void invalidateTrackerQueries({ scores: true });
-              }}
+              onScoreUpdated={() => undefined}
             />
           ) : scores.length > 0 ? (
             <div className="text-center py-12 space-y-2">

@@ -64,7 +64,6 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
       await supabaseDb.deleteScore(scoreId);
       await invalidateTrackerQueries({
         scores: true,
-        liveGames: true,
         opponents: true,
       });
       toast({

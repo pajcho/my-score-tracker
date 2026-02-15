@@ -73,6 +73,13 @@ export interface LiveGameView extends LiveGame {
 }
 
 class SupabaseDatabaseService {
+  private async resolveUserId(userId?: string): Promise<string> {
+    if (userId) return userId;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+    return user.id;
+  }
+
   async createScore(
     game: GameType,
     opponent_name: string | null,
@@ -100,51 +107,63 @@ class SupabaseDatabaseService {
     return data as Score;
   }
 
-  async getScoresByUserId(): Promise<(Score & { friend_name?: string })[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getScoresByUserId(userId?: string): Promise<(Score & { friend_name?: string })[]> {
+    const currentUserId = await this.resolveUserId(userId);
 
     const { data, error } = await supabase
       .from('scores')
       .select('*')
-      .or(`user_id.eq.${user.id},opponent_user_id.eq.${user.id}`)
+      .or(`user_id.eq.${currentUserId},opponent_user_id.eq.${currentUserId}`)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     
-    // Get friend names for scores with opponent_user_id
-    const enrichedScores = await Promise.all((data || []).map(async (score) => {
-      let friend_name = null;
-      
-      if (score.opponent_user_id) {
-        let friendUserId = null;
-        
-        // If current user created the score, get opponent's name
-        if (score.user_id === user.id) {
-          friendUserId = score.opponent_user_id;
-        } 
-        // If current user is the opponent, get creator's name
-        else if (score.opponent_user_id === user.id) {
-          friendUserId = score.user_id;
-        }
-        
-        if (friendUserId) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('user_id', friendUserId)
-            .maybeSingle();
-          
-          friend_name = profile?.name || null;
-        }
+    const friendUserIdByScoreId = new Map<string, string>();
+    const friendUserIds = new Set<string>();
+
+    for (const score of data || []) {
+      if (!score.opponent_user_id) continue;
+
+      let friendUserId: string | null = null;
+
+      // If current user created the score, show opponent's name.
+      if (score.user_id === currentUserId) {
+        friendUserId = score.opponent_user_id;
       }
-      
+      // If current user is opponent, show creator's name.
+      else if (score.opponent_user_id === currentUserId) {
+        friendUserId = score.user_id;
+      }
+
+      if (friendUserId) {
+        friendUserIdByScoreId.set(score.id, friendUserId);
+        friendUserIds.add(friendUserId);
+      }
+    }
+
+    const profileNameByUserId = new Map<string, string>();
+
+    if (friendUserIds.size > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, name')
+        .in('user_id', Array.from(friendUserIds));
+
+      if (profilesError) throw profilesError;
+
+      for (const profile of profiles || []) {
+        profileNameByUserId.set(profile.user_id, profile.name);
+      }
+    }
+
+    const enrichedScores = (data || []).map((score) => {
+      const friendUserId = friendUserIdByScoreId.get(score.id);
       return {
         ...score,
-        friend_name
+        friend_name: friendUserId ? profileNameByUserId.get(friendUserId) || null : null,
       };
-    }));
+    });
     
     const scoreIds = (enrichedScores || []).map((score) => score.id);
     const poolSettingsByScoreId = new Map<string, PoolGameSettings>();
@@ -258,36 +277,46 @@ class SupabaseDatabaseService {
     if (error) throw error;
   }
 
-  async getUniqueOpponents(): Promise<string[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getUniqueOpponents(userId?: string): Promise<string[]> {
+    const currentUserId = await this.resolveUserId(userId);
 
     // Get both custom opponent names and friend names
     const { data: scores, error } = await supabase
       .from('scores')
       .select('opponent_name, opponent_user_id')
-      .eq('user_id', user.id);
+      .eq('user_id', currentUserId);
 
     if (error) throw error;
 
     const opponents = new Set<string>();
-    
-    // Process each score to get opponent names
-    await Promise.all((scores || []).map(async (score) => {
+    const opponentUserIds = Array.from(
+      new Set(
+        (scores || [])
+          .map((score) => score.opponent_user_id)
+          .filter((opponentUserId): opponentUserId is string => !!opponentUserId)
+      )
+    );
+
+    for (const score of scores || []) {
       if (score.opponent_name) {
         opponents.add(score.opponent_name);
-      } else if (score.opponent_user_id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('user_id', score.opponent_user_id)
-          .single();
-        
-        if (profile?.name) {
+      }
+    }
+
+    if (opponentUserIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('name')
+        .in('user_id', opponentUserIds);
+
+      if (profilesError) throw profilesError;
+
+      for (const profile of profiles || []) {
+        if (profile.name) {
           opponents.add(profile.name);
         }
       }
-    }));
+    }
 
     return Array.from(opponents).sort();
   }
@@ -321,14 +350,13 @@ class SupabaseDatabaseService {
     return data as Training;
   }
 
-  async getTrainingsByUserId(): Promise<Training[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getTrainingsByUserId(userId?: string): Promise<Training[]> {
+    const currentUserId = await this.resolveUserId(userId);
 
     const { data, error } = await supabase
       .from('trainings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', currentUserId)
       .order('training_date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -380,9 +408,8 @@ class SupabaseDatabaseService {
     if (error) throw error;
   }
 
-  async getFriends(): Promise<{ id: string; name: string; email: string }[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getFriends(userId?: string): Promise<{ id: string; name: string; email: string }[]> {
+    await this.resolveUserId(userId);
 
     const { data, error } = await supabase
       .rpc('get_user_friends');
@@ -440,9 +467,8 @@ class SupabaseDatabaseService {
     return data as LiveGame;
   }
 
-  async getLiveGames(): Promise<LiveGameView[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getLiveGames(userId?: string): Promise<LiveGameView[]> {
+    await this.resolveUserId(userId);
 
     const { data, error } = await supabase
       .from('live_games')

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getStateMock, subscribeMock } = vi.hoisted(() => ({
@@ -44,10 +45,21 @@ describe("AuthProvider", () => {
   });
 
   it("provides auth state and subscribes to updates", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+        },
+      },
+    });
+
     render(
-      <AuthProvider>
-        <AuthProbe />
-      </AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AuthProbe />
+        </AuthProvider>
+      </QueryClientProvider>
     );
 
     expect(screen.getByText("Updated")).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Calendar, Users, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,10 +10,10 @@ import { OpponentAutocomplete } from '@/components/ui/opponent-autocomplete';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { supabaseAuth } from '@/lib/supabase-auth';
-import { supabaseDb } from '@/lib/supabase-database';
 import { GAME_TYPE_OPTIONS, POOL_TYPE_OPTIONS, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
+import { useAuth } from '@/components/auth/auth-context';
+import { useFriendsQuery, useOpponentsQuery } from '@/hooks/use-tracker-data';
 
 const toggleOptionClassName =
   "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
@@ -60,29 +60,20 @@ export function ScoreFormFields({
   setSelectedFriend,
   initialData
 }: ScoreFormFieldsProps) {
-  const [opponents, setOpponents] = useState<string[]>([]);
-  const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
+  const { isAuthenticated, user } = useAuth();
+  const currentUserId = isAuthenticated ? user?.id : undefined;
+  const opponentsQuery = useOpponentsQuery(currentUserId);
+  const friendsQuery = useFriendsQuery(currentUserId);
+  const opponents = opponentsQuery.data ?? [];
+  const friends = friendsQuery.data ?? [];
 
   const initialOpponentUserId = initialData?.opponent_user_id;
   const initialOpponentName = initialData?.opponent_name;
 
-  // Load opponents and friends for autocomplete
   useEffect(() => {
-    const loadData = async () => {
-      if (!supabaseAuth.isAuthenticated()) return;
-      try {
-        const [uniqueOpponents, userFriends] = await Promise.all([
-          supabaseDb.getUniqueOpponents(),
-          supabaseDb.getFriends()
-        ]);
-        setOpponents(uniqueOpponents);
-        setFriends(userFriends);
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      }
-    };
-    loadData();
-  }, []);
+    if (!opponentsQuery.error && !friendsQuery.error) return;
+    console.error('Failed to load data:', opponentsQuery.error ?? friendsQuery.error);
+  }, [friendsQuery.error, opponentsQuery.error]);
 
   // Set initial opponent type and selection based on initialData (only once)
   useEffect(() => {

@@ -165,9 +165,10 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const [activeHeatmapCellKey, setActiveHeatmapCellKey] = useState<string | null>(null);
   const [activeTrainingHeatmapCellKey, setActiveTrainingHeatmapCellKey] = useState<string | null>(null);
   const { profile, isAuthenticated, user } = useAuth();
-  const isQueryEnabled = isAuthenticated && !!user?.id;
-  const scoresQuery = useScoresQuery(isQueryEnabled);
-  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
+  const currentUserId = isAuthenticated ? user?.id : undefined;
+  const isQueryEnabled = !!currentUserId;
+  const scoresQuery = useScoresQuery(currentUserId);
+  const trainingsQuery = useTrainingsQuery(currentUserId);
   const scores: ScoreWithFriend[] = isAuthenticated ? (scoresQuery.data ?? []) : [];
   const trainings: Training[] = isAuthenticated ? (trainingsQuery.data ?? []) : [];
   const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading);
