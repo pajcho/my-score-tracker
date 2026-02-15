@@ -5,7 +5,14 @@ import { AuthContext, useAuth } from "@/components/auth/authContext";
 describe("useAuth", () => {
   it("throws when used outside provider", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const expectedErrorHandler = (event: ErrorEvent) => {
+      if (String(event.error?.message || "").includes("useAuth must be used within AuthProvider")) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("error", expectedErrorHandler);
     expect(() => renderHook(() => useAuth())).toThrow("useAuth must be used within AuthProvider");
+    window.removeEventListener("error", expectedErrorHandler);
     errorSpy.mockRestore();
   });
 

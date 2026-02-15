@@ -271,7 +271,7 @@ class SupabaseFriendsService {
     currentUserId?: string,
     currentUserEmail?: string | null
   ): Promise<{ user_id: string; name: string; email: string } | null> {
-    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
+    const { userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
 
     // Don't allow searching for yourself
     if (userEmail && email === userEmail) {

@@ -177,6 +177,7 @@ describe("FriendsPage", () => {
   });
 
   it("shows load failure toast", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     getFriendsMock.mockRejectedValueOnce(new Error("load failed"));
     render(<FriendsPage />);
 
@@ -188,6 +189,7 @@ describe("FriendsPage", () => {
         })
       );
     });
+    errorSpy.mockRestore();
   });
 
   it("shows invitation send failure message", async () => {

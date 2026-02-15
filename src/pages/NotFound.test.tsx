@@ -5,6 +5,7 @@ import NotFound from "@/pages/NotFound";
 
 describe("NotFound", () => {
   it("renders the 404 message and home link", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     render(
       <MemoryRouter>
         <NotFound />
@@ -14,6 +15,7 @@ describe("NotFound", () => {
     expect(screen.getByText("404")).toBeInTheDocument();
     expect(screen.getByText("Oops! Page not found")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Return to Home" })).toHaveAttribute("href", "/");
+    errorSpy.mockRestore();
   });
 
   it("logs attempted unknown route path", () => {
