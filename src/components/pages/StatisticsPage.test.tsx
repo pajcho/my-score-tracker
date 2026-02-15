@@ -190,6 +190,55 @@ describe("StatisticsPage", () => {
     });
   });
 
+  it("shows pool type filter only when pool game is selected", async () => {
+    const today = new Date();
+    const isoDate = (offsetDays: number) => {
+      const value = new Date(today);
+      value.setDate(today.getDate() - offsetDays);
+      return value.toISOString().slice(0, 10);
+    };
+
+    getScoresByUserIdMock.mockResolvedValueOnce([
+      {
+        id: "score-1",
+        user_id: "user-1",
+        game: "Pool",
+        opponent_name: "Ana",
+        friend_name: null,
+        score: "7-5",
+        date: isoDate(1),
+        pool_settings: { pool_type: "8-ball" },
+      },
+      {
+        id: "score-2",
+        user_id: "user-1",
+        game: "Ping Pong",
+        opponent_name: "Ana",
+        friend_name: null,
+        score: "11-9",
+        date: isoDate(2),
+      },
+    ]);
+
+    renderStatisticsPage("score");
+
+    await waitFor(() => {
+      expect(screen.queryByText("All Pool Types")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "SelectPool" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("All Pool Types")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "SelectPingPong" })[0]);
+
+    await waitFor(() => {
+      expect(screen.queryByText("All Pool Types")).not.toBeInTheDocument();
+    });
+  });
+
   it("covers pool-type filter branches for non-pool and mismatched pool settings", async () => {
     const today = new Date();
     const isoDate = (offsetDays: number) => {
@@ -225,6 +274,7 @@ describe("StatisticsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Game Performance")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getAllByRole("button", { name: "SelectPool" })[0]);
     fireEvent.click(screen.getAllByRole("button", { name: "Select8Ball" })[1]);
     await waitFor(() => {
       expect(screen.getByText("No games found matching your filters")).toBeInTheDocument();

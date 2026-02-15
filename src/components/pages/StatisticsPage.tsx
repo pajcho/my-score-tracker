@@ -194,13 +194,21 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     [scores]
   );
 
+  const shouldShowPoolTypeFilter = gameFilter !== 'all' && isPoolGameType(gameFilter);
+
+  useEffect(() => {
+    if (!shouldShowPoolTypeFilter && poolTypeFilter !== 'all') {
+      setPoolTypeFilter('all');
+    }
+  }, [poolTypeFilter, shouldShowPoolTypeFilter]);
+
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {
       if (gameFilter !== 'all' && score.game !== gameFilter) {
         return false;
       }
 
-      if (poolTypeFilter !== 'all') {
+      if (shouldShowPoolTypeFilter && poolTypeFilter !== 'all') {
         if (!isPoolGameType(score.game)) {
           return false;
         }
@@ -214,7 +222,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
       return !(opponentFilter !== 'all' && scoreOpponentName !== opponentFilter);
     });
-  }, [gameFilter, opponentFilter, poolTypeFilter, scores]);
+  }, [gameFilter, opponentFilter, poolTypeFilter, scores, shouldShowPoolTypeFilter]);
 
   const perspectiveScores = useMemo(
     () => filteredScores.map((score) => parsePerspective(score, profile?.user_id)),
@@ -766,21 +774,23 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
               </Select>
             </div>
 
-            <div className="w-full sm:w-48">
-              <Select value={poolTypeFilter} onValueChange={setPoolTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by pool type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Pool Types</SelectItem>
-                  {uniquePoolTypes.map((poolType) => (
-                    <SelectItem key={poolType} value={poolType}>
-                      {getPoolTypeLabel(poolType)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {shouldShowPoolTypeFilter ? (
+              <div className="w-full sm:w-48">
+                <Select value={poolTypeFilter} onValueChange={setPoolTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by pool type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Pool Types</SelectItem>
+                    {uniquePoolTypes.map((poolType) => (
+                      <SelectItem key={poolType} value={poolType}>
+                        {getPoolTypeLabel(poolType)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="w-full sm:w-48">
               <Select value={opponentFilter} onValueChange={setOpponentFilter}>
@@ -812,7 +822,40 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-0 shadow-card md:hidden">
+            <CardContent className="grid grid-cols-2 gap-2 p-3">
+              <div className="rounded-md border border-border bg-card px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[11px] font-medium text-muted-foreground">Total Games</p>
+                  <Trophy className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <p className="text-lg font-semibold leading-tight">{totalGames}</p>
+              </div>
+              <div className="rounded-md border border-border bg-card px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[11px] font-medium text-muted-foreground">Win Rate</p>
+                  <TrendingUp className="h-3.5 w-3.5 text-secondary" />
+                </div>
+                <p className="text-lg font-semibold leading-tight text-secondary">{winPercentage}%</p>
+              </div>
+              <div className="rounded-md border border-border bg-card px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[11px] font-medium text-muted-foreground">Average Score</p>
+                  <Target className="h-3.5 w-3.5 text-accent" />
+                </div>
+                <p className="text-lg font-semibold leading-tight">{averageScore.toFixed(1)}</p>
+              </div>
+              <div className="rounded-md border border-border bg-card px-3 py-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-[11px] font-medium text-muted-foreground">Favorite Game</p>
+                  <Users className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <p className="text-lg font-semibold leading-tight">{mostPlayedGame}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-card border-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Games</CardTitle>

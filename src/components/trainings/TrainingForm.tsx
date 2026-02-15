@@ -19,6 +19,7 @@ import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 const toggleOptionClassName =
   'h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65';
+const quickDurationOptions = [30, 60, 90];
 
 interface TrainingFormProps {
   onCancel: () => void;
@@ -38,8 +39,9 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
     event.preventDefault();
 
     const parsedDurationMinutes = Number(durationMinutes);
+    const normalizedTitle = title.trim() || 'Training';
 
-    if (!title.trim() || !durationMinutes) {
+    if (!durationMinutes) {
       toast({
         title: 'Missing information',
         description: 'Please fill in all required fields',
@@ -71,7 +73,7 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
     try {
       await supabaseDb.createTraining(
         game,
-        title.trim(),
+        normalizedTitle,
         format(trainingDate, 'yyyy-MM-dd'),
         parsedDurationMinutes,
         notes
@@ -82,7 +84,7 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
 
       toast({
         title: 'Training added!',
-        description: `${title.trim()} (${parsedDurationMinutes} min)`,
+        description: `${normalizedTitle} (${parsedDurationMinutes} min)`,
       });
 
       onSuccess();
@@ -104,7 +106,7 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Game Type</Label>
+              <Label>Game Type *</Label>
               <ToggleGroup
                 type="single"
                 value={game}
@@ -132,7 +134,7 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="training-date">Training Date</Label>
+              <Label htmlFor="training-date">Training Date *</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -162,18 +164,7 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="training-title">Training Name</Label>
-              <Input
-                id="training-title"
-                type="text"
-                placeholder="Example: Serve consistency drills"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="training-duration-minutes">Total Duration (minutes)</Label>
+              <Label htmlFor="training-duration-minutes">Total Duration (minutes) *</Label>
               <Input
                 id="training-duration-minutes"
                 type="number"
@@ -182,6 +173,33 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
                 placeholder="90"
                 value={durationMinutes}
                 onChange={(event) => setDurationMinutes(event.target.value)}
+              />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Quick fill:</span>
+                {quickDurationOptions.map((minutes) => (
+                  <a
+                    key={minutes}
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setDurationMinutes(String(minutes));
+                    }}
+                    className="underline-offset-2 hover:text-foreground hover:underline"
+                  >
+                    {minutes}m
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="training-title">Training Name</Label>
+              <Input
+                id="training-title"
+                type="text"
+                placeholder="Optional training name"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
               />
             </div>
           </div>
