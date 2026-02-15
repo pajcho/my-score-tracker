@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -11,13 +9,13 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { DEFAULT_GAME_TYPE, GAME_TYPE_OPTIONS, type GameType } from '@/lib/game-types';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Training } from '@/lib/supabase-database';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 import { cn } from '@/lib/utils';
 import { invalidateTrackerQueries } from '@/lib/query-cache';
+import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
 
 const toggleOptionClassName =
   'h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65';
@@ -31,7 +29,6 @@ interface TrainingEditDialogProps {
 }
 
 export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: TrainingEditDialogProps) {
-  const isMobile = useIsMobile();
   const [game, setGame] = useState<GameType>(training?.game || DEFAULT_GAME_TYPE);
   const [title, setTitle] = useState(training?.title || '');
   const [trainingDate, setTrainingDate] = useState<Date>(training?.training_date ? new Date(training.training_date) : new Date());
@@ -118,7 +115,7 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
 
   const formContent = (
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 sm:pr-0 space-y-6">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Game Type *</Label>
@@ -228,7 +225,7 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
         </div>
       </div>
 
-      <div className="flex flex-row gap-3 pt-2">
+      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
         <Button type="submit" disabled={isLoading} className="flex-1">
           <Save className="h-4 w-4" />
           {isLoading ? 'Updating...' : 'Update Training'}
@@ -241,27 +238,13 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
     </form>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex h-[90vh] flex-col overflow-hidden px-4 pb-4">
-          <DrawerHeader className="pb-2 text-left">
-            <DrawerTitle>Edit Training</DrawerTitle>
-          </DrawerHeader>
-          {formContent}
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-6">
-        <DialogHeader>
-          <DialogTitle>Edit Training</DialogTitle>
-        </DialogHeader>
-        {formContent}
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Edit Training"
+    >
+      {formContent}
+    </ResponsiveFormModal>
   );
 }

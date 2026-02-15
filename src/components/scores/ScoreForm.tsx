@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScoreFormFields } from './ScoreFormFields';
 import { format } from 'date-fns';
@@ -124,9 +123,8 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   };
 
   return (
-    <Card className="shadow-card border-0">
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4">
           <ScoreFormFields
             game={game}
             setGame={setGame}
@@ -146,29 +144,27 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
             setSelectedFriend={setSelectedFriend}
             initialData={initialData}
           />
+      </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Score"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              className="flex-1"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="flex-1"
+        >
+          <Save className="h-4 w-4" />
+          {isLoading ? "Saving..." : "Save Score"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="flex-1"
+        >
+          <X className="h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

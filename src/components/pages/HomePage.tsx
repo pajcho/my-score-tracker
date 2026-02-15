@@ -11,9 +11,11 @@ import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 import { useAuth } from '@/components/auth/auth-context';
 import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
+import { ResponsiveFormModal } from '@/components/ui/responsive-form-modal';
 
 export function HomePage() {
-  const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
+  const [isScoreDialogOpen, setIsScoreDialogOpen] = useState(false);
+  const [isTrainingDialogOpen, setIsTrainingDialogOpen] = useState(false);
   const [activeRecentTab, setActiveRecentTab] = useState<'scores' | 'trainings'>('scores');
   const { profile, user, isAuthenticated } = useAuth();
   const currentUserId = isAuthenticated ? user?.id : undefined;
@@ -33,11 +35,11 @@ export function HomePage() {
   const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading || liveGamesQuery.isLoading);
 
   const handleScoreAdded = () => {
-    setActiveQuickAction(null);
+    setIsScoreDialogOpen(false);
   };
 
   const handleTrainingAdded = () => {
-    setActiveQuickAction(null);
+    setIsTrainingDialogOpen(false);
   };
 
   const winCount = scores.filter((scoreEntry) => {
@@ -170,84 +172,90 @@ export function HomePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
-            {activeQuickAction === 'score' ? 'Add New Score' : activeQuickAction === 'training' ? 'Add Training' : 'Quick Actions'}
+            Quick Actions
           </CardTitle>
-          <CardDescription>
-            {activeQuickAction === 'score'
-              ? 'Fill in the details of your game'
-              : activeQuickAction === 'training'
-                ? 'Log what and how long you trained'
-                : 'Start tracking your games and trainings'}
-          </CardDescription>
+          <CardDescription>Start tracking your games and trainings</CardDescription>
         </CardHeader>
         <CardContent>
-          {!activeQuickAction ? (
-            <div className="flex flex-wrap gap-3">
-              <Link to="/live" className="w-full sm:w-[280px]">
-                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md bg-primary/10 p-2">
-                      <Play className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {liveGameCount > 0 ? `Continue Live Game (${liveGameCount})` : 'Start Live Game'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {liveGameCount > 0 ? 'You have active live tracking sessions' : 'Track points live in real time'}
-                      </p>
-                    </div>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/live" className="w-full sm:w-[280px]">
+              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-primary/10 p-2">
+                    <Play className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {liveGameCount > 0 ? `Continue Live Game (${liveGameCount})` : 'Start Live Game'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {liveGameCount > 0 ? 'You have active live tracking sessions' : 'Track points live in real time'}
+                    </p>
                   </div>
                 </div>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setActiveQuickAction('score')}
-                className="w-full sm:w-[280px] text-left"
-              >
-                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md bg-muted p-2">
-                      <Plus className="h-4 w-4 text-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Add Finished Score</p>
-                      <p className="text-sm text-muted-foreground">Save a game that is already completed</p>
-                    </div>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsScoreDialogOpen(true)}
+              className="w-full sm:w-[280px] text-left"
+            >
+              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-muted p-2">
+                    <Plus className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Add Finished Score</p>
+                    <p className="text-sm text-muted-foreground">Save a game that is already completed</p>
                   </div>
                 </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveQuickAction('training')}
-                className="w-full sm:w-[280px] text-left"
-              >
-                <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-md bg-primary/10 p-2">
-                      <Dumbbell className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Add Training</p>
-                      <p className="text-sm text-muted-foreground">Save a training session with notes and duration</p>
-                    </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsTrainingDialogOpen(true)}
+              className="w-full sm:w-[280px] text-left"
+            >
+              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-md bg-primary/10 p-2">
+                    <Dumbbell className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Add Training</p>
+                    <p className="text-sm text-muted-foreground">Save a training session with notes and duration</p>
                   </div>
                 </div>
-              </button>
-            </div>
-          ) : activeQuickAction === 'score' ? (
-            <ScoreForm
-              onCancel={() => setActiveQuickAction(null)}
-              onSuccess={handleScoreAdded}
-            />
-          ) : (
-            <TrainingForm
-              onCancel={() => setActiveQuickAction(null)}
-              onSuccess={handleTrainingAdded}
-            />
-          )}
+              </div>
+            </button>
+          </div>
         </CardContent>
       </Card>
+
+      <ResponsiveFormModal
+        open={isScoreDialogOpen}
+        onOpenChange={setIsScoreDialogOpen}
+        title="Add Finished Score"
+        description="Fill in details for a completed game."
+      >
+        <ScoreForm
+          onCancel={() => setIsScoreDialogOpen(false)}
+          onSuccess={handleScoreAdded}
+        />
+      </ResponsiveFormModal>
+
+      <ResponsiveFormModal
+        open={isTrainingDialogOpen}
+        onOpenChange={setIsTrainingDialogOpen}
+        title="Add Training"
+        description="Log your training session details and duration."
+      >
+        <TrainingForm
+          onCancel={() => setIsTrainingDialogOpen(false)}
+          onSuccess={handleTrainingAdded}
+        />
+      </ResponsiveFormModal>
 
       <Card className="shadow-card border-0">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -101,9 +100,8 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
   };
 
   return (
-    <Card className="shadow-card border-0">
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Game Type *</Label>
@@ -213,19 +211,18 @@ export function TrainingForm({ onCancel, onSuccess }: TrainingFormProps) {
               onChange={(event) => setNotes(event.target.value)}
             />
           </div>
+      </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button type="submit" disabled={isLoading} className="flex-1">
-              <Save className="h-4 w-4" />
-              {isLoading ? 'Saving...' : 'Save Training'}
-            </Button>
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
+        <Button type="submit" disabled={isLoading} className="flex-1">
+          <Save className="h-4 w-4" />
+          {isLoading ? 'Saving...' : 'Save Training'}
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+          <X className="h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

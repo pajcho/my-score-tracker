@@ -14,6 +14,10 @@ vi.mock("@/components/auth/auth-context", () => ({
   useAuth: () => useAuthMock(),
 }));
 
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => false,
+}));
+
 vi.mock("@/lib/supabase-database", () => ({
   supabaseDb: {
     getScoresByUserId: getScoresByUserIdMock,
