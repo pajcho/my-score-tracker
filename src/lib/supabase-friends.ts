@@ -19,18 +19,53 @@ export interface FriendInvitation {
 }
 
 class SupabaseFriendsService {
+  private async resolveCurrentUserContext(
+    userId?: string,
+    userEmail?: string | null
+  ): Promise<{ userId: string; userEmail: string | null }> {
+    if (userId) {
+      return { userId, userEmail: userEmail ?? null };
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    return {
+      userId: user.id,
+      userEmail: user.email ?? null,
+    };
+  }
+
+  private async resolveProfileEmail(userId: string, userEmail?: string | null): Promise<string> {
+    if (userEmail) {
+      return userEmail;
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', userId)
+      .single();
+
+    if (!profile?.email) throw new Error('User profile not found');
+    return profile.email;
+  }
+
   /**
    * Send a friend invitation by email
    */
   async sendFriendInvitation(
     receiverEmail: string,
-    message?: string
+    message?: string,
+    currentUserId?: string,
+    currentUserEmail?: string | null
   ): Promise<FriendInvitation> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
 
     // Check if user is trying to invite themselves
-    if (receiverEmail === user.email) {
+    if (userEmail && receiverEmail === userEmail) {
       throw new Error('You cannot send a friend invitation to yourself');
     }
 
@@ -38,7 +73,7 @@ class SupabaseFriendsService {
     const { data: existingInvitation } = await supabase
       .from('friend_invitations')
       .select('*')
-      .eq('sender_id', user.id)
+      .eq('sender_id', userId)
       .eq('receiver_email', receiverEmail)
       .eq('status', 'pending')
       .maybeSingle();
@@ -56,7 +91,7 @@ class SupabaseFriendsService {
 
     if (receiverProfile) {
       // Check if already friends
-      const areFriends = await this.areUsersFriends(user.id, receiverProfile.user_id);
+      const areFriends = await this.areUsersFriends(userId, receiverProfile.user_id);
       if (areFriends) {
         throw new Error('You are already friends with this user');
       }
@@ -65,7 +100,7 @@ class SupabaseFriendsService {
     const { data, error } = await supabase
       .from('friend_invitations')
       .insert({
-        sender_id: user.id,
+        sender_id: userId,
         receiver_email: receiverEmail,
         message,
         status: 'pending'
@@ -80,14 +115,13 @@ class SupabaseFriendsService {
   /**
    * Get all friend invitations sent by the current user
    */
-  async getSentInvitations(): Promise<FriendInvitation[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getSentInvitations(currentUserId?: string): Promise<FriendInvitation[]> {
+    const { userId } = await this.resolveCurrentUserContext(currentUserId);
 
     const { data, error } = await supabase
       .from('friend_invitations')
       .select('*')
-      .eq('sender_id', user.id)
+      .eq('sender_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -97,24 +131,15 @@ class SupabaseFriendsService {
   /**
    * Get all friend invitations received by the current user
    */
-  async getReceivedInvitations(): Promise<FriendInvitation[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    // Get user's profile to find their email
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profile) throw new Error('User profile not found');
+  async getReceivedInvitations(currentUserId?: string, currentUserEmail?: string | null): Promise<FriendInvitation[]> {
+    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
+    const profileEmail = await this.resolveProfileEmail(userId, userEmail);
 
     // Get all invitations by email
     const { data, error } = await supabase
       .from('friend_invitations')
       .select('*')
-      .eq('receiver_email', profile.email)
+      .eq('receiver_email', profileEmail)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
@@ -142,25 +167,16 @@ class SupabaseFriendsService {
   /**
    * Accept a friend invitation
    */
-  async acceptInvitation(invitationId: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    // Get user's email to check invitation
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profile) throw new Error('User profile not found');
+  async acceptInvitation(invitationId: string, currentUserId?: string, currentUserEmail?: string | null): Promise<void> {
+    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
+    const profileEmail = await this.resolveProfileEmail(userId, userEmail);
 
     // Get the invitation
     const { data: invitation, error: invitationError } = await supabase
       .from('friend_invitations')
       .select('*')
       .eq('id', invitationId)
-      .eq('receiver_email', profile.email)
+      .eq('receiver_email', profileEmail)
       .eq('status', 'pending')
       .single();
 
@@ -169,8 +185,8 @@ class SupabaseFriendsService {
     }
 
     // Create friendship (always store with smaller user_id first for consistency)
-    const user1Id = invitation.sender_id < user.id ? invitation.sender_id : user.id;
-    const user2Id = invitation.sender_id < user.id ? user.id : invitation.sender_id;
+    const user1Id = invitation.sender_id < userId ? invitation.sender_id : userId;
+    const user2Id = invitation.sender_id < userId ? userId : invitation.sender_id;
 
     const { error: friendshipError } = await supabase
       .from('friendships')
@@ -193,24 +209,15 @@ class SupabaseFriendsService {
   /**
    * Decline a friend invitation
    */
-  async declineInvitation(invitationId: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    // Get user's email to check invitation
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!profile) throw new Error('User profile not found');
+  async declineInvitation(invitationId: string, currentUserId?: string, currentUserEmail?: string | null): Promise<void> {
+    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
+    const profileEmail = await this.resolveProfileEmail(userId, userEmail);
 
     const { error } = await supabase
       .from('friend_invitations')
       .update({ status: 'declined' })
       .eq('id', invitationId)
-      .eq('receiver_email', profile.email);
+      .eq('receiver_email', profileEmail);
 
     if (error) throw error;
   }
@@ -218,12 +225,11 @@ class SupabaseFriendsService {
   /**
    * Get all friends of the current user
    */
-  async getFriends(): Promise<Friend[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async getFriends(currentUserId?: string): Promise<Friend[]> {
+    const { userId } = await this.resolveCurrentUserContext(currentUserId);
 
     const { data, error } = await supabase.rpc('get_user_friends', {
-      target_user_id: user.id
+      target_user_id: userId
     });
 
     if (error) throw error;
@@ -233,14 +239,13 @@ class SupabaseFriendsService {
   /**
    * Remove a friend
    */
-  async removeFriend(friendId: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async removeFriend(friendId: string, currentUserId?: string): Promise<void> {
+    const { userId } = await this.resolveCurrentUserContext(currentUserId);
 
     const { error } = await supabase
       .from('friendships')
       .delete()
-      .or(`and(user1_id.eq.${user.id},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${user.id})`);
+      .or(`and(user1_id.eq.${userId},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${userId})`);
 
     if (error) throw error;
   }
@@ -261,12 +266,15 @@ class SupabaseFriendsService {
   /**
    * Search for users by email (for friend invitations)
    */
-  async searchUserByEmail(email: string): Promise<{ user_id: string; name: string; email: string } | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+  async searchUserByEmail(
+    email: string,
+    currentUserId?: string,
+    currentUserEmail?: string | null
+  ): Promise<{ user_id: string; name: string; email: string } | null> {
+    const { userId, userEmail } = await this.resolveCurrentUserContext(currentUserId, currentUserEmail);
 
     // Don't allow searching for yourself
-    if (email === user.email) {
+    if (userEmail && email === userEmail) {
       return null;
     }
 

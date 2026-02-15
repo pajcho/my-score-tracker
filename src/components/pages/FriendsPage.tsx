@@ -32,13 +32,18 @@ export function FriendsPage() {
 
   const loadData = useCallback(async () => {
     if (!supabaseAuth.isAuthenticated()) return;
+    const currentUser = supabaseAuth.getCurrentUser();
+    if (!currentUser) return;
+    const currentProfile = supabaseAuth.getCurrentProfile();
+    const currentUserId = currentUser.id;
+    const currentUserEmail = currentProfile?.email ?? currentUser.email ?? null;
 
     try {
       setIsLoading(true);
       const [friendsData, sentData, receivedData] = await Promise.all([
-        supabaseFriends.getFriends(),
-        supabaseFriends.getSentInvitations(),
-        supabaseFriends.getReceivedInvitations()
+        supabaseFriends.getFriends(currentUserId),
+        supabaseFriends.getSentInvitations(currentUserId),
+        supabaseFriends.getReceivedInvitations(currentUserId, currentUserEmail)
       ]);
 
       setFriends(friendsData);
@@ -73,7 +78,14 @@ export function FriendsPage() {
     setIsSending(true);
 
     try {
-      await supabaseFriends.sendFriendInvitation(inviteEmail, inviteMessage);
+      const currentUser = supabaseAuth.getCurrentUser();
+      const currentProfile = supabaseAuth.getCurrentProfile();
+      await supabaseFriends.sendFriendInvitation(
+        inviteEmail,
+        inviteMessage,
+        currentUser?.id,
+        currentProfile?.email ?? currentUser?.email ?? null
+      );
       
       toast({
         title: "Invitation sent!",
@@ -96,7 +108,13 @@ export function FriendsPage() {
 
   const handleAcceptInvitation = async (invitationId: string) => {
     try {
-      await supabaseFriends.acceptInvitation(invitationId);
+      const currentUser = supabaseAuth.getCurrentUser();
+      const currentProfile = supabaseAuth.getCurrentProfile();
+      await supabaseFriends.acceptInvitation(
+        invitationId,
+        currentUser?.id,
+        currentProfile?.email ?? currentUser?.email ?? null
+      );
       
       toast({
         title: "Invitation accepted!",
@@ -115,7 +133,13 @@ export function FriendsPage() {
 
   const handleDeclineInvitation = async (invitationId: string) => {
     try {
-      await supabaseFriends.declineInvitation(invitationId);
+      const currentUser = supabaseAuth.getCurrentUser();
+      const currentProfile = supabaseAuth.getCurrentProfile();
+      await supabaseFriends.declineInvitation(
+        invitationId,
+        currentUser?.id,
+        currentProfile?.email ?? currentUser?.email ?? null
+      );
       
       toast({
         title: "Invitation declined",
@@ -134,7 +158,8 @@ export function FriendsPage() {
 
   const handleRemoveFriend = async (friendId: string, friendName: string) => {
     try {
-      await supabaseFriends.removeFriend(friendId);
+      const currentUser = supabaseAuth.getCurrentUser();
+      await supabaseFriends.removeFriend(friendId, currentUser?.id);
       
       toast({
         title: "Friend removed",

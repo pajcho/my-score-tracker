@@ -11,6 +11,8 @@ const {
   declineInvitationMock,
   removeFriendMock,
   isAuthenticatedMock,
+  getCurrentUserMock,
+  getCurrentProfileMock,
 } = vi.hoisted(() => ({
   toastMock: vi.fn(),
   getFriendsMock: vi.fn(),
@@ -21,6 +23,8 @@ const {
   declineInvitationMock: vi.fn(),
   removeFriendMock: vi.fn(),
   isAuthenticatedMock: vi.fn(),
+  getCurrentUserMock: vi.fn(),
+  getCurrentProfileMock: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -30,6 +34,8 @@ vi.mock("@/hooks/use-toast", () => ({
 vi.mock("@/lib/supabase-auth", () => ({
   supabaseAuth: {
     isAuthenticated: isAuthenticatedMock,
+    getCurrentUser: getCurrentUserMock,
+    getCurrentProfile: getCurrentProfileMock,
   },
 }));
 
@@ -95,6 +101,13 @@ describe("FriendsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isAuthenticatedMock.mockReturnValue(true);
+    getCurrentUserMock.mockReturnValue({
+      id: "user-1",
+      email: "user@example.com",
+    });
+    getCurrentProfileMock.mockReturnValue({
+      email: "user@example.com",
+    });
     getFriendsMock.mockResolvedValue([
       {
         friend_id: "friend-1",
@@ -138,7 +151,7 @@ describe("FriendsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send Invitation" }));
 
     await waitFor(() => {
-      expect(sendFriendInvitationMock).toHaveBeenCalledWith("friend@example.com", "");
+      expect(sendFriendInvitationMock).toHaveBeenCalledWith("friend@example.com", "", "user-1", "user@example.com");
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Invitation sent!",
@@ -223,7 +236,12 @@ describe("FriendsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send Invitation" }));
 
     await waitFor(() => {
-      expect(sendFriendInvitationMock).toHaveBeenCalledWith("friend@example.com", "hello there");
+      expect(sendFriendInvitationMock).toHaveBeenCalledWith(
+        "friend@example.com",
+        "hello there",
+        "user-1",
+        "user@example.com"
+      );
     });
   });
 

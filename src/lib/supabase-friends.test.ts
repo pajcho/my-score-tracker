@@ -195,6 +195,33 @@ describe("supabaseFriends", () => {
     });
   });
 
+  it("uses provided auth context without calling getUser for friends list", async () => {
+    harness.supabase.rpc.mockResolvedValueOnce({
+      data: [],
+      error: null,
+    });
+
+    await supabaseFriends.getFriends("known-user-id");
+
+    expect(harness.supabase.auth.getUser).not.toHaveBeenCalled();
+    expect(harness.supabase.rpc).toHaveBeenCalledWith("get_user_friends", {
+      target_user_id: "known-user-id",
+    });
+  });
+
+  it("uses provided auth context without calling getUser for received invitations", async () => {
+    const invitationsBuilder = harness.getBuilder("friend_invitations");
+    invitationsBuilder.order.mockResolvedValueOnce({
+      data: [],
+      error: null,
+    });
+
+    await supabaseFriends.getReceivedInvitations("known-user-id", "known@example.com");
+
+    expect(harness.supabase.auth.getUser).not.toHaveBeenCalled();
+    expect(invitationsBuilder.eq).toHaveBeenCalledWith("receiver_email", "known@example.com");
+  });
+
   it("returns null when searching own email", async () => {
     const result = await supabaseFriends.searchUserByEmail("user@example.com");
     expect(result).toBeNull();
@@ -324,6 +351,11 @@ describe("supabaseFriends", () => {
     await expect(supabaseFriends.getReceivedInvitations()).rejects.toThrow("User not authenticated");
 
     const profilesBuilder = harness.getBuilder("profiles");
+    harness.supabase.auth.getUser.mockResolvedValueOnce({
+      data: {
+        user: { id: "user-1", email: null },
+      },
+    });
     profilesBuilder.single.mockResolvedValueOnce({
       data: null,
       error: null,
@@ -376,6 +408,11 @@ describe("supabaseFriends", () => {
     const invitationsBuilder = harness.getBuilder("friend_invitations");
     const friendshipsBuilder = harness.getBuilder("friendships");
 
+    harness.supabase.auth.getUser.mockResolvedValueOnce({
+      data: {
+        user: { id: "user-1", email: null },
+      },
+    });
     profilesBuilder.single.mockResolvedValueOnce({
       data: null,
       error: null,
@@ -422,6 +459,11 @@ describe("supabaseFriends", () => {
     const profilesBuilder = harness.getBuilder("profiles");
     const invitationsBuilder = harness.getBuilder("friend_invitations");
 
+    harness.supabase.auth.getUser.mockResolvedValueOnce({
+      data: {
+        user: { id: "user-1", email: null },
+      },
+    });
     profilesBuilder.single.mockResolvedValueOnce({
       data: null,
       error: null,
