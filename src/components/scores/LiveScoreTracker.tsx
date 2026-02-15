@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
 import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +39,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/components/auth/auth-context';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
+import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery } from '@/hooks/use-tracker-data';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -68,7 +70,6 @@ const compactToggleOptionClassName =
 
 export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
   const [games, setGames] = useState<LiveGameView[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
     game: DEFAULT_GAME_TYPE as GameType,
@@ -81,8 +82,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   });
   const [isRuleSectionExpanded, setIsRuleSectionExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [opponents, setOpponents] = useState<string[]>([]);
-  const [friends, setFriends] = useState<{ id: string; name: string; email: string }[]>([]);
   const [syncClock, setSyncClock] = useState(new Date());
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [decrementBreakerPrompt, setDecrementBreakerPrompt] = useState<{
@@ -92,9 +91,15 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     settingsPatch: Partial<PoolGameSettingsInput>;
   } | null>(null);
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
-  const hasLoadedAfterAuth = useRef(false);
   const { toast } = useToast();
-  const { user: currentUser, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { user: currentUser, isAuthenticated } = useAuth();
+  const isQueryEnabled = isAuthenticated && !!currentUser?.id;
+  const liveGamesQuery = useLiveGamesQuery(isQueryEnabled);
+  const opponentsQuery = useOpponentsQuery(isQueryEnabled);
+  const friendsQuery = useFriendsQuery(isQueryEnabled);
+  const opponents = opponentsQuery.data ?? [];
+  const friends = friendsQuery.data ?? [];
+  const isInitialLoading = isQueryEnabled && liveGamesQuery.isLoading && games.length === 0;
 
   const updateGameLocally = (
     gameId: string,
@@ -140,6 +145,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     updateGameLocally(gameId, nextScore1, nextScore2, poolSettingsPatch);
     try {
       await supabaseDb.updateLiveGameScore(gameId, nextScore1, nextScore2, poolSettingsPatch);
+      await invalidateTrackerQueries({ liveGames: true });
     } catch (error) {
       toast({
         title: "Failed to sync score",
@@ -158,105 +164,41 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     return () => clearInterval(timer);
   }, []);
 
-  // Load initial data and subscribe to realtime updates for live games
   useEffect(() => {
-    let isMounted = true;
-
-    const loadLiveGames = async () => {
-      try {
-        const userLiveGames = await supabaseDb.getLiveGames();
-        if (isMounted) {
-          setGames(userLiveGames);
-          setLastSyncedAt(new Date());
-        }
-      } catch (error) {
-        if (isMounted && isAuthenticated) {
-          console.error('Failed to load live games:', error);
-        }
-      } finally {
-        if (isMounted) {
-          setIsInitialLoading(false);
-        }
-      }
-    };
-
-    const loadData = async () => {
-      try {
-        const [uniqueOpponents, userFriends] = await Promise.all([
-          supabaseDb.getUniqueOpponents(),
-          supabaseDb.getFriends(),
-        ]);
-        if (isMounted) {
-          setOpponents(uniqueOpponents);
-          setFriends(userFriends);
-        }
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      }
-    };
-
-    if (isAuthLoading) {
-      return () => {
-        isMounted = false;
-      };
-    }
-
     if (!isAuthenticated) {
-      hasLoadedAfterAuth.current = false;
       setGames([]);
-      setIsInitialLoading(false);
-      return () => {
-        isMounted = false;
-      };
+      return;
     }
 
-    if (!hasLoadedAfterAuth.current) {
-      hasLoadedAfterAuth.current = true;
-      setIsInitialLoading(true);
-      void loadData();
-      void loadLiveGames();
+    if (liveGamesQuery.data) {
+      setGames(liveGamesQuery.data);
+    }
+  }, [isAuthenticated, liveGamesQuery.data]);
+
+  useEffect(() => {
+    if (!liveGamesQuery.dataUpdatedAt) return;
+    setLastSyncedAt(new Date(liveGamesQuery.dataUpdatedAt));
+  }, [liveGamesQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    if (!liveGamesQuery.error || !isAuthenticated) return;
+    console.error('Failed to load live games:', liveGamesQuery.error);
+  }, [isAuthenticated, liveGamesQuery.error]);
+
+  // Subscribe to realtime updates and let TanStack Query handle refetch behavior.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return undefined;
     }
 
     const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
-      void loadLiveGames();
+      void invalidateTrackerQueries({ liveGames: true });
     });
 
-    const refreshLiveGamesIfAuthenticated = () => {
-      void loadLiveGames();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshLiveGamesIfAuthenticated();
-      }
-    };
-
-    const handleWindowFocus = () => {
-      refreshLiveGamesIfAuthenticated();
-    };
-
-    const handleNetworkReconnect = () => {
-      refreshLiveGamesIfAuthenticated();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleWindowFocus);
-    window.addEventListener('online', handleNetworkReconnect);
-
-    const fallbackRefreshInterval = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return;
-      refreshLiveGamesIfAuthenticated();
-    }, 15000);
-
     return () => {
-      isMounted = false;
-      window.clearInterval(fallbackRefreshInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleWindowFocus);
-      window.removeEventListener('online', handleNetworkReconnect);
       unsubscribe();
     };
-  }, [isAuthLoading, isAuthenticated]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     onActiveGamesChange?.(games.length > 0);
@@ -357,6 +299,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       toast({
         title: "Game started!",
         description: `${getDisplayGameLabel(newGame.game, initialPoolSettings?.pool_type)} game vs ${opponentName}`,
+      });
+      await invalidateTrackerQueries({
+        liveGames: true,
+        opponents: true,
       });
     } catch (error) {
       toast({
@@ -489,6 +435,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     try {
       await supabaseDb.deleteLiveGame(gameId);
       setGames((previousGames) => previousGames.filter((game) => game.id !== gameId));
+      await invalidateTrackerQueries({ liveGames: true });
       toast({
         title: "Game cancelled",
         description: "The game has been removed",
@@ -518,6 +465,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     try {
       await supabaseDb.completeLiveGame(game.id);
       setGames((previousGames) => previousGames.filter((activeGame) => activeGame.id !== game.id));
+      await invalidateTrackerQueries({
+        scores: true,
+        liveGames: true,
+        opponents: true,
+      });
 
       toast({
         title: "Score saved!",
@@ -566,6 +518,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     }
 
     if (savedCount > 0) {
+      await invalidateTrackerQueries({
+        scores: true,
+        liveGames: true,
+        opponents: true,
+      });
       onScoresSaved();
     }
   };

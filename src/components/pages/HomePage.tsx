@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import {Calendar, Dumbbell, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
@@ -6,57 +6,46 @@ import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
-import {Score, Training, supabaseDb} from '@/lib/supabase-database';
+import { Score, Training } from '@/lib/supabase-database';
 import {GAME_TYPE_OPTIONS} from '@/lib/game-types';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 import { useAuth } from '@/components/auth/auth-context';
+import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 export function HomePage() {
   const [activeQuickAction, setActiveQuickAction] = useState<'score' | 'training' | null>(null);
   const [activeRecentTab, setActiveRecentTab] = useState<'scores' | 'trainings'>('scores');
-  const [scores, setScores] = useState<Score[]>([]);
-  const [trainings, setTrainings] = useState<Training[]>([]);
-  const [liveGameCount, setLiveGameCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const { profile, user, isAuthenticated } = useAuth();
-
-  const loadDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      const [userScores, liveGames, userTrainings] = await Promise.all([
-        supabaseDb.getScoresByUserId(),
-        supabaseDb.getLiveGames(),
-        supabaseDb.getTrainingsByUserId(),
-      ]);
-      setScores(userScores);
-      setLiveGameCount(liveGames.length);
-      setTrainings(userTrainings);
-    } catch (error) {
-      console.error('Failed to load scores:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isQueryEnabled = isAuthenticated && !!user?.id;
+  const scoresQuery = useScoresQuery(isQueryEnabled);
+  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
+  const liveGamesQuery = useLiveGamesQuery(isQueryEnabled);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadDashboardData();
-    } else {
-      setScores([]);
-      setTrainings([]);
-      setLiveGameCount(0);
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
+    if (!scoresQuery.error) return;
+    console.error('Failed to load scores:', scoresQuery.error);
+  }, [scoresQuery.error]);
+
+  const scores: Score[] = isAuthenticated ? scoresQuery.data ?? [] : [];
+  const trainings: Training[] = isAuthenticated ? trainingsQuery.data ?? [] : [];
+  const liveGameCount = isAuthenticated ? (liveGamesQuery.data?.length ?? 0) : 0;
+  const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading || liveGamesQuery.isLoading);
 
   const handleScoreAdded = () => {
     setActiveQuickAction(null);
-    void loadDashboardData();
+    void invalidateTrackerQueries({
+      scores: true,
+      liveGames: true,
+      opponents: true,
+    });
   };
 
   const handleTrainingAdded = () => {
     setActiveQuickAction(null);
-    void loadDashboardData();
+    void invalidateTrackerQueries({
+      trainings: true,
+    });
   };
 
   const currentUserId = user?.id;
@@ -315,7 +304,7 @@ export function HomePage() {
               <ScoreList
                 scores={scores.slice(0, 5)}
                 onScoreUpdated={() => {
-                  void loadDashboardData();
+                  void invalidateTrackerQueries({ scores: true, liveGames: true });
                 }}
                 compact={true}
               />
@@ -349,7 +338,7 @@ export function HomePage() {
                   notesClassName="mt-2 text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2"
                   showActions={true}
                   onTrainingUpdated={() => {
-                    void loadDashboardData();
+                    void invalidateTrackerQueries({ trainings: true });
                   }}
                 />
               ))}

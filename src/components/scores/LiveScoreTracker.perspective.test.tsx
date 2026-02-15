@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { queryClient } from "@/lib/query-client";
 
 const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, toastMock } =
   vi.hoisted(() => ({
@@ -73,9 +75,26 @@ vi.mock("@/components/ui/dialog", () => ({
 
 import { LiveScoreTracker } from "@/components/scores/LiveScoreTracker";
 
+function renderLiveScoreTracker() {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <LiveScoreTracker onClose={() => undefined} onScoresSaved={() => undefined} />
+    </QueryClientProvider>
+  );
+}
+
 describe("LiveScoreTracker perspective labels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
+    queryClient.setDefaultOptions({
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnWindowFocus: false,
+      },
+    });
     getUniqueOpponentsMock.mockResolvedValue([]);
     getFriendsMock.mockResolvedValue([]);
     subscribeToLiveGamesMock.mockReturnValue(() => undefined);
@@ -101,7 +120,7 @@ describe("LiveScoreTracker perspective labels", () => {
   it("shows owner view labels as You vs friend", async () => {
     authState.currentUserId = "user-1";
 
-    render(<LiveScoreTracker onClose={() => undefined} onScoresSaved={() => undefined} />);
+    renderLiveScoreTracker();
 
     await waitFor(() => {
       expect(screen.getByText("You")).toBeInTheDocument();
@@ -114,7 +133,7 @@ describe("LiveScoreTracker perspective labels", () => {
   it("shows invited friend view labels as owner vs You", async () => {
     authState.currentUserId = "friend-1";
 
-    render(<LiveScoreTracker onClose={() => undefined} onScoresSaved={() => undefined} />);
+    renderLiveScoreTracker();
 
     await waitFor(() => {
       expect(screen.getByText("Owner Name")).toBeInTheDocument();

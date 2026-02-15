@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb } from '@/lib/supabase-database';
 import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 interface ScoreFormProps {
   onCancel: () => void;
@@ -99,6 +100,11 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
       if (isPoolGameType(game)) {
         await supabaseDb.setScorePoolType(createdScore.id, poolType);
       }
+      await invalidateTrackerQueries({
+        scores: true,
+        liveGames: true,
+        opponents: true,
+      });
 
       toast({
         title: "Score added!",

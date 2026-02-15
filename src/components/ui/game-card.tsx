@@ -24,6 +24,7 @@ import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
 import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/game-type-icon';
 import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -61,6 +62,11 @@ export function GameCard({ score, onScoreUpdated, compact = false, showActions =
 
     try {
       await supabaseDb.deleteScore(scoreId);
+      await invalidateTrackerQueries({
+        scores: true,
+        liveGames: true,
+        opponents: true,
+      });
       toast({
         title: "Score deleted",
         description: "The score has been removed from your history",

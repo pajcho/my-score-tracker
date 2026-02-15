@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,11 +57,31 @@ vi.mock("@/components/ui/select", () => ({
 }));
 
 import { HistoryPage } from "@/components/pages/HistoryPage";
+import { queryClient } from "@/lib/query-client";
+
+function renderHistoryPage(view: "score" | "training") {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <HistoryPage view={view} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 describe("HistoryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuthMock.mockReturnValue({ isAuthenticated: true });
+    queryClient.clear();
+    queryClient.setDefaultOptions({
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnWindowFocus: false,
+      },
+    });
+    useAuthMock.mockReturnValue({ isAuthenticated: true, user: { id: "user-1" } });
     getScoresByUserIdMock.mockResolvedValue([
       { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null },
     ]);
@@ -70,11 +91,7 @@ describe("HistoryPage", () => {
   });
 
   it("renders score history view", async () => {
-    render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("Score History")).toBeInTheDocument();
@@ -83,11 +100,7 @@ describe("HistoryPage", () => {
   });
 
   it("renders training history view", async () => {
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
 
     await waitFor(() => {
       expect(screen.getByText("Training History")).toBeInTheDocument();
@@ -96,12 +109,8 @@ describe("HistoryPage", () => {
   });
 
   it("handles unauthenticated state", async () => {
-    useAuthMock.mockReturnValue({ isAuthenticated: false });
-    render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    useAuthMock.mockReturnValue({ isAuthenticated: false, user: null });
+    renderHistoryPage("score");
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).not.toHaveBeenCalled();
@@ -110,11 +119,7 @@ describe("HistoryPage", () => {
   });
 
   it("updates score search term", async () => {
-    render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
@@ -128,11 +133,7 @@ describe("HistoryPage", () => {
   });
 
   it("applies score and training game filters", async () => {
-    const scoreView = render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    const scoreView = renderHistoryPage("score");
     await waitFor(() => {
       expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
     });
@@ -143,11 +144,7 @@ describe("HistoryPage", () => {
 
     scoreView.unmount();
 
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
@@ -158,11 +155,7 @@ describe("HistoryPage", () => {
   });
 
   it("updates training search and training callback reloads data", async () => {
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
 
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
@@ -186,11 +179,7 @@ describe("HistoryPage", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     getScoresByUserIdMock.mockRejectedValueOnce(new Error("history failed"));
 
-    render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("score");
 
     await waitFor(() => {
       expect(errorSpy).toHaveBeenCalledWith("Failed to load history data:", expect.any(Error));
@@ -206,11 +195,7 @@ describe("HistoryPage", () => {
       { id: "t1", game: "Pool", title: "Drill", notes: null },
     ]);
 
-    const scoreView = render(
-      <MemoryRouter>
-        <HistoryPage view="score" />
-      </MemoryRouter>
-    );
+    const scoreView = renderHistoryPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
@@ -221,11 +206,7 @@ describe("HistoryPage", () => {
     });
 
     scoreView.unmount();
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
@@ -237,11 +218,7 @@ describe("HistoryPage", () => {
 
   it("shows no trainings recorded message when list is empty", async () => {
     getTrainingsByUserIdMock.mockResolvedValueOnce([]);
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
     await waitFor(() => {
       expect(screen.getByText("No trainings recorded yet")).toBeInTheDocument();
     });
@@ -251,11 +228,7 @@ describe("HistoryPage", () => {
     getTrainingsByUserIdMock.mockResolvedValueOnce([
       { id: "t1", game: "Pool", title: "Drill", notes: "serve practice" },
     ]);
-    render(
-      <MemoryRouter>
-        <HistoryPage view="training" />
-      </MemoryRouter>
-    );
+    renderHistoryPage("training");
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });

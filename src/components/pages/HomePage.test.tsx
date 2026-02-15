@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -68,10 +69,30 @@ vi.mock("@/components/ui/game-type-icon", () => ({
 }));
 
 import { HomePage } from "@/components/pages/HomePage";
+import { queryClient } from "@/lib/query-client";
+
+function renderHomePage() {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 describe("HomePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
+    queryClient.setDefaultOptions({
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnWindowFocus: false,
+      },
+    });
     useAuthMock.mockReturnValue({
       isAuthenticated: true,
       user: { id: "user-1" },
@@ -85,11 +106,7 @@ describe("HomePage", () => {
   });
 
   it("loads dashboard data for authenticated user", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
@@ -105,11 +122,7 @@ describe("HomePage", () => {
       profile: null,
     });
 
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).not.toHaveBeenCalled();
@@ -118,22 +131,14 @@ describe("HomePage", () => {
   });
 
   it("opens score form quick action", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     fireEvent.click(screen.getAllByRole("button", { name: /add finished score/i })[0]);
     expect(screen.getByText("ScoreFormSuccess")).toBeInTheDocument();
   });
 
   it("opens training form quick action", () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     fireEvent.click(screen.getAllByRole("button", { name: /add training/i })[0]);
     expect(screen.getByText("TrainingFormSuccess")).toBeInTheDocument();
@@ -143,11 +148,7 @@ describe("HomePage", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     getScoresByUserIdMock.mockRejectedValueOnce(new Error("load failed"));
 
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(errorSpy).toHaveBeenCalledWith("Failed to load scores:", expect.any(Error));
@@ -156,11 +157,7 @@ describe("HomePage", () => {
   });
 
   it("handles score form success by reloading and closing quick action", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
@@ -176,11 +173,7 @@ describe("HomePage", () => {
   });
 
   it("handles training form success by reloading and closing quick action", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
@@ -190,17 +183,13 @@ describe("HomePage", () => {
     fireEvent.click(screen.getByText("TrainingFormSuccess"));
 
     await waitFor(() => {
-      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(2);
+      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
       expect(screen.queryByText("TrainingFormSuccess")).not.toBeInTheDocument();
     });
   });
 
   it("reloads from score and training update callbacks", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(screen.getByText("ScoreListUpdate")).toBeInTheDocument();
@@ -218,16 +207,12 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByText("TrainingCardUpdate"));
     await waitFor(() => {
-      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(3);
+      expect(getScoresByUserIdMock).toHaveBeenCalledTimes(2);
     });
   });
 
   it("handles score and training form cancel actions", () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     fireEvent.click(screen.getAllByRole("button", { name: /add finished score/i })[0]);
     fireEvent.click(screen.getByText("ScoreFormCancel"));
@@ -245,11 +230,7 @@ describe("HomePage", () => {
       { id: "s3", user_id: "user-1", score: "7-5", game: "Pool", opponent_name: "Luka" },
       { id: "s4", user_id: "user-1", score: "7-5", game: "Ping Pong", opponent_name: "Iva" },
     ]);
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(screen.getByText("Welcome back, Nikola!")).toBeInTheDocument();
@@ -258,11 +239,7 @@ describe("HomePage", () => {
   });
 
   it("switches recent tabs back to scores", async () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(screen.getByText("ScoreListUpdate")).toBeInTheDocument();
@@ -285,11 +262,7 @@ describe("HomePage", () => {
     ]);
     getTrainingsByUserIdMock.mockResolvedValueOnce([]);
 
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
@@ -308,11 +281,7 @@ describe("HomePage", () => {
       { id: "s3", user_id: "user-1", score: "7-5", game: "Ping Pong", opponent_name: "Luka" },
     ]);
 
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>
-    );
+    renderHomePage();
 
     await waitFor(() => {
       expect(screen.getAllByText("Pool").length).toBeGreaterThan(0);

@@ -1,13 +1,14 @@
-import {useEffect, useMemo, useState} from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {Link, useSearchParams} from 'react-router-dom';
 import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, Trophy, Users,} from 'lucide-react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
-import {Score, Training, supabaseDb} from '@/lib/supabase-database';
+import { Score, Training } from '@/lib/supabase-database';
 import {cn} from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/game-types';
 import { useAuth } from '@/components/auth/auth-context';
+import { useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -156,44 +157,25 @@ interface StatisticsPageProps {
 
 export function StatisticsPage({ view }: StatisticsPageProps) {
   const [searchParams] = useSearchParams();
-  const [scores, setScores] = useState<ScoreWithFriend[]>([]);
-  const [trainings, setTrainings] = useState<Training[]>([]);
   const [gameFilter, setGameFilter] = useState<string>(searchParams.get('game') || 'all');
   const [poolTypeFilter, setPoolTypeFilter] = useState<string>(searchParams.get('poolType') || 'all');
   const [opponentFilter, setOpponentFilter] = useState<string>(searchParams.get('opponent') || 'all');
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
-  const [isLoading, setIsLoading] = useState(true);
   const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
   const [activeHeatmapCellKey, setActiveHeatmapCellKey] = useState<string | null>(null);
   const [activeTrainingHeatmapCellKey, setActiveTrainingHeatmapCellKey] = useState<string | null>(null);
-  const { profile, isAuthenticated } = useAuth();
-
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      const [userScores, userTrainings] = await Promise.all([
-        supabaseDb.getScoresByUserId(),
-        supabaseDb.getTrainingsByUserId(),
-      ]);
-      setScores(userScores as ScoreWithFriend[]);
-      setTrainings(userTrainings);
-    } catch (error) {
-      console.error('Failed to load scores:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { profile, isAuthenticated, user } = useAuth();
+  const isQueryEnabled = isAuthenticated && !!user?.id;
+  const scoresQuery = useScoresQuery(isQueryEnabled);
+  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
+  const scores: ScoreWithFriend[] = isAuthenticated ? (scoresQuery.data ?? []) : [];
+  const trainings: Training[] = isAuthenticated ? (trainingsQuery.data ?? []) : [];
+  const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadData();
-      return;
-    }
-
-    setScores([]);
-    setTrainings([]);
-    setIsLoading(false);
-  }, [isAuthenticated]);
+    if (!scoresQuery.error && !trainingsQuery.error) return;
+    console.error('Failed to load scores:', scoresQuery.error ?? trainingsQuery.error);
+  }, [scoresQuery.error, trainingsQuery.error]);
 
   const uniqueGames = useMemo(() => [...new Set(scores.map((score) => score.game))], [scores]);
 

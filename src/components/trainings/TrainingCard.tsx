@@ -20,6 +20,7 @@ import { getGameTypeLabel } from '@/lib/game-types';
 import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Training } from '@/lib/supabase-database';
 import { TrainingEditDialog } from '@/components/trainings/TrainingEditDialog';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 interface TrainingCardProps {
   training: Training;
@@ -46,6 +47,9 @@ export function TrainingCard({
 
     try {
       await supabaseDb.deleteTraining(training.id);
+      await invalidateTrackerQueries({
+        trainings: true,
+      });
       toast({
         title: 'Training deleted',
         description: 'The training has been removed from your history',

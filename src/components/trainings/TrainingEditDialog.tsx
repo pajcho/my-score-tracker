@@ -17,6 +17,7 @@ import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Training } from '@/lib/supabase-database';
 import { GameTypeIcon } from '@/components/ui/game-type-icon';
 import { cn } from '@/lib/utils';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 const toggleOptionClassName =
   'h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65';
@@ -89,6 +90,9 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
         training_date: format(trainingDate, 'yyyy-MM-dd'),
         duration_minutes: parsedDurationMinutes,
         notes: notes.trim() || null,
+      });
+      await invalidateTrackerQueries({
+        trainings: true,
       });
 
       toast({

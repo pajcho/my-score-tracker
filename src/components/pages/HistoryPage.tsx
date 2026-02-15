@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {Link} from 'react-router-dom';
 import {Filter, History, Search} from 'lucide-react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
@@ -6,10 +6,12 @@ import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
-import {Score, Training, supabaseDb} from '@/lib/supabase-database';
+import { Score, Training } from '@/lib/supabase-database';
 import {getGameTypeLabel} from '@/lib/game-types';
 import {cn} from '@/lib/utils';
 import { useAuth } from '@/components/auth/auth-context';
+import { useScoresQuery, useTrainingsQuery } from '@/hooks/use-tracker-data';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
@@ -18,40 +20,22 @@ interface HistoryPageProps {
 }
 
 export function HistoryPage({ view }: HistoryPageProps) {
-  const [scores, setScores] = useState<ScoreWithFriend[]>([]);
-  const [trainings, setTrainings] = useState<Training[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [scoreSearchTerm, setScoreSearchTerm] = useState('');
   const [scoreGameFilter, setScoreGameFilter] = useState<string>('all');
   const [trainingSearchTerm, setTrainingSearchTerm] = useState('');
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
-  const { isAuthenticated } = useAuth();
-
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      const [userScores, userTrainings] = await Promise.all([
-        supabaseDb.getScoresByUserId() as Promise<ScoreWithFriend[]>,
-        supabaseDb.getTrainingsByUserId(),
-      ]);
-      setScores(userScores);
-      setTrainings(userTrainings);
-    } catch (error) {
-      console.error('Failed to load history data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { isAuthenticated, user } = useAuth();
+  const isQueryEnabled = isAuthenticated && !!user?.id;
+  const scoresQuery = useScoresQuery(isQueryEnabled);
+  const trainingsQuery = useTrainingsQuery(isQueryEnabled);
+  const scores: ScoreWithFriend[] = isAuthenticated ? (scoresQuery.data ?? []) : [];
+  const trainings: Training[] = isAuthenticated ? (trainingsQuery.data ?? []) : [];
+  const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadData();
-    } else {
-      setScores([]);
-      setTrainings([]);
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
+    if (!scoresQuery.error && !trainingsQuery.error) return;
+    console.error('Failed to load history data:', scoresQuery.error ?? trainingsQuery.error);
+  }, [scoresQuery.error, trainingsQuery.error]);
 
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {
@@ -198,7 +182,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
                     training={training}
                     showActions={true}
                     onTrainingUpdated={() => {
-                      void loadData();
+                      void invalidateTrackerQueries({ trainings: true });
                     }}
                   />
                 ))}
@@ -305,7 +289,9 @@ export function HistoryPage({ view }: HistoryPageProps) {
           ) : filteredScores.length > 0 ? (
             <ScoreList
               scores={filteredScores}
-              onScoreUpdated={loadData}
+              onScoreUpdated={() => {
+                void invalidateTrackerQueries({ scores: true });
+              }}
             />
           ) : scores.length > 0 ? (
             <div className="text-center py-12 space-y-2">

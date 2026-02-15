@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -78,11 +79,32 @@ vi.mock("@/components/ui/popover", () => ({
 }));
 
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
+import { queryClient } from "@/lib/query-client";
+
+function renderStatisticsPage(view: "score" | "training") {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <StatisticsPage view={view} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
 
 describe("StatisticsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
+    queryClient.setDefaultOptions({
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+        refetchOnWindowFocus: false,
+      },
+    });
     useAuthMock.mockReturnValue({
+      user: { id: "user-1" },
       profile: { user_id: "user-1" },
       isAuthenticated: true,
     });
@@ -91,11 +113,7 @@ describe("StatisticsPage", () => {
   });
 
   it("renders no-data state for score view", async () => {
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="score" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("No games found matching your filters")).toBeInTheDocument();
@@ -151,11 +169,7 @@ describe("StatisticsPage", () => {
       },
     ]);
 
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="score" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("Game Performance")).toBeInTheDocument();
@@ -206,11 +220,7 @@ describe("StatisticsPage", () => {
       },
     ]);
 
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="score" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("score");
 
     await waitFor(() => {
       expect(screen.getByText("Game Performance")).toBeInTheDocument();
@@ -235,14 +245,11 @@ describe("StatisticsPage", () => {
       { id: "t3", game: "Ping Pong", duration_minutes: 90, training_date: isoDate(4), title: "Session C" },
     ]);
 
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="training" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("training");
 
     await waitFor(() => {
       expect(screen.getByText("Analyze your training consistency and load")).toBeInTheDocument();
+      expect(screen.getByText("Training Heatmap")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getAllByRole("button", { name: "SelectPool" })[0]);
@@ -255,15 +262,12 @@ describe("StatisticsPage", () => {
 
   it("renders fallback when unauthenticated", async () => {
     useAuthMock.mockReturnValue({
+      user: null,
       profile: null,
       isAuthenticated: false,
     });
 
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="score" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("score");
 
     await waitFor(() => {
       expect(getScoresByUserIdMock).not.toHaveBeenCalled();
@@ -275,11 +279,7 @@ describe("StatisticsPage", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     getScoresByUserIdMock.mockRejectedValueOnce(new Error("statistics failed"));
 
-    render(
-      <MemoryRouter>
-        <StatisticsPage view="score" />
-      </MemoryRouter>
-    );
+    renderStatisticsPage("score");
 
     await waitFor(() => {
       expect(errorSpy).toHaveBeenCalledWith("Failed to load scores:", expect.any(Error));

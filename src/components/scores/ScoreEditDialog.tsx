@@ -10,6 +10,7 @@ import { supabaseAuth } from '@/lib/supabase-auth';
 import { supabaseDb, Score } from '@/lib/supabase-database';
 import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/game-types';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { invalidateTrackerQueries } from '@/lib/query-cache';
 
 interface ScoreEditDialogProps {
   score: Score | null;
@@ -119,6 +120,11 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
       } else {
         await supabaseDb.deleteScorePoolSettings(score.id);
       }
+      await invalidateTrackerQueries({
+        scores: true,
+        liveGames: true,
+        opponents: true,
+      });
 
       toast({
         title: "Score updated!",
