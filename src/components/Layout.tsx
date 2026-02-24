@@ -6,7 +6,10 @@ import { useAuth } from '@/components/auth/authContext';
 export function Layout() {
   const authState = useAuth();
 
-  if (authState.isLoading) {
+  // Only show loading screen on initial load when there's no profile data yet.
+  // During background refetches (refetchOnMount, refetchOnFocus), the existing data
+  // remains visible even if isLoading is true.
+  if (authState.isLoading && !authState.profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-sm text-muted-foreground">Loading your profile...</div>
