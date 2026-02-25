@@ -29,6 +29,8 @@ export function useLiveGamesQuery(userId?: string | null) {
     refetchOnReconnect: true,
     refetchOnMount: 'always',
     staleTime: 0,
+    // Fix 3: Polling as safety net — ensure data is never more than 30 seconds stale
+    refetchInterval: 30_000,
   });
 }
 

@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
 
-const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, toastMock } =
+const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, toastMock, invalidateTrackerQueriesMock } =
   vi.hoisted(() => ({
     authState: {
       currentUserId: "user-1",
@@ -13,6 +13,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     getFriendsMock: vi.fn(),
     subscribeToLiveGamesMock: vi.fn(),
     toastMock: vi.fn(),
+    invalidateTrackerQueriesMock: vi.fn(),
   }));
 
 vi.mock("@/components/auth/authContext", () => ({
@@ -27,6 +28,14 @@ vi.mock("@/components/auth/authContext", () => ({
 vi.mock("@/hooks/useToast", () => ({
   useToast: () => ({ toast: toastMock }),
 }));
+
+vi.mock("@/lib/queryCache", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/queryCache")>();
+  return {
+    ...actual,
+    invalidateTrackerQueries: invalidateTrackerQueriesMock,
+  };
+});
 
 vi.mock("@/lib/supabaseDatabase", () => ({
   supabaseDb: {
@@ -141,5 +150,22 @@ describe("LiveScoreTracker perspective labels", () => {
     });
 
     expect(screen.queryByText("Friend One")).not.toBeInTheDocument();
+  });
+
+  // Fix 1 test: visibilitychange listener
+  it("calls invalidateTrackerQueries when document becomes visible", async () => {
+    renderLiveScoreTracker();
+
+    // Simulate the document becoming visible
+    Object.defineProperty(document, "visibilityState", {
+      writable: true,
+      value: "visible",
+    });
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => {
+      expect(invalidateTrackerQueriesMock).toHaveBeenCalledWith({ liveGames: true });
+    });
   });
 });

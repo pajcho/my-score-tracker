@@ -84,7 +84,7 @@ describe('useTrackerData hooks', () => {
     expect(getTrainingsByUserIdMock).toHaveBeenCalledWith('user-2');
   });
 
-  it('configures live games query with aggressive refetching', async () => {
+  it('configures live games query with aggressive refetching and polling', async () => {
     useLiveGamesQuery('user-3');
     const options = useQueryMock.mock.calls[0][0];
 
@@ -94,6 +94,8 @@ describe('useTrackerData hooks', () => {
     expect(options.refetchOnReconnect).toBe(true);
     expect(options.refetchOnMount).toBe('always');
     expect(options.staleTime).toBe(0);
+    // Fix 3: Polling as safety net
+    expect(options.refetchInterval).toBe(30_000);
 
     getLiveGamesMock.mockResolvedValueOnce([]);
     await options.queryFn();

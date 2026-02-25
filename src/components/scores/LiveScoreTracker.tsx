@@ -200,6 +200,20 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     };
   }, [isAuthenticated]);
 
+  // Fix 1: Detect when the user returns to the app (screen wakes up).
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void invalidateTrackerQueries({ liveGames: true });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     onActiveGamesChange?.(games.length > 0);
   }, [games, onActiveGamesChange]);

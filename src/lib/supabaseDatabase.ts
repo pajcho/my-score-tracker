@@ -622,6 +622,8 @@ class SupabaseDatabaseService {
   }
 
   subscribeToLiveGames(onChange: () => void | Promise<void>): () => void {
+    let hasConnected = false;
+
     const channel = supabase
       .channel(`live-games-${Math.random().toString(36).slice(2)}`)
       .on(
@@ -631,7 +633,16 @@ class SupabaseDatabaseService {
           void onChange();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Fix 2: Detect reconnection and refetch on recovery
+        if (status === 'SUBSCRIBED') {
+          if (hasConnected) {
+            // We've reconnected after being disconnected
+            void onChange();
+          }
+          hasConnected = true;
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);
