@@ -330,6 +330,23 @@ describe("supabaseDb", () => {
     expect(harness.supabase.removeChannel).toHaveBeenCalled();
   });
 
+  it("calls onChange on reconnect (second SUBSCRIBED status)", () => {
+    const onChangeSpy = vi.fn();
+    supabaseDb.subscribeToLiveGames(onChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    // First SUBSCRIBED: should not trigger onChange
+    statusCallback("SUBSCRIBED");
+    expect(onChangeSpy).toHaveBeenCalledTimes(0);
+
+    // Simulate reconnect: second SUBSCRIBED should trigger onChange
+    statusCallback("SUBSCRIBED");
+    expect(onChangeSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("deletes account through rpc", async () => {
     harness.supabase.rpc.mockResolvedValue({ data: true, error: null });
     await supabaseDb.deleteAccount();
