@@ -813,7 +813,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                           </span>
                         </div>
                         <div
-                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border-2 border-blue-500 bg-transparent text-blue-600 dark:text-blue-400 cursor-default' : 'bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors'}`}
+                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border border-blue-200 dark:border-blue-800 bg-transparent text-blue-400 dark:text-blue-600 cursor-default' : 'bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors'}`}
                           onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
                         >
                           {leftScore}
@@ -829,7 +829,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                           </span>
                         </div>
                         <div
-                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border-2 border-red-500 bg-transparent text-red-600 dark:text-red-400 cursor-default' : 'bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors'}`}
+                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border border-red-200 dark:border-red-800 bg-transparent text-red-400 dark:text-red-600 cursor-default' : 'bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors'}`}
                           onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
                         >
                           {rightScore}
