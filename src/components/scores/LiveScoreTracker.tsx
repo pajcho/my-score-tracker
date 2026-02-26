@@ -812,8 +812,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                             {leftPlayerLabel}
                           </span>
                         </div>
-                        <div 
-                          className={`bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-blue-600 transition-colors'}`}
+                        <div
+                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border-2 border-blue-500 bg-transparent text-blue-600 dark:text-blue-400 cursor-default' : 'bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors'}`}
                           onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
                         >
                           {leftScore}
@@ -828,8 +828,8 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                             {rightPlayerLabel}
                           </span>
                         </div>
-                        <div 
-                          className={`bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-red-600 transition-colors'}`}
+                        <div
+                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border-2 border-red-500 bg-transparent text-red-600 dark:text-red-400 cursor-default' : 'bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors'}`}
                           onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
                         >
                           {rightScore}
