@@ -347,6 +347,73 @@ describe("supabaseDb", () => {
     expect(onChangeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("calls onStatusChange(true) when status becomes SUBSCRIBED", () => {
+    const onChangeSpy = vi.fn();
+    const onStatusChangeSpy = vi.fn();
+    supabaseDb.subscribeToLiveGames(onChangeSpy, onStatusChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    statusCallback("SUBSCRIBED");
+    expect(onStatusChangeSpy).toHaveBeenCalledWith(true);
+  });
+
+  it("calls onStatusChange(false) when status becomes CLOSED", () => {
+    const onChangeSpy = vi.fn();
+    const onStatusChangeSpy = vi.fn();
+    supabaseDb.subscribeToLiveGames(onChangeSpy, onStatusChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    statusCallback("CLOSED");
+    expect(onStatusChangeSpy).toHaveBeenCalledWith(false);
+  });
+
+  it("calls onStatusChange(false) when status becomes CHANNEL_ERROR", () => {
+    const onChangeSpy = vi.fn();
+    const onStatusChangeSpy = vi.fn();
+    supabaseDb.subscribeToLiveGames(onChangeSpy, onStatusChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    statusCallback("CHANNEL_ERROR");
+    expect(onStatusChangeSpy).toHaveBeenCalledWith(false);
+  });
+
+  it("calls onStatusChange(false) when status becomes TIMED_OUT", () => {
+    const onChangeSpy = vi.fn();
+    const onStatusChangeSpy = vi.fn();
+    supabaseDb.subscribeToLiveGames(onChangeSpy, onStatusChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    statusCallback("TIMED_OUT");
+    expect(onStatusChangeSpy).toHaveBeenCalledWith(false);
+  });
+
+  it("works without onStatusChange callback", () => {
+    const onChangeSpy = vi.fn();
+    const unsubscribe = supabaseDb.subscribeToLiveGames(onChangeSpy);
+    const channel = harness.supabase.channel.mock.results[0].value as {
+      subscribe: ReturnType<typeof vi.fn>;
+    };
+    const statusCallback = channel.subscribe.mock.calls[0][0] as (status: string) => void;
+
+    // Should not throw when onStatusChange is not provided
+    statusCallback("SUBSCRIBED");
+    statusCallback("CLOSED");
+
+    expect(unsubscribe).toBeDefined();
+  });
+
   it("deletes account through rpc", async () => {
     harness.supabase.rpc.mockResolvedValue({ data: true, error: null });
     await supabaseDb.deleteAccount();

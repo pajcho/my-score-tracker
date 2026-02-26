@@ -621,7 +621,7 @@ class SupabaseDatabaseService {
     await this.deleteLiveGame(id);
   }
 
-  subscribeToLiveGames(onChange: () => void | Promise<void>): () => void {
+  subscribeToLiveGames(onChange: () => void | Promise<void>, onStatusChange?: (connected: boolean) => void): () => void {
     let hasConnected = false;
 
     const channel = supabase
@@ -636,11 +636,14 @@ class SupabaseDatabaseService {
       .subscribe((status) => {
         // Fix 2: Detect reconnection and refetch on recovery
         if (status === 'SUBSCRIBED') {
+          onStatusChange?.(true);
           if (hasConnected) {
             // We've reconnected after being disconnected
             void onChange();
           }
           hasConnected = true;
+        } else if (status === 'CLOSED' || status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          onStatusChange?.(false);
         }
       });
 

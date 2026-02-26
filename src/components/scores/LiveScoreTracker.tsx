@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -84,6 +84,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const [isLoading, setIsLoading] = useState(false);
   const [syncClock, setSyncClock] = useState(new Date());
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [decrementBreakerPrompt, setDecrementBreakerPrompt] = useState<{
     gameId: string;
     nextScore1: number;
@@ -193,10 +194,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
     const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
       void invalidateTrackerQueries({ liveGames: true });
-    });
+    }, setIsRealtimeConnected);
 
     return () => {
       unsubscribe();
+      setIsRealtimeConnected(false);
     };
   }, [isAuthenticated]);
 
@@ -576,6 +578,25 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     );
   }
 
+  const ConnectionIndicator = () => {
+    if (liveGamesQuery.isFetching) {
+      return <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />;
+    }
+    if (isRealtimeConnected) {
+      return (
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+        </span>
+      );
+    }
+    return (
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -590,10 +611,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 aria-label={syncStatusText}
                 title={syncStatusText}
               >
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                </span>
+                <ConnectionIndicator />
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto px-3 py-1.5 text-sm" align="start">
@@ -785,12 +803,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Your Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && (
-                            <span className="relative flex h-2.5 w-2.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                            </span>
-                          )}
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <ConnectionIndicator />}
                           {leftPlayerLabel}
                         </div>
                         <div 
@@ -804,12 +817,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && (
-                            <span className="relative flex h-2.5 w-2.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                            </span>
-                          )}
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <ConnectionIndicator />}
                           {rightPlayerLabel}
                         </div>
                         <div 
