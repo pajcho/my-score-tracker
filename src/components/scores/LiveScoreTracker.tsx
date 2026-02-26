@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp, Loader2, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -597,6 +597,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     );
   };
 
+  const BreakIndicator = () => {
+    return <Play className="h-3 w-3 fill-current text-primary" />;
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -803,8 +807,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Your Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <ConnectionIndicator />}
-                          {leftPlayerLabel}
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <BreakIndicator />}
+                          <span className={leftPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                            {leftPlayerLabel}
+                          </span>
                         </div>
                         <div 
                           className={`bg-blue-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-blue-600 transition-colors'}`}
@@ -817,8 +823,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                        {/* Opponent Score */}
                        <div className="text-center w-full">
                         <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <ConnectionIndicator />}
-                          {rightPlayerLabel}
+                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <BreakIndicator />}
+                          <span className={rightPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                            {rightPlayerLabel}
+                          </span>
                         </div>
                         <div 
                           className={`bg-red-500 text-white text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'opacity-55' : ''} ${disableGameInteractions ? 'cursor-default' : 'cursor-pointer hover:bg-red-600 transition-colors'}`}
