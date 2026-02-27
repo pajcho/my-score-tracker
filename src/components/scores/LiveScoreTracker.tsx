@@ -40,7 +40,8 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/components/auth/authContext';
 import { invalidateTrackerQueries } from '@/lib/queryCache';
-import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery } from '@/hooks/useTrackerData';
+import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
+import { GameSetupWizard } from './GameSetupWizard';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -99,9 +100,22 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const liveGamesQuery = useLiveGamesQuery(currentUserId);
   const opponentsQuery = useOpponentsQuery(currentUserId);
   const friendsQuery = useFriendsQuery(currentUserId);
+  const scoresQuery = useScoresQuery(currentUserId);
   const opponents = opponentsQuery.data ?? [];
   const friends = friendsQuery.data ?? [];
   const isInitialLoading = isQueryEnabled && liveGamesQuery.isLoading && games.length === 0;
+
+  // Get last pool game settings to pre-fill in wizard
+  const lastPoolGame = scoresQuery.data
+    ?.filter((score) => score.game === 'Pool' && score.pool_type && score.break_rule)
+    ?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    ?.[0];
+  const lastPoolSettings = lastPoolGame
+    ? {
+        poolType: lastPoolGame.pool_type as PoolType,
+        breakRule: lastPoolGame.break_rule as BreakRule,
+      }
+    : undefined;
 
   const updateGameLocally = (
     gameId: string,
@@ -220,8 +234,10 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     onActiveGamesChange?.(games.length > 0);
   }, [games, onActiveGamesChange]);
 
-  const addNewGame = async () => {
-    if (!newGame.game) {
+  const addNewGame = async (gameData?: typeof newGame) => {
+    const dataToUse = gameData || newGame;
+
+    if (!dataToUse.game) {
       toast({
         title: "Missing information",
         description: "Please select a game type",
@@ -230,7 +246,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       return;
     }
 
-    if (newGame.opponentType === 'custom' && !newGame.opponent) {
+    if (dataToUse.opponentType === 'custom' && !dataToUse.opponent) {
       toast({
         title: "Missing information",
         description: "Please enter opponent's name",
@@ -239,7 +255,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       return;
     }
 
-    if (newGame.opponentType === 'friend' && !newGame.selectedFriend) {
+    if (dataToUse.opponentType === 'friend' && !dataToUse.selectedFriend) {
       toast({
         title: "Missing information",
         description: "Please select a friend to play against",
@@ -248,11 +264,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       return;
     }
 
-    let opponentName = newGame.opponent;
+    let opponentName = dataToUse.opponent;
     let opponentUserId: string | undefined;
 
-    if (newGame.opponentType === 'friend' && newGame.selectedFriend) {
-      const friend = friends.find(f => f.id === newGame.selectedFriend);
+    if (dataToUse.opponentType === 'friend' && dataToUse.selectedFriend) {
+      const friend = friends.find(f => f.id === dataToUse.selectedFriend);
       if (friend) {
         opponentName = friend.name;
         opponentUserId = friend.id;
@@ -262,11 +278,11 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     setIsLoading(true);
 
     try {
-      const firstBreakerSide = getFirstBreakerSide(newGame.firstBreakerSelection);
-      const initialPoolSettings = isPoolGameType(newGame.game)
+      const firstBreakerSide = getFirstBreakerSide(dataToUse.firstBreakerSelection);
+      const initialPoolSettings = isPoolGameType(dataToUse.game)
         ? {
-            pool_type: newGame.poolType,
-            break_rule: newGame.breakRule,
+            pool_type: dataToUse.poolType,
+            break_rule: dataToUse.breakRule,
             first_breaker_side: firstBreakerSide,
             current_breaker_side: firstBreakerSide,
             last_rack_winner_side: null,
@@ -274,7 +290,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         : undefined;
 
       const createdLiveGame = await supabaseDb.createLiveGame(
-        newGame.game,
+        dataToUse.game,
         opponentUserId ? null : opponentName,
         format(new Date(), 'yyyy-MM-dd'),
         opponentUserId,
@@ -314,7 +330,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
 
       toast({
         title: "Game started!",
-        description: `${getDisplayGameLabel(newGame.game, initialPoolSettings?.pool_type)} game vs ${opponentName}`,
+        description: `${getDisplayGameLabel(dataToUse.game, initialPoolSettings?.pool_type)} game vs ${opponentName}`,
       });
       await invalidateTrackerQueries({
         liveGames: true,
@@ -884,251 +900,27 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-card border-0">
-            <CardHeader>
-              <CardTitle className="text-base">New Game</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Quick Game Type */}
-              <div className="space-y-2">
-                <Label>Game</Label>
-                <ToggleGroup
-                  type="single"
-                  value={newGame.game}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    setNewGame((previousGame) => ({ ...previousGame, game: value as GameType }));
-                  }}
-                  className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-                >
-                  {GAME_TYPE_OPTIONS.map(({ value, label }) => (
-                    <ToggleGroupItem
-                      key={value}
-                      value={value}
-                      variant="outline"
-                      className={toggleOptionClassName}
-                    >
-                      <GameTypeIcon gameType={value} className="mr-2 h-4 w-4" />
-                      {label}
-                      <span
-                        className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                      />
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-
-              {isPoolGameType(newGame.game) && (
-                <div className="rounded-md border border-border p-3 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsRuleSectionExpanded((previousState) => !previousState)}
-                    className="w-full flex items-center justify-between text-left"
-                  >
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Rule</Label>
-                      <p className="text-sm mt-0.5">
-                        {getPoolTypeLabel(newGame.poolType)} • {newGame.breakRule === 'winner_stays' ? 'Winner stays' : 'Alternate'} • {newGame.firstBreakerSelection === 'random' ? 'First break: Random' : newGame.firstBreakerSelection === 'player1' ? 'First break: Game creator' : 'First break: Opponent'}
-                      </p>
-                    </div>
-                    {isRuleSectionExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {isRuleSectionExpanded && (
-                    <div className="space-y-3">
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Pool type</Label>
-                        <ToggleGroup
-                          type="single"
-                          value={newGame.poolType}
-                          onValueChange={(value) => {
-                            if (!value) return;
-                            setNewGame((previousGame) => ({
-                              ...previousGame,
-                              poolType: value as PoolType,
-                            }));
-                          }}
-                          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-                        >
-                          {POOL_TYPE_OPTIONS.map(({ value, label }) => (
-                            <ToggleGroupItem
-                              key={value}
-                              value={value}
-                              variant="outline"
-                              className={compactToggleOptionClassName}
-                            >
-                              <PoolTypeIcon poolType={value} className="mr-2 h-3.5 w-3.5" />
-                              {label}
-                              <span
-                                className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.poolType === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                              />
-                            </ToggleGroupItem>
-                          ))}
-                        </ToggleGroup>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Break rule</Label>
-                        <ToggleGroup
-                          type="single"
-                          value={newGame.breakRule}
-                          onValueChange={(value) => {
-                            if (!value) return;
-                            setNewGame((previousGame) => ({
-                              ...previousGame,
-                              breakRule: value as BreakRule,
-                            }));
-                          }}
-                          className="grid grid-cols-2 gap-2"
-                        >
-                          <ToggleGroupItem
-                            value="alternate"
-                            variant="outline"
-                            className={compactToggleOptionClassName}
-                          >
-                            Alternate
-                            <span
-                              className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'alternate' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                            />
-                          </ToggleGroupItem>
-                          <ToggleGroupItem
-                            value="winner_stays"
-                            variant="outline"
-                            className={compactToggleOptionClassName}
-                          >
-                            Winner stays
-                            <span
-                              className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.breakRule === 'winner_stays' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                            />
-                          </ToggleGroupItem>
-                        </ToggleGroup>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">First break</Label>
-                        <Select
-                          value={newGame.firstBreakerSelection}
-                          onValueChange={(value) =>
-                            setNewGame((previousGame) => ({
-                              ...previousGame,
-                              firstBreakerSelection: value as 'player1' | 'player2' | 'random',
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="random">Random</SelectItem>
-                            <SelectItem value="player1">Game creator</SelectItem>
-                            <SelectItem value="player2">Opponent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Quick Opponent Selection */}
-              <div className="space-y-3">
-                <Label>Opponent</Label>
-                <ToggleGroup
-                  type="single"
-                  value={newGame.opponentType}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    setNewGame((previousGame) => ({ ...previousGame, opponentType: value as 'custom' | 'friend' }));
-                  }}
-                  className="grid grid-cols-2 gap-2"
-                >
-                  <ToggleGroupItem
-                    value="friend"
-                    variant="outline"
-                    className={toggleOptionClassName}
-                  >
-                    <Users className="mr-2 h-4 w-4" />
-                    Friend
-                    <span
-                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                    />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="custom"
-                    variant="outline"
-                    className={toggleOptionClassName}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Custom
-                    <span
-                      className={`ml-auto h-2.5 w-2.5 rounded-full border ${newGame.opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                    />
-                  </ToggleGroupItem>
-                </ToggleGroup>
-
-                {newGame.opponentType === 'custom' ? (
-                  <OpponentAutocomplete
-                    value={newGame.opponent}
-                    onChange={(value) => setNewGame((previousGame) => ({ ...previousGame, opponent: value, selectedFriend: '' }))}
-                    opponents={opponents}
-                    required
-                  />
-                ) : (
-                  <Select
-                    value={newGame.selectedFriend}
-                    onValueChange={(value) => setNewGame((previousGame) => ({ ...previousGame, selectedFriend: value, opponent: '' }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a friend" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {friends.length === 0 ? (
-                        <div className="p-2 text-sm text-muted-foreground">
-                          No friends yet. Add friends to play against them!
-                        </div>
-                      ) : (
-                        friends.map((friend) => (
-                          <SelectItem key={friend.id} value={friend.id}>
-                            {friend.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <Button onClick={addNewGame} size="sm" className="flex-1" disabled={isLoading}>
-                  Start Game
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowNewGameForm(false);
-                    setIsRuleSectionExpanded(false);
-                    setNewGame({
-                      game: DEFAULT_GAME_TYPE,
-                      poolType: DEFAULT_POOL_TYPE,
-                      opponent: '',
-                      opponentType: 'friend',
-                      selectedFriend: '',
-                      breakRule: 'alternate',
-                      firstBreakerSelection: 'random',
-                    });
-                  }}
-                  size="sm"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <GameSetupWizard
+            onComplete={(data) => {
+              void addNewGame(data);
+            }}
+            onCancel={() => {
+              setShowNewGameForm(false);
+              setIsRuleSectionExpanded(false);
+              setNewGame({
+                game: DEFAULT_GAME_TYPE,
+                poolType: DEFAULT_POOL_TYPE,
+                opponent: '',
+                opponentType: 'friend',
+                selectedFriend: '',
+                breakRule: 'alternate',
+                firstBreakerSelection: 'random',
+              });
+            }}
+            friends={friends}
+            lastPoolSettings={lastPoolSettings}
+            currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
+          />
         )}
       </div>
 
