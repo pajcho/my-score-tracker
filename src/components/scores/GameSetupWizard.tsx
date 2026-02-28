@@ -80,7 +80,21 @@ export function GameSetupWizard({
   // Step 3: Auto-advance when friend is selected
   const handleFriendSelect = (friendId: string) => {
     setSelectedFriend(friendId);
-    setCurrentStep(4);
+    setOpponentType('friend');
+    if (isPoolGameType(game)) {
+      setCurrentStep(4);
+    } else {
+      // Ping Pong: no step 4, submit directly
+      onComplete({
+        game,
+        poolType,
+        opponent: '',
+        opponentType: 'friend',
+        selectedFriend: friendId,
+        breakRule,
+        firstBreakerSelection,
+      });
+    }
   };
 
   // Step 4: Random breaker selection
@@ -140,7 +154,7 @@ export function GameSetupWizard({
       <CardHeader>
         <CardTitle>Start a New Game</CardTitle>
         <CardDescription>
-          Step {currentStep} of {game === 'Pool' ? 4 : 3}
+          Step {isPoolGameType(game) ? currentStep : currentStep === 3 ? 2 : currentStep} of {isPoolGameType(game) ? 4 : 2}
         </CardDescription>
       </CardHeader>
 
