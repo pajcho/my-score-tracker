@@ -41,7 +41,7 @@ import {
 import { useAuth } from '@/components/auth/authContext';
 import { invalidateTrackerQueries } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
-import { GameSetupWizard } from './GameSetupWizard';
+import { GameSetupWizard } from './wizard/GameSetupWizard';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
