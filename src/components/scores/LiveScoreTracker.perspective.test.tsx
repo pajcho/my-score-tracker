@@ -16,6 +16,10 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     invalidateTrackerQueriesMock: vi.fn(),
   }));
 
+vi.mock("@/hooks/useMobile", () => ({
+  useIsMobile: () => false,
+}));
+
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: authState.currentUserId, user_metadata: { name: "Current User" } },
