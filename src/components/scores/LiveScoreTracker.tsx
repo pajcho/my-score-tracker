@@ -41,7 +41,7 @@ import {
 import { useAuth } from '@/components/auth/authContext';
 import { invalidateTrackerQueries } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
-import { GameSetupWizard } from './wizard/GameSetupWizard';
+import { WizardModal } from './wizard/WizardModal';
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -889,7 +889,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
         {/* Add New Game Card */}
         {!showNewGameForm ? (
           <Card className="shadow-card border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardContent 
+            <CardContent
               className="flex h-full items-center justify-center p-8"
               onClick={() => setShowNewGameForm(true)}
             >
@@ -899,29 +899,44 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <GameSetupWizard
-            onComplete={(data) => {
-              void addNewGame(data);
-            }}
-            onCancel={() => {
-              setShowNewGameForm(false);
-              setIsRuleSectionExpanded(false);
-              setNewGame({
-                game: DEFAULT_GAME_TYPE,
-                poolType: DEFAULT_POOL_TYPE,
-                opponent: '',
-                opponentType: 'friend',
-                selectedFriend: '',
-                breakRule: 'alternate',
-                firstBreakerSelection: 'random',
-              });
-            }}
-            friends={friends}
-            lastPoolSettings={lastPoolSettings}
-            currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
-          />
-        )}
+        ) : null}
+
+        <WizardModal
+          open={showNewGameForm}
+          onClose={() => {
+            setShowNewGameForm(false);
+            setIsRuleSectionExpanded(false);
+            setNewGame({
+              game: DEFAULT_GAME_TYPE,
+              poolType: DEFAULT_POOL_TYPE,
+              opponent: '',
+              opponentType: 'friend',
+              selectedFriend: '',
+              breakRule: 'alternate',
+              firstBreakerSelection: 'random',
+            });
+          }}
+          mode="live"
+          friends={friends}
+          lastPoolSettings={lastPoolSettings}
+          currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
+          onComplete={(data) => {
+            void addNewGame(data);
+          }}
+          onCancel={() => {
+            setShowNewGameForm(false);
+            setIsRuleSectionExpanded(false);
+            setNewGame({
+              game: DEFAULT_GAME_TYPE,
+              poolType: DEFAULT_POOL_TYPE,
+              opponent: '',
+              opponentType: 'friend',
+              selectedFriend: '',
+              breakRule: 'alternate',
+              firstBreakerSelection: 'random',
+            });
+          }}
+        />
       </div>
 
       {games.length === 0 && !showNewGameForm && (

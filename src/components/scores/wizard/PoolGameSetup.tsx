@@ -3,12 +3,15 @@ import { WizardLayout } from './WizardLayout';
 import { StepPoolSettings } from './steps/StepPoolSettings';
 import { StepOpponentSelect } from './steps/StepOpponentSelect';
 import { StepBreakerSelect } from './steps/StepBreakerSelect';
+import { StepResultEntry } from './steps/StepResultEntry';
 import type { PoolType, BreakRule } from '@/lib/supabaseDatabase';
 import type { GameType } from '@/lib/gameTypes';
 
-type Step = 1 | 2 | 3;
+type WizardMode = 'live' | 'finished';
+type Step = 1 | 2 | 3 | 4;
 
 interface PoolGameSetupProps {
+  mode?: WizardMode;
   friends: { id: string; name: string; email: string }[];
   lastPoolSettings?: {
     poolType: PoolType;
@@ -24,16 +27,23 @@ interface PoolGameSetupProps {
     selectedFriend: string;
     breakRule: BreakRule;
     firstBreakerSelection: 'player1' | 'player2' | 'random';
+    date?: Date;
+    yourScore?: string;
+    opponentScore?: string;
   }) => void;
 }
 
 export function PoolGameSetup({
+  mode = 'live',
   friends,
   lastPoolSettings,
   currentUserName,
   onCancel,
   onComplete,
 }: PoolGameSetupProps) {
+  const isFinishedMode = mode === 'finished';
+  const totalSteps = isFinishedMode ? 3 : 4;
+
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [poolType, setPoolType] = useState<PoolType>(lastPoolSettings?.poolType || '9-ball');
   const [breakRule, setBreakRule] = useState<BreakRule>(lastPoolSettings?.breakRule || 'alternate');
@@ -42,6 +52,9 @@ export function PoolGameSetup({
   const [selectedFriend, setSelectedFriend] = useState('');
   const [firstBreakerSelection, setFirstBreakerSelection] = useState<'player1' | 'player2' | 'random'>('random');
   const [randomBreakerHighlight, setRandomBreakerHighlight] = useState<'player1' | 'player2' | null>(null);
+  const [date, setDate] = useState<Date>(new Date());
+  const [yourScore, setYourScore] = useState('');
+  const [opponentScore, setOpponentScore] = useState('');
 
   // Get opponent name for display
   const opponentName =
@@ -76,7 +89,7 @@ export function PoolGameSetup({
     if (currentStep === 1) {
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      setCurrentStep(3);
+      setCurrentStep(isFinishedMode ? 3 : 3);
     }
   };
 
@@ -87,15 +100,26 @@ export function PoolGameSetup({
   };
 
   const handleSubmit = () => {
-    onComplete({
-      game: 'Pool',
+    const baseData = {
+      game: 'Pool' as const,
       poolType,
       opponent: opponentType === 'custom' ? opponent : '',
       opponentType,
       selectedFriend: opponentType === 'friend' ? selectedFriend : '',
       breakRule,
       firstBreakerSelection,
-    });
+    };
+
+    if (isFinishedMode) {
+      onComplete({
+        ...baseData,
+        date,
+        yourScore,
+        opponentScore,
+      });
+    } else {
+      onComplete(baseData);
+    }
   };
 
   const canProceed = (() => {
@@ -109,11 +133,11 @@ export function PoolGameSetup({
     <WizardLayout
       title="Start a New Game"
       step={currentStep}
-      totalSteps={3}
+      totalSteps={totalSteps}
       onBack={currentStep > 1 ? handlePrev : undefined}
       onCancel={onCancel}
-      onNext={currentStep < 3 ? handleNext : undefined}
-      onSubmit={currentStep === 3 ? handleSubmit : undefined}
+      onNext={currentStep < totalSteps ? handleNext : undefined}
+      onSubmit={currentStep === totalSteps ? handleSubmit : undefined}
       canProceed={canProceed}
     >
       {currentStep === 1 && (
@@ -135,7 +159,20 @@ export function PoolGameSetup({
         />
       )}
 
-      {currentStep === 3 && (
+      {isFinishedMode && currentStep === 3 && (
+        <StepResultEntry
+          playerName={currentUserName}
+          opponentName={opponentName}
+          date={date}
+          setDate={setDate}
+          yourScore={yourScore}
+          setYourScore={setYourScore}
+          opponentScore={opponentScore}
+          setOpponentScore={setOpponentScore}
+        />
+      )}
+
+      {!isFinishedMode && currentStep === 3 && (
         <StepBreakerSelect
           player1Name={currentUserName}
           player2Name={opponentName}
