@@ -13,10 +13,7 @@ import {
   BreakRule,
 } from '@/lib/supabaseDatabase';
 
-type WizardMode = 'live' | 'finished';
-
 interface GameSetupWizardProps {
-  mode?: WizardMode;
   onComplete: (data: {
     game: GameType;
     poolType: string;
@@ -25,9 +22,6 @@ interface GameSetupWizardProps {
     selectedFriend: string;
     breakRule: BreakRule;
     firstBreakerSelection: 'player1' | 'player2' | 'random';
-    date?: Date;
-    yourScore?: string;
-    opponentScore?: string;
   }) => void;
   onCancel: () => void;
   friends: { id: string; name: string; email: string }[];
@@ -41,7 +35,6 @@ interface GameSetupWizardProps {
 type ViewState = 'sport-selection' | 'pool-setup' | 'pingpong-setup';
 
 export function GameSetupWizard({
-  mode = 'live',
   onComplete,
   onCancel,
   friends,
@@ -103,7 +96,6 @@ export function GameSetupWizard({
   if (view === 'pool-setup') {
     return (
       <PoolGameSetup
-        mode={mode}
         friends={friends}
         lastPoolSettings={lastPoolSettings}
         currentUserName={currentUserName}
@@ -117,7 +109,6 @@ export function GameSetupWizard({
   if (view === 'pingpong-setup') {
     return (
       <PingPongGameSetup
-        mode={mode}
         friends={friends}
         currentUserName={currentUserName}
         onCancel={() => setView('sport-selection')}
