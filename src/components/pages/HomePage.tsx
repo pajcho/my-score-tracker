@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {Calendar, Dumbbell, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
@@ -10,19 +9,42 @@ import { Score, Training } from '@/lib/supabaseDatabase';
 import {GAME_TYPE_OPTIONS} from '@/lib/gameTypes';
 import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
 import { useAuth } from '@/components/auth/authContext';
-import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
+import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery, useFriendsQuery } from '@/hooks/useTrackerData';
 import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
+import { WizardModal } from '@/components/scores/wizard/WizardModal';
+import { useToast } from '@/hooks/useToast';
+import { supabaseDb } from '@/lib/supabaseDatabase';
+import { supabaseAuth } from '@/lib/supabaseAuth';
+import { format } from 'date-fns';
+import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
 
 export function HomePage() {
   const [isScoreDialogOpen, setIsScoreDialogOpen] = useState(false);
   const [isTrainingDialogOpen, setIsTrainingDialogOpen] = useState(false);
   const [activeRecentTab, setActiveRecentTab] = useState<'scores' | 'trainings'>('scores');
+  const [isSavingScore, setIsSavingScore] = useState(false);
   const { profile, user, isAuthenticated } = useAuth();
   const currentUserId = isAuthenticated ? user?.id : undefined;
   const isQueryEnabled = !!currentUserId;
   const scoresQuery = useScoresQuery(currentUserId);
   const trainingsQuery = useTrainingsQuery(currentUserId);
   const liveGamesQuery = useLiveGamesQuery(currentUserId);
+  const friendsQuery = useFriendsQuery(currentUserId);
+  const { toast } = useToast();
+  const friends = friendsQuery.data ?? [];
+
+  // Get last pool game settings to pre-fill in wizard
+  const lastPoolGame = scoresQuery.data
+    ?.filter((score) => score.game === 'Pool' && score.pool_type && score.break_rule)
+    ?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    ?.[0];
+  const lastPoolSettings = lastPoolGame
+    ? {
+        poolType: lastPoolGame.pool_type as PoolType,
+        breakRule: lastPoolGame.break_rule as any,
+      }
+    : undefined;
 
   useEffect(() => {
     if (!scoresQuery.error) return;
@@ -40,6 +62,103 @@ export function HomePage() {
 
   const handleTrainingAdded = () => {
     setIsTrainingDialogOpen(false);
+  };
+
+  const handleScoreWizardComplete = async (wizardData: {
+    game: GameType;
+    poolType: string;
+    opponent: string;
+    opponentType: 'custom' | 'friend';
+    selectedFriend: string;
+    breakRule: any;
+    firstBreakerSelection: 'player1' | 'player2' | 'random';
+    date?: Date;
+    yourScore?: string;
+    opponentScore?: string;
+  }) => {
+    if (!wizardData.date || !wizardData.yourScore || !wizardData.opponentScore) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (wizardData.opponentType === 'custom' && !wizardData.opponent) {
+      toast({
+        title: "Missing information",
+        description: "Please enter an opponent name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (wizardData.opponentType === 'friend' && !wizardData.selectedFriend) {
+      toast({
+        title: "Missing information",
+        description: "Please select a friend to play against",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!supabaseAuth.isAuthenticated()) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to save scores.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingScore(true);
+
+    try {
+      const combinedScore = `${wizardData.yourScore}-${wizardData.opponentScore}`;
+
+      let opponentName: string | null = null;
+      let opponentUserId: string | undefined;
+
+      if (wizardData.opponentType === 'friend' && wizardData.selectedFriend) {
+        opponentUserId = wizardData.selectedFriend;
+      } else if (wizardData.opponentType === 'custom' && wizardData.opponent) {
+        opponentName = wizardData.opponent;
+      }
+
+      const createdScore = await supabaseDb.createScore(
+        wizardData.game,
+        opponentName,
+        combinedScore,
+        format(wizardData.date, 'yyyy-MM-dd'),
+        opponentUserId
+      );
+
+      if (isPoolGameType(wizardData.game)) {
+        await supabaseDb.setScorePoolType(createdScore.id, wizardData.poolType as PoolType);
+      }
+
+      await invalidateTrackerQueries({
+        scores: true,
+        opponents: true,
+      });
+
+      toast({
+        title: "Score added!",
+        description: `${wizardData.game} game recorded: ${combinedScore}`,
+      });
+
+      setIsScoreDialogOpen(false);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Please try again';
+      toast({
+        title: "Failed to save score",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingScore(false);
+    }
   };
 
   const winCount = scores.filter((scoreEntry) => {
@@ -233,17 +352,16 @@ export function HomePage() {
         </CardContent>
       </Card>
 
-      <ResponsiveFormModal
+      <WizardModal
         open={isScoreDialogOpen}
-        onOpenChange={setIsScoreDialogOpen}
-        title="Add Finished Score"
-        description="Fill in details for a completed game."
-      >
-        <ScoreForm
-          onCancel={() => setIsScoreDialogOpen(false)}
-          onSuccess={handleScoreAdded}
-        />
-      </ResponsiveFormModal>
+        onClose={() => setIsScoreDialogOpen(false)}
+        mode="finished"
+        friends={friends}
+        lastPoolSettings={lastPoolSettings}
+        currentUserName={user?.user_metadata?.name || 'Player 1'}
+        onComplete={handleScoreWizardComplete}
+        onCancel={() => setIsScoreDialogOpen(false)}
+      />
 
       <ResponsiveFormModal
         open={isTrainingDialogOpen}
