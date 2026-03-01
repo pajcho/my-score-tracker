@@ -23,20 +23,36 @@ vi.mock("@/lib/supabaseDatabase", () => ({
     getScoresByUserId: getScoresByUserIdMock,
     getLiveGames: getLiveGamesMock,
     getTrainingsByUserId: getTrainingsByUserIdMock,
+    createScore: vi.fn().mockResolvedValue({ id: 'new-score-1' }),
+    setScorePoolType: vi.fn().mockResolvedValue(undefined),
+    getFriends: vi.fn().mockResolvedValue([]),
+    getUniqueOpponents: vi.fn().mockResolvedValue([]),
   },
 }));
 
-vi.mock("@/components/scores/ScoreForm", () => ({
-  ScoreForm: ({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) => (
-    <div>
-      <button onClick={onSuccess} type="button">
-        ScoreFormSuccess
-      </button>
-      <button onClick={onCancel} type="button">
-        ScoreFormCancel
-      </button>
-    </div>
-  ),
+vi.mock("@/lib/supabaseAuth", () => ({
+  supabaseAuth: {
+    isAuthenticated: () => true,
+  },
+}));
+
+vi.mock("@/lib/queryCache", () => ({
+  trackerQueryKeys: { scores: ['scores'], trainings: ['trainings'], opponents: ['opponents'], friends: ['friends'], liveGames: ['liveGames'] },
+  invalidateTrackerQueries: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/components/scores/wizard/WizardModal", () => ({
+  WizardModal: ({ onComplete, onCancel, open }: { onComplete: (data: unknown) => void; onCancel: () => void; open: boolean }) =>
+    open ? (
+      <div>
+        <button onClick={() => onComplete({ game: 'Pool', poolType: '8-ball', opponent: 'Ana', opponentType: 'custom', selectedFriend: '', date: new Date(), yourScore: '3', opponentScore: '1' })} type="button">
+          ScoreFormSuccess
+        </button>
+        <button onClick={onCancel} type="button">
+          ScoreFormCancel
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/components/scores/ScoreList", () => ({
