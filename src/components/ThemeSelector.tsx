@@ -1,17 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 
 export function ThemeSelector() {
-  const [isMounted, setIsMounted] = useState(false);
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement | null>(null);
   const { theme, setTheme } = useTheme();
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isThemeMenuOpen) return;
@@ -38,7 +33,7 @@ export function ThemeSelector() {
           isThemeMenuOpen && 'opacity-0'
         )}
       >
-        {!isMounted || theme === 'system' ? (
+        {theme === 'system' ? (
           <Monitor className="h-4 w-4" />
         ) : theme === 'dark' ? (
           <Moon className="h-4 w-4" />
@@ -75,7 +70,7 @@ export function ThemeSelector() {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {!isMounted && mode === 'system' ? <Monitor className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+              <Icon className="h-4 w-4" />
             </button>
           );
         })}

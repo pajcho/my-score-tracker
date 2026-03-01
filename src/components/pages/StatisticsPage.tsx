@@ -196,11 +196,13 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
   const shouldShowPoolTypeFilter = gameFilter !== 'all' && isPoolGameType(gameFilter);
 
-  useEffect(() => {
-    if (!shouldShowPoolTypeFilter && poolTypeFilter !== 'all') {
+  // Handler for game filter changes that resets pool type filter if needed
+  const handleGameFilterChange = (value: string) => {
+    setGameFilter(value);
+    if (value === 'all' || !isPoolGameType(value)) {
       setPoolTypeFilter('all');
     }
-  }, [poolTypeFilter, shouldShowPoolTypeFilter]);
+  };
 
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {
@@ -759,7 +761,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="w-full sm:w-48">
-              <Select value={gameFilter} onValueChange={setGameFilter}>
+              <Select value={gameFilter} onValueChange={handleGameFilterChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by game" />
                 </SelectTrigger>

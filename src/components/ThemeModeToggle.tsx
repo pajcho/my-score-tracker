@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -17,15 +16,6 @@ const themeModeOptions: Array<{
 
 export function ThemeModeToggle() {
   const { theme, setTheme } = useTheme();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return <div className="h-10 w-[126px] rounded-xl border border-border bg-muted/70" />;
-  }
 
   const selectedTheme = (theme ?? "system") as ThemeMode;
 
