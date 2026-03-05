@@ -67,7 +67,7 @@ export function GameSetupWizard({
                 <button
                   key={value}
                   type="button"
-                  onClick={() => handleSportSelect(value as GameType)}
+                  onClick={() => handleSportSelect(value)}
                   className="h-40 rounded-lg border-2 border-border hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer"
                 >
                   <GameTypeIcon gameType={value} className="h-12 w-12" />

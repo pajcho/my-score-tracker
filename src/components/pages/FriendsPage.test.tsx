@@ -284,7 +284,7 @@ describe("FriendsPage", () => {
 
     await screen.findByText("Petar");
 
-    const acceptButton = document.querySelector("button.bg-green-600") as HTMLButtonElement;
+    const acceptButton = document.querySelector("button.bg-green-600");
     fireEvent.click(acceptButton);
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
@@ -327,7 +327,7 @@ describe("FriendsPage", () => {
     render(<FriendsPage />);
     await screen.findByText("Petar");
 
-    const acceptButton = document.querySelector("button.bg-green-600") as HTMLButtonElement | null;
+    const acceptButton = document.querySelector("button.bg-green-600");
     if (acceptButton) fireEvent.click(acceptButton);
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
@@ -337,7 +337,7 @@ describe("FriendsPage", () => {
       );
     });
 
-    const declineButton = document.querySelector("button[variant='outline']") as HTMLButtonElement | null;
+    const declineButton = document.querySelector("button[variant='outline']");
     if (declineButton) fireEvent.click(declineButton);
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
