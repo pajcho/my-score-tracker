@@ -37,7 +37,7 @@ class SupabaseAuthService {
   }
 
   constructor() {
-    this.initialize();
+    void this.initialize();
   }
 
   private async initialize() {
@@ -55,7 +55,7 @@ class SupabaseAuthService {
 
           // Defer Supabase calls with setTimeout to avoid deadlock
           setTimeout(() => {
-            void this.loadProfile(session.user!.id).finally(() => {
+            void this.loadProfile(session.user.id).finally(() => {
               this.state.isLoading = false;
               this.notifyListeners();
             });

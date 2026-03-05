@@ -134,7 +134,7 @@ describe("HomePage", () => {
     });
   });
 
-  it("opens score form quick action", async () => {
+  it("opens score form quick action", () => {
     renderHomePage();
 
     fireEvent.click(screen.getAllByRole("button", { name: /add finished score/i })[0]);

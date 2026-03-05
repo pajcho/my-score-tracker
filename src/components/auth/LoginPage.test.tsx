@@ -127,7 +127,7 @@ describe("LoginPage", () => {
     const passwordInput = screen.getByLabelText("Password");
     expect(passwordInput).toHaveAttribute("type", "password");
 
-    const togglePasswordButton = passwordInput.parentElement?.querySelector("button") as HTMLButtonElement;
+    const togglePasswordButton = passwordInput.parentElement?.querySelector("button");
     fireEvent.click(togglePasswordButton);
     expect(passwordInput).toHaveAttribute("type", "text");
 
