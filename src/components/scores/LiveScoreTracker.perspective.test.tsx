@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
@@ -166,6 +166,96 @@ describe("LiveScoreTracker perspective labels", () => {
 
     await waitFor(() => {
       expect(invalidateTrackerQueriesMock).toHaveBeenCalledWith({ liveGames: true });
+    });
+  });
+
+  it("separates watched friend games into a collapsible section below active games", async () => {
+    authState.currentUserId = "user-1";
+    getLiveGamesMock.mockResolvedValueOnce([
+      {
+        id: "live-1",
+        created_by_user_id: "user-1",
+        game: "Ping Pong",
+        opponent_name: null,
+        opponent_user_id: "friend-1",
+        score1: 7,
+        score2: 5,
+        date: "2026-02-14",
+        started_at: "2026-02-14T10:00:00.000Z",
+        created_at: "2026-02-14T10:00:00.000Z",
+        updated_at: "2026-02-14T10:00:00.000Z",
+        creator_name: "Current User",
+        opponent_user_name: "Friend One",
+      },
+      {
+        id: "live-2",
+        created_by_user_id: "friend-2",
+        game: "Pool",
+        opponent_name: "Friend Three",
+        opponent_user_id: null,
+        score1: 4,
+        score2: 3,
+        date: "2026-02-15",
+        started_at: "2026-02-15T10:00:00.000Z",
+        created_at: "2026-02-15T10:00:00.000Z",
+        updated_at: "2026-02-15T10:00:00.000Z",
+        creator_name: "Friend Two",
+      },
+    ]);
+
+    renderLiveScoreTracker();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Live Score Tracking" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Watching friends" })).toBeInTheDocument();
+    });
+
+    const watchingSection = screen.getByRole("heading", { name: "Watching friends" }).closest("section");
+
+    expect(watchingSection).not.toBeNull();
+    expect(screen.getByText("Friend One")).toBeInTheDocument();
+    expect(watchingSection).not.toContainElement(screen.getByText("Friend One"));
+    expect(watchingSection).toContainElement(screen.getByText("Friend Two"));
+    expect(watchingSection).toContainElement(screen.getByText("Watching (read-only)"));
+  });
+
+  it("allows collapsing and expanding the watched games section", async () => {
+    authState.currentUserId = "user-1";
+    getLiveGamesMock.mockResolvedValueOnce([
+      {
+        id: "live-1",
+        created_by_user_id: "friend-2",
+        game: "Pool",
+        opponent_name: "Friend Three",
+        opponent_user_id: null,
+        score1: 4,
+        score2: 3,
+        date: "2026-02-15",
+        started_at: "2026-02-15T10:00:00.000Z",
+        created_at: "2026-02-15T10:00:00.000Z",
+        updated_at: "2026-02-15T10:00:00.000Z",
+        creator_name: "Friend Two",
+      },
+    ]);
+
+    renderLiveScoreTracker();
+
+    await waitFor(() => {
+      expect(screen.getByText("Friend Two")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide watched games" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Friend Two")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show watched games" })).toBeInTheDocument();
+      expect(screen.getByText("Show watched games (1)")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Show watched games" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Friend Two")).toBeInTheDocument();
     });
   });
 });
