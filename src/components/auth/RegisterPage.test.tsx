@@ -67,7 +67,7 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "short" } });
     fireEvent.change(screen.getByLabelText("Confirm Password"), { target: { value: "short" } });
 
-    const form = screen.getByLabelText("Confirm Password").closest("form") as HTMLFormElement;
+    const form = screen.getByLabelText("Confirm Password").closest("form");
     fireEvent.submit(form);
 
     await waitFor(() => {
@@ -89,7 +89,7 @@ describe("RegisterPage", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "StrongPass1" } });
     fireEvent.change(screen.getByLabelText("Confirm Password"), { target: { value: "StrongPass2" } });
 
-    const form = screen.getByLabelText("Confirm Password").closest("form") as HTMLFormElement;
+    const form = screen.getByLabelText("Confirm Password").closest("form");
     fireEvent.submit(form);
 
     await waitFor(() => {

@@ -94,7 +94,7 @@ export function FriendsPage() {
 
       setInviteEmail('');
       setInviteMessage('');
-      loadData(); // Refresh data
+      void loadData();
     } catch (error: unknown) {
       toast({
         title: "Failed to send invitation",
@@ -121,7 +121,7 @@ export function FriendsPage() {
         description: "You are now friends",
       });
 
-      loadData(); // Refresh data
+      void loadData();
     } catch (error: unknown) {
       toast({
         title: "Failed to accept invitation",
@@ -146,7 +146,7 @@ export function FriendsPage() {
         description: "The invitation has been declined",
       });
 
-      loadData(); // Refresh data
+      void loadData();
     } catch (error: unknown) {
       toast({
         title: "Failed to decline invitation",
@@ -166,7 +166,7 @@ export function FriendsPage() {
         description: `${friendName} has been removed from your friends`,
       });
 
-      loadData(); // Refresh data
+      void loadData();
     } catch (error: unknown) {
       toast({
         title: "Failed to remove friend",

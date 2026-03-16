@@ -52,7 +52,7 @@ export function Navigation() {
 
   useEffect(() => {
     if (authState.profile?.email) {
-      getGravatarUrl(authState.profile.email).then(setGravatarUrl);
+      void getGravatarUrl(authState.profile.email).then(setGravatarUrl);
     }
   }, [authState.profile?.email]);
 

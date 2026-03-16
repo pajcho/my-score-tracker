@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Users, User, Settings2, ChevronDown, ChevronUp, Loader2, Play } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
-import { OpponentAutocomplete } from '@/components/ui/opponentAutocomplete';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -19,13 +17,11 @@ import {
 import {
   DEFAULT_GAME_TYPE,
   DEFAULT_POOL_TYPE,
-  GAME_TYPE_OPTIONS,
   POOL_TYPE_OPTIONS,
   getDisplayGameLabel,
   getGameTypeLabel,
   getPoolTypeLabel,
   isPoolGameType,
-  type GameType,
   type PoolType,
 } from '@/lib/gameTypes';
 import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
@@ -63,25 +59,19 @@ const getAlternateBreakerFromRackCount = (firstBreakerSide: PlayerSide, complete
   return completedRackCount % 2 === 0 ? firstBreakerSide : getOppositePlayerSide(firstBreakerSide);
 };
 
-const toggleOptionClassName =
-  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
-
-const compactToggleOptionClassName =
-  "h-9 justify-start rounded-md px-3 text-xs text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
-
 export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
   const [games, setGames] = useState<LiveGameView[]>([]);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [newGame, setNewGame] = useState({
-    game: DEFAULT_GAME_TYPE as GameType,
-    poolType: DEFAULT_POOL_TYPE as PoolType,
+    game: DEFAULT_GAME_TYPE,
+    poolType: DEFAULT_POOL_TYPE,
     opponent: '',
     opponentType: 'friend' as 'custom' | 'friend',
     selectedFriend: '',
     breakRule: 'alternate' as BreakRule,
     firstBreakerSelection: 'random' as 'player1' | 'player2' | 'random',
   });
-  const [isRuleSectionExpanded, setIsRuleSectionExpanded] = useState(false);
+  const [_, setIsRuleSectionExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [syncClock, setSyncClock] = useState(new Date());
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
@@ -101,7 +91,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
   const opponentsQuery = useOpponentsQuery(currentUserId);
   const friendsQuery = useFriendsQuery(currentUserId);
   const scoresQuery = useScoresQuery(currentUserId);
-  const opponents = opponentsQuery.data ?? [];
   const friends = friendsQuery.data ?? [];
   const isInitialLoading = isQueryEnabled && liveGamesQuery.isLoading && games.length === 0;
 

@@ -86,7 +86,7 @@ describe('Training default title', () => {
     render(<TrainingForm onCancel={vi.fn()} onSuccess={onSuccess} />);
 
     fireEvent.change(screen.getByLabelText('Total Duration (minutes) *'), { target: { value: '45' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Save Training' }).closest('form') as HTMLFormElement);
+    fireEvent.submit(screen.getByRole('button', { name: 'Save Training' }).closest('form'));
 
     await waitFor(() => {
       expect(createTrainingMock).toHaveBeenCalledWith(
@@ -130,7 +130,7 @@ describe('Training default title', () => {
     );
 
     fireEvent.change(screen.getByLabelText('Training Name'), { target: { value: '' } });
-    fireEvent.submit(screen.getByRole('button', { name: 'Update Training' }).closest('form') as HTMLFormElement);
+    fireEvent.submit(screen.getByRole('button', { name: 'Update Training' }).closest('form'));
 
     await waitFor(() => {
       expect(updateTrainingMock).toHaveBeenCalledWith(

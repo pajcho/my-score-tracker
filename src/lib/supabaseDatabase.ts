@@ -480,7 +480,7 @@ class SupabaseDatabaseService {
     const profileIds = Array.from(
       new Set(
         (data || []).flatMap((game) =>
-          [game.created_by_user_id, game.opponent_user_id].filter(Boolean) as string[]
+          [game.created_by_user_id, game.opponent_user_id].filter(Boolean)
         )
       )
     );

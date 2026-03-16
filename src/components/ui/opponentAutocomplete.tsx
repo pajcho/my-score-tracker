@@ -20,23 +20,16 @@ export function OpponentAutocomplete({
   className
 }: OpponentAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [filteredOpponents, setFilteredOpponents] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter opponents based on input
-  useEffect(() => {
-    if (value && isOpen) {
-      const filtered = opponents.filter(opponent =>
+  // Compute filtered opponents based on input
+  const filteredOpponents = value && isOpen
+    ? opponents.filter(opponent =>
         opponent.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredOpponents(filtered);
-      setSelectedIndex(-1);
-    } else {
-      setFilteredOpponents([]);
-    }
-  }, [value, opponents, isOpen]);
+      )
+    : [];
 
   // Handle opponent selection
   const handleSelect = useCallback((opponent: string) => {
@@ -88,6 +81,7 @@ export function OpponentAutocomplete({
     const newValue = e.target.value;
     onChange(newValue);
     setIsOpen(true);
+    setSelectedIndex(-1);
   };
 
   // Handle input focus

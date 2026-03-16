@@ -13,27 +13,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [authState, setAuthState] = useState<AuthState>(() => supabaseAuth.getState());
   const previousUserIdRef = useRef<string | null>(authState.user?.id ?? null);
 
-  const syncQueryCacheWithAuth = (nextUserId: string | null) => {
-    const previousUserId = previousUserIdRef.current;
-    if (previousUserId === nextUserId) {
-      return;
-    }
-
-    previousUserIdRef.current = nextUserId;
-    queryClient.removeQueries({ queryKey: ['tracker'] });
-
-    if (nextUserId) {
-      void invalidateTrackerQueries({
-        scores: true,
-        trainings: true,
-        liveGames: true,
-        opponents: true,
-        friends: true,
-      });
-    }
-  };
-
   useEffect(() => {
+    const syncQueryCacheWithAuth = (nextUserId: string | null) => {
+      const previousUserId = previousUserIdRef.current;
+      if (previousUserId === nextUserId) {
+        return;
+      }
+
+      previousUserIdRef.current = nextUserId;
+      queryClient.removeQueries({ queryKey: ['tracker'] });
+
+      if (nextUserId) {
+        void invalidateTrackerQueries({
+          scores: true,
+          trainings: true,
+          liveGames: true,
+          opponents: true,
+          friends: true,
+        });
+      }
+    };
+
     return supabaseAuth.subscribe((nextAuthState) => {
       setAuthState(nextAuthState);
       syncQueryCacheWithAuth(nextAuthState.user?.id ?? null);
