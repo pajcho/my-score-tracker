@@ -19,11 +19,17 @@ export function ResponsiveFormModal({
   children,
 }: ResponsiveFormModalProps) {
   const isMobile = useIsMobile();
+  const preventOpenAutoFocus = (event: Event) => {
+    event.preventDefault();
+  };
 
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex h-[92vh] flex-col overflow-hidden px-4 pb-4">
+        <DrawerContent
+          className="flex h-[92vh] flex-col overflow-hidden px-4 pb-4"
+          onOpenAutoFocus={preventOpenAutoFocus}
+        >
           <DrawerHeader className="border-b pb-3 text-left">
             <DrawerTitle>{title}</DrawerTitle>
             {description ? <DrawerDescription>{description}</DrawerDescription> : null}
@@ -36,7 +42,10 @@ export function ResponsiveFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-6">
+      <DialogContent
+        className="flex h-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-6"
+        onOpenAutoFocus={preventOpenAutoFocus}
+      >
         <DialogHeader className="border-b px-4 pb-4 text-left">
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
