@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { X } from 'lucide-react';
 import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
+import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 import { PoolGameSetup } from './PoolGameSetup';
 import { PingPongGameSetup } from './PingPongGameSetup';
 import {
@@ -12,8 +11,10 @@ import {
 import {
   BreakRule,
 } from '@/lib/supabaseDatabase';
+import { Button } from '@/components/ui/button';
 
 interface GameSetupWizardProps {
+  onOpenChange: (open: boolean) => void;
   onComplete: (data: {
     game: GameType;
     poolType: string;
@@ -23,7 +24,6 @@ interface GameSetupWizardProps {
     breakRule: BreakRule;
     firstBreakerSelection: 'player1' | 'player2' | 'random';
   }) => void;
-  onCancel: () => void;
   friends: { id: string; name: string; email: string }[];
   lastPoolSettings?: {
     poolType: string;
@@ -35,18 +35,32 @@ interface GameSetupWizardProps {
 type ViewState = 'sport-selection' | 'pool-setup' | 'pingpong-setup';
 
 export function GameSetupWizard({
+  onOpenChange,
   onComplete,
-  onCancel,
   friends,
   lastPoolSettings,
   currentUserName = 'Player 1',
 }: GameSetupWizardProps) {
   const [view, setView] = useState<ViewState>('sport-selection');
+  const [stepMeta, setStepMeta] = useState({ step: 1, totalSteps: 4 });
+
+  const handleCancel = () => {
+    setView('sport-selection');
+    setStepMeta({ step: 1, totalSteps: 4 });
+    onOpenChange(false);
+  };
+
+  const handleReturnToSportSelection = () => {
+    setView('sport-selection');
+    setStepMeta({ step: 1, totalSteps: 4 });
+  };
 
   const handleSportSelect = (sport: GameType) => {
     if (sport === 'Pool') {
+      setStepMeta({ step: 2, totalSteps: 4 });
       setView('pool-setup');
     } else {
+      setStepMeta({ step: 2, totalSteps: 2 });
       setView('pingpong-setup');
     }
   };
@@ -54,66 +68,87 @@ export function GameSetupWizard({
   // Sport Selection View
   if (view === 'sport-selection') {
     return (
-      <Card className="shadow-card border-0 w-full max-w-2xl mx-auto">
-        <CardHeader>
-          <CardTitle>Start a New Game</CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <Label className="text-base">What game do you want to play?</Label>
-            <div className="grid grid-cols-2 gap-4">
-              {GAME_TYPE_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => handleSportSelect(value)}
-                  className="h-40 rounded-lg border-2 border-border hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer"
-                >
-                  <GameTypeIcon gameType={value} className="h-12 w-12" />
-                  <span className="text-lg font-semibold">{label}</span>
-                </button>
-              ))}
+      <ResponsiveFormModal
+        open
+        onOpenChange={onOpenChange}
+        title="Start a New Game"
+        description={`Step ${stepMeta.step} of ${stepMeta.totalSteps}`}
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-7 sm:px-5 sm:pt-5 sm:pb-8">
+            <div className="space-y-7">
+              <p className="text-lg font-semibold text-foreground sm:text-xl">What game do you want to play?</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {GAME_TYPE_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => handleSportSelect(value)}
+                    className="flex min-h-44 flex-col items-center justify-center gap-3 rounded-lg border-2 border-border transition-all hover:border-primary hover:bg-primary/5"
+                  >
+                    <GameTypeIcon gameType={value} className="h-12 w-12" />
+                    <span className="text-lg font-semibold">{label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <div className="flex gap-3 pt-6 border-t">
+          <div className="flex items-center justify-between gap-3 border-t px-4 pt-5 sm:px-5">
             <Button
               variant="outline"
-              onClick={onCancel}
-              className="flex-1"
+              onClick={handleCancel}
+              className="flex-1 sm:flex-none"
             >
+              <X className="h-4 w-4" />
               Cancel
             </Button>
+
+            <div />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ResponsiveFormModal>
     );
   }
 
   // Pool Game Setup View
   if (view === 'pool-setup') {
     return (
-      <PoolGameSetup
-        friends={friends}
-        lastPoolSettings={lastPoolSettings}
-        currentUserName={currentUserName}
-        onCancel={() => setView('sport-selection')}
-        onComplete={onComplete}
-      />
+      <ResponsiveFormModal
+        open
+        onOpenChange={onOpenChange}
+        title="Start a New Game"
+        description={`Step ${stepMeta.step} of ${stepMeta.totalSteps}`}
+      >
+        <PoolGameSetup
+          friends={friends}
+          lastPoolSettings={lastPoolSettings}
+          currentUserName={currentUserName}
+          onCancel={handleReturnToSportSelection}
+          onProgressChange={(step, totalSteps) => setStepMeta({ step, totalSteps })}
+          onComplete={onComplete}
+        />
+      </ResponsiveFormModal>
     );
   }
 
   // Ping Pong Game Setup View
   if (view === 'pingpong-setup') {
     return (
-      <PingPongGameSetup
-        friends={friends}
-        currentUserName={currentUserName}
-        onCancel={() => setView('sport-selection')}
-        onComplete={onComplete}
-      />
+      <ResponsiveFormModal
+        open
+        onOpenChange={onOpenChange}
+        title="Start a New Game"
+        description={`Step ${stepMeta.step} of ${stepMeta.totalSteps}`}
+      >
+        <PingPongGameSetup
+          friends={friends}
+          currentUserName={currentUserName}
+          onCancel={handleReturnToSportSelection}
+          onProgressChange={(step, totalSteps) => setStepMeta({ step, totalSteps })}
+          onComplete={onComplete}
+        />
+      </ResponsiveFormModal>
     );
   }
 

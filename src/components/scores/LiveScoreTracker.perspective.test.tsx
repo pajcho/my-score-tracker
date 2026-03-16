@@ -16,6 +16,10 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     invalidateTrackerQueriesMock: vi.fn(),
   }));
 
+const { useIsMobileMock } = vi.hoisted(() => ({
+  useIsMobileMock: vi.fn(() => false),
+}));
+
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: authState.currentUserId, user_metadata: { name: "Current User" } },
@@ -74,12 +78,24 @@ vi.mock("@/components/ui/opponentAutocomplete", () => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (open ? <div>{children}</div> : null),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/ui/drawer", () => ({
+  Drawer: ({ children, open }: { children: React.ReactNode; open?: boolean }) => (open ? <div>{children}</div> : null),
+  DrawerContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DrawerDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/hooks/useMobile", () => ({
+  useIsMobile: () => useIsMobileMock(),
 }));
 
 import { LiveScoreTracker } from "@/components/scores/LiveScoreTracker";
@@ -95,6 +111,7 @@ function renderLiveScoreTracker() {
 describe("LiveScoreTracker perspective labels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useIsMobileMock.mockReturnValue(false);
     queryClient.clear();
     queryClient.setDefaultOptions({
       queries: {
@@ -257,5 +274,22 @@ describe("LiveScoreTracker perspective labels", () => {
     await waitFor(() => {
       expect(screen.getByText("Friend Two")).toBeInTheDocument();
     });
+  });
+
+  it("opens the live game setup inside the shared modal", async () => {
+    authState.currentUserId = "user-1";
+
+    renderLiveScoreTracker();
+
+    await waitFor(() => {
+      expect(screen.getByText("Add New Game")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Add New Game"));
+
+    expect(screen.getByText("Start a New Game")).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
+    expect(screen.getByText("What game do you want to play?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 });

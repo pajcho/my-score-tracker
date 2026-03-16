@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WizardLayout } from './WizardLayout';
 import { StepOpponentSelect } from './steps/StepOpponentSelect';
 import type { BreakRule } from '@/lib/supabaseDatabase';
@@ -8,6 +8,7 @@ interface PingPongGameSetupProps {
   friends: { id: string; name: string; email: string }[];
   currentUserName: string;
   onCancel: () => void;
+  onProgressChange?: (step: number, totalSteps: number) => void;
   onComplete: (data: {
     game: GameType;
     poolType: string;
@@ -23,11 +24,18 @@ export function PingPongGameSetup({
   friends,
   currentUserName,
   onCancel,
+  onProgressChange,
   onComplete,
 }: PingPongGameSetupProps) {
   const [opponent, setOpponent] = useState('');
   const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('friend');
   const [selectedFriend, setSelectedFriend] = useState('');
+
+  useEffect(() => {
+    onProgressChange?.(2, 2);
+  }, [onProgressChange]);
+
+  void currentUserName;
 
   const handleFriendSelect = (friendId: string) => {
     setSelectedFriend(friendId);
@@ -67,9 +75,9 @@ export function PingPongGameSetup({
 
   return (
     <WizardLayout
-      title="Start a New Game"
       step={1}
       totalSteps={1}
+      subtitle="Choose your opponent."
       onCancel={onCancel}
       onSubmit={handleSubmit}
       canProceed={canProceed}
