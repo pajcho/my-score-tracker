@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/ui/pageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/useToast';
@@ -34,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/components/auth/authContext';
 import { invalidateTrackerQueries } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
@@ -83,6 +85,7 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     settingsPatch: Partial<PoolGameSettingsInput>;
   } | null>(null);
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
+  const [isWatchingSectionOpen, setIsWatchingSectionOpen] = useState(true);
   const { toast } = useToast();
   const { user: currentUser, isAuthenticated } = useAuth();
   const currentUserId = isAuthenticated ? currentUser?.id : undefined;
@@ -574,6 +577,12 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
       if (firstIsParticipant === secondIsParticipant) return 0;
       return firstIsParticipant ? -1 : 1;
     });
+  const activePlayerGames = orderedGames.filter((game) =>
+    currentUser ? game.created_by_user_id === currentUser.id || game.opponent_user_id === currentUser.id : false
+  );
+  const watchedGames = orderedGames.filter((game) =>
+    currentUser ? game.created_by_user_id !== currentUser.id && game.opponent_user_id !== currentUser.id : true
+  );
 
   if (isInitialLoading) {
     return (
@@ -606,12 +615,232 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     return <Play className="h-3 w-3 fill-current text-primary" />;
   };
 
+  const renderGameCard = (game: LiveGameView) => {
+    const isPoolGame = isPoolGameType(game.game) && !!game.pool_settings;
+    const isGameCreator = currentUser?.id === game.created_by_user_id;
+    const isGameOpponent = currentUser?.id === game.opponent_user_id;
+    const isSpectator = !isGameCreator && !isGameOpponent;
+    const creatorName = game.creator_name || 'Unknown player';
+    const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
+    const leftPlayerLabel = isGameCreator ? 'You' : creatorName;
+    const rightPlayerLabel = isGameOpponent ? 'You' : opponentName;
+    const leftPlayer: PlayerSide = 'player1';
+    const rightPlayer: PlayerSide = 'player2';
+    const leftScore = game.score1;
+    const rightScore = game.score2;
+    const nextBreakerSide = game.pool_settings?.current_breaker_side;
+    const isPoolSettingsExpanded = !!expandedPoolSettingsByGameId[game.id];
+    const disableGameInteractions = isSpectator || isLoading;
+
+    return (
+      <Card key={game.id} className={`border-0 shadow-card ${isSpectator ? 'border border-border/60 bg-card/70' : ''}`}>
+        <CardHeader className="pb-2">
+          <div className="flex min-h-8 items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              {isPoolGame && game.pool_settings?.pool_type ? (
+                <PoolTypeIcon poolType={game.pool_settings.pool_type} className="h-4 w-4" />
+              ) : (
+                <GameTypeIcon gameType={game.game} className="h-4 w-4" />
+              )}
+              <span>{getGameTypeLabel(game.game)}</span>
+              {isPoolGame && game.pool_settings?.pool_type && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {getPoolTypeLabel(game.pool_settings.pool_type)}
+                </span>
+              )}
+            </CardTitle>
+            <div className="flex shrink-0 items-center justify-end gap-1">
+              {isPoolGame && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => togglePoolSettingsPanel(game.id)}
+                  className="h-8 w-8 p-0"
+                  aria-label="Toggle pool settings"
+                >
+                  <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              )}
+              {isGameCreator ? (
+                <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => saveGame(game)}
+                    disabled={isLoading}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Save className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeGame(game.id)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <span className="block text-right text-xs leading-8 text-muted-foreground">
+                  {isSpectator ? 'Watching (read-only)' : 'Synced live'}
+                </span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3">
+          <div className="space-y-3">
+            {isPoolGame && isPoolSettingsExpanded && (
+              <div className="rounded-md border border-border p-2 text-xs">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Pool Type</Label>
+                    <Select
+                      value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
+                      onValueChange={(value) => changePoolType(game, value as PoolType)}
+                      disabled={isSpectator || isLoading}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {POOL_TYPE_OPTIONS.map(({ value, label }) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Break Rule</Label>
+                    <Select
+                      value={game.pool_settings?.break_rule || 'alternate'}
+                      onValueChange={(value) => changeBreakRule(game, value as BreakRule)}
+                      disabled={isSpectator || isLoading}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="alternate">Alternate</SelectItem>
+                        <SelectItem value="winner_stays">Winner stays</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Next Break</Label>
+                    <Select
+                      value={nextBreakerSide || 'player1'}
+                      onValueChange={(value) => changeBreakerSide(game, value as PlayerSide)}
+                      disabled={isSpectator || isLoading}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="player1">{leftPlayerLabel}</SelectItem>
+                        <SelectItem value="player2">{rightPlayerLabel}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-end justify-between gap-2 sm:gap-3">
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateScore(game.id, leftPlayer, 1)}
+                  disabled={disableGameInteractions}
+                  className="h-8 w-8 p-0"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateScore(game.id, leftPlayer, -1)}
+                  disabled={disableGameInteractions || leftScore === 0}
+                  className="h-8 w-8 p-0"
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+              </div>
+
+              <div className="flex flex-1 items-center justify-center gap-2 sm:gap-3">
+                <div className="w-full text-center">
+                  <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
+                    {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <BreakIndicator />}
+                    <span className={leftPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                      {leftPlayerLabel}
+                    </span>
+                  </div>
+                  <div
+                    className={`flex min-w-[72px] items-center justify-center rounded-lg px-3 py-4 text-center text-2xl font-bold sm:min-w-[80px] sm:px-6 ${isSpectator ? 'cursor-default border border-blue-200 bg-transparent text-blue-400 dark:border-blue-800 dark:text-blue-600' : 'cursor-pointer bg-blue-500 text-white transition-colors hover:bg-blue-600'}`}
+                    onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
+                  >
+                    {leftScore}
+                  </div>
+                </div>
+
+                <div className="w-full text-center">
+                  <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
+                    {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <BreakIndicator />}
+                    <span className={rightPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                      {rightPlayerLabel}
+                    </span>
+                  </div>
+                  <div
+                    className={`flex min-w-[72px] items-center justify-center rounded-lg px-3 py-4 text-center text-2xl font-bold sm:min-w-[80px] sm:px-6 ${isSpectator ? 'cursor-default border border-red-200 bg-transparent text-red-400 dark:border-red-800 dark:text-red-600' : 'cursor-pointer bg-red-500 text-white transition-colors hover:bg-red-600'}`}
+                    onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
+                  >
+                    {rightScore}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateScore(game.id, rightPlayer, 1)}
+                  disabled={disableGameInteractions}
+                  className="h-8 w-8 p-0"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateScore(game.id, rightPlayer, -1)}
+                  disabled={disableGameInteractions || rightScore === 0}
+                  className="h-8 w-8 p-0"
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="text-center text-xs text-muted-foreground">
+              Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold leading-tight">Live Score Tracking</h2>
+      <PageHeader
+        title="Live Score Tracking"
+        description="Track scores live and keep an eye on active friend games"
+        icon={Play}
+        status={(
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -627,289 +856,109 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
               {syncStatusText}
             </PopoverContent>
           </Popover>
-        </div>
-        <div className="flex items-center gap-4 sm:gap-3 text-sm">
-          {ownGamesCount > 0 && (
+        )}
+        actions={(
+          <>
+            {ownGamesCount > 0 && (
+              <button
+                type="button"
+                onClick={saveAllGames}
+                disabled={isLoading}
+                className="text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
+              >
+                Save all ({ownGamesCount})
+              </button>
+            )}
             <button
               type="button"
-              onClick={saveAllGames}
-              disabled={isLoading}
-              className="text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground hover:underline"
             >
-              Save all ({ownGamesCount})
+              Close
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground hover:underline"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-      {/* Active Games */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {orderedGames.map((game) => {
-          const isPoolGame = isPoolGameType(game.game) && !!game.pool_settings;
-          const isGameCreator = currentUser?.id === game.created_by_user_id;
-          const isGameOpponent = currentUser?.id === game.opponent_user_id;
-          const isSpectator = !isGameCreator && !isGameOpponent;
-          const creatorName = game.creator_name || 'Unknown player';
-          const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
-          const leftPlayerLabel = isGameCreator ? 'You' : creatorName;
-          const rightPlayerLabel = isGameOpponent ? 'You' : opponentName;
-          const leftPlayer: PlayerSide = 'player1';
-          const rightPlayer: PlayerSide = 'player2';
-          const leftScore = game.score1;
-          const rightScore = game.score2;
-          const nextBreakerSide = game.pool_settings?.current_breaker_side;
-          const isPoolSettingsExpanded = !!expandedPoolSettingsByGameId[game.id];
-          const disableGameInteractions = isSpectator || isLoading;
-          return (
-            <Card key={game.id} className="shadow-card border-0">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between min-h-8 gap-2">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    {isPoolGame && game.pool_settings?.pool_type ? (
-                      <PoolTypeIcon poolType={game.pool_settings.pool_type} className="h-4 w-4" />
-                    ) : (
-                      <GameTypeIcon gameType={game.game} className="h-4 w-4" />
-                    )}
-                    <span>{getGameTypeLabel(game.game)}</span>
-                    {isPoolGame && game.pool_settings?.pool_type && (
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {getPoolTypeLabel(game.pool_settings.pool_type)}
-                      </span>
-                    )}
-                  </CardTitle>
-                  <div className="shrink-0 flex items-center justify-end gap-1">
-                    {isPoolGame && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => togglePoolSettingsPanel(game.id)}
-                        className="h-8 w-8 p-0"
-                        aria-label="Toggle pool settings"
-                      >
-                        <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
-                    {isGameCreator ? (
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => saveGame(game)}
-                          disabled={isLoading}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeGame(game.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="block text-right text-xs text-muted-foreground leading-8">
-                        {isSpectator ? 'Watching (read-only)' : 'Synced live'}
-                      </span>
-                    )}
+          </>
+        )}
+      />
+      <div className="space-y-6">
+        <section className="space-y-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {activePlayerGames.map(renderGameCard)}
+
+            {!showNewGameForm ? (
+              <Card className="h-full cursor-pointer border-2 border-dashed border-muted-foreground/25 shadow-card transition-colors hover:border-primary/50">
+                <CardContent
+                  className="flex h-full min-h-[220px] items-center justify-center p-8"
+                  onClick={() => setShowNewGameForm(true)}
+                >
+                  <div className="text-center">
+                    <Plus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Add New Game</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <GameSetupWizard
+                onComplete={(data) => {
+                  void addNewGame(data);
+                }}
+                onCancel={() => {
+                  setShowNewGameForm(false);
+                  setIsRuleSectionExpanded(false);
+                  setNewGame({
+                    game: DEFAULT_GAME_TYPE,
+                    poolType: DEFAULT_POOL_TYPE,
+                    opponent: '',
+                    opponentType: 'friend',
+                    selectedFriend: '',
+                    breakRule: 'alternate',
+                    firstBreakerSelection: 'random',
+                  });
+                }}
+                friends={friends}
+                lastPoolSettings={lastPoolSettings}
+                currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
+              />
+            )}
+          </div>
+        </section>
+
+        {watchedGames.length > 0 && (
+          <Collapsible open={isWatchingSectionOpen} onOpenChange={setIsWatchingSectionOpen}>
+            <section className="space-y-3 rounded-2xl border border-border/70 bg-card/40 p-3 sm:p-4" aria-labelledby="watching-games-heading">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-primary/10 p-2 text-primary">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 id="watching-games-heading" className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground sm:text-sm sm:tracking-[0.18em]">
+                      Watching friends
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Friend games in read-only mode.
+                    </p>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-3">
-                <div className="space-y-3">
-                  {isPoolGame && isPoolSettingsExpanded && (
-                    <div className="rounded-md border border-border p-2 text-xs">
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Pool Type</Label>
-                          <Select
-                            value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
-                            onValueChange={(value) => changePoolType(game, value as PoolType)}
-                            disabled={isSpectator || isLoading}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {POOL_TYPE_OPTIONS.map(({ value, label }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Break Rule</Label>
-                          <Select
-                            value={game.pool_settings?.break_rule || 'alternate'}
-                            onValueChange={(value) => changeBreakRule(game, value as BreakRule)}
-                            disabled={isSpectator || isLoading}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="alternate">Alternate</SelectItem>
-                              <SelectItem value="winner_stays">Winner stays</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Next Break</Label>
-                          <Select
-                            value={nextBreakerSide || 'player1'}
-                            onValueChange={(value) => changeBreakerSide(game, value as PlayerSide)}
-                            disabled={isSpectator || isLoading}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="player1">{leftPlayerLabel}</SelectItem>
-                              <SelectItem value="player2">{rightPlayerLabel}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Main layout with controls on far sides */}
-                  <div className="flex gap-3 items-end justify-between">
-                    {/* Left player controls */}
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, leftPlayer, 1)}
-                        disabled={disableGameInteractions}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, leftPlayer, -1)}
-                        disabled={disableGameInteractions || leftScore === 0}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    {/* Center - Both player scores */}
-                    <div className="flex items-center gap-3 flex-1 justify-center">
-                       {/* Your Score */}
-                       <div className="text-center w-full">
-                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <BreakIndicator />}
-                          <span className={leftPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
-                            {leftPlayerLabel}
-                          </span>
-                        </div>
-                        <div
-                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border border-blue-200 dark:border-blue-800 bg-transparent text-blue-400 dark:text-blue-600 cursor-default' : 'bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors'}`}
-                          onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
-                        >
-                          {leftScore}
-                        </div>
-                      </div>
-
-                       {/* Opponent Score */}
-                       <div className="text-center w-full">
-                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate flex items-center justify-center gap-1">
-                          {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <BreakIndicator />}
-                          <span className={rightPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
-                            {rightPlayerLabel}
-                          </span>
-                        </div>
-                        <div
-                          className={`text-center py-4 px-6 rounded-lg font-bold text-2xl flex items-center justify-center min-w-[80px] ${isSpectator ? 'border border-red-200 dark:border-red-800 bg-transparent text-red-400 dark:text-red-600 cursor-default' : 'bg-red-500 text-white cursor-pointer hover:bg-red-600 transition-colors'}`}
-                          onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
-                        >
-                          {rightScore}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right player controls */}
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, rightPlayer, 1)}
-                        disabled={disableGameInteractions}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateScore(game.id, rightPlayer, -1)}
-                        disabled={disableGameInteractions || rightScore === 0}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Timer */}
-                  <div className="text-center text-xs text-muted-foreground">
-                    Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {/* Add New Game Card */}
-        {!showNewGameForm ? (
-          <Card className="shadow-card border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer h-full">
-            <CardContent 
-              className="flex h-full items-center justify-center p-8"
-              onClick={() => setShowNewGameForm(true)}
-            >
-              <div className="text-center">
-                <Plus className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Add New Game</p>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between gap-3 sm:w-auto"
+                    aria-label={isWatchingSectionOpen ? 'Hide watched games' : 'Show watched games'}
+                  >
+                    <span>{isWatchingSectionOpen ? 'Hide watched games' : `Show watched games (${watchedGames.length})`}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isWatchingSectionOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <GameSetupWizard
-            onComplete={(data) => {
-              void addNewGame(data);
-            }}
-            onCancel={() => {
-              setShowNewGameForm(false);
-              setIsRuleSectionExpanded(false);
-              setNewGame({
-                game: DEFAULT_GAME_TYPE,
-                poolType: DEFAULT_POOL_TYPE,
-                opponent: '',
-                opponentType: 'friend',
-                selectedFriend: '',
-                breakRule: 'alternate',
-                firstBreakerSelection: 'random',
-              });
-            }}
-            friends={friends}
-            lastPoolSettings={lastPoolSettings}
-            currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
-          />
+
+              <CollapsibleContent>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {watchedGames.map(renderGameCard)}
+                </div>
+              </CollapsibleContent>
+            </section>
+          </Collapsible>
         )}
       </div>
 

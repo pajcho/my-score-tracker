@@ -31,7 +31,11 @@ export function HomePage() {
 
   const scores: Score[] = isAuthenticated ? scoresQuery.data ?? [] : [];
   const trainings: Training[] = isAuthenticated ? trainingsQuery.data ?? [] : [];
-  const liveGameCount = isAuthenticated ? (liveGamesQuery.data?.length ?? 0) : 0;
+  const liveGameCount = isAuthenticated
+    ? (liveGamesQuery.data?.filter((liveGame) =>
+        liveGame.created_by_user_id === currentUserId || liveGame.opponent_user_id === currentUserId
+      ).length ?? 0)
+    : 0;
   const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading || liveGamesQuery.isLoading);
 
   const handleScoreAdded = () => {
@@ -169,26 +173,26 @@ export function HomePage() {
 
       {/* Add Score Section */}
       <Card className="shadow-card border-0">
-        <CardHeader>
+        <CardHeader className="p-4 pb-3 sm:p-6">
           <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Quick Actions
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-lg sm:text-3xl">Quick Actions</span>
           </CardTitle>
-          <CardDescription>Start tracking your games and trainings</CardDescription>
+          <CardDescription className="text-xs sm:text-base">Start tracking your games and trainings</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/live" className="w-full sm:w-[280px]">
-              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-primary/10 p-2">
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            <Link to="/live" className="w-full sm:w-auto">
+              <div className="h-full rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50 sm:p-4">
+                <div className="flex items-start gap-2.5 sm:gap-3">
+                  <div className="rounded-md bg-primary/10 p-2 sm:p-2">
                     <Play className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">
+                    <p className="text-base font-semibold leading-tight text-foreground sm:text-xl">
                       {liveGameCount > 0 ? `Continue Live Game (${liveGameCount})` : 'Start Live Game'}
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-base">
                       {liveGameCount > 0 ? 'You have active live tracking sessions' : 'Track points live in real time'}
                     </p>
                   </div>
@@ -200,14 +204,14 @@ export function HomePage() {
               onClick={() => setIsScoreDialogOpen(true)}
               className="w-full sm:w-[280px] text-left"
             >
-              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-muted p-2">
+              <div className="h-full rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50 sm:p-4">
+                <div className="flex items-start gap-2.5 sm:gap-3">
+                  <div className="rounded-md bg-muted p-2 sm:p-2">
                     <Plus className="h-4 w-4 text-foreground" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">Add Finished Score</p>
-                    <p className="text-sm text-muted-foreground">Save a game that is already completed</p>
+                    <p className="text-base font-semibold leading-tight text-foreground sm:text-xl">Add Finished Score</p>
+                    <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-base">Save a game that is already completed</p>
                   </div>
                 </div>
               </div>
@@ -217,14 +221,14 @@ export function HomePage() {
               onClick={() => setIsTrainingDialogOpen(true)}
               className="w-full sm:w-[280px] text-left"
             >
-              <div className="h-full rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/50">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-primary/10 p-2">
+              <div className="h-full rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50 sm:p-4">
+                <div className="flex items-start gap-2.5 sm:gap-3">
+                  <div className="rounded-md bg-primary/10 p-2 sm:p-2">
                     <Dumbbell className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">Add Training</p>
-                    <p className="text-sm text-muted-foreground">Save a training session with notes and duration</p>
+                    <p className="text-base font-semibold leading-tight text-foreground sm:text-xl">Add Training</p>
+                    <p className="mt-1 text-xs leading-snug text-muted-foreground sm:text-base">Save a training session with notes and duration</p>
                   </div>
                 </div>
               </div>

@@ -291,4 +291,34 @@ describe("HomePage", () => {
       expect(screen.getAllByText("Pool").length).toBeGreaterThan(0);
     });
   });
+
+  it("does not show continue live game state for unrelated friend live games", async () => {
+    getLiveGamesMock.mockResolvedValueOnce([
+      { id: "live-1", created_by_user_id: "friend-1", opponent_user_id: "friend-2" },
+      { id: "live-2", created_by_user_id: "friend-3", opponent_user_id: null },
+    ]);
+
+    renderHomePage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Start Live Game")).toBeInTheDocument();
+      expect(screen.getByText("Track points live in real time")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Continue Live Game/i)).not.toBeInTheDocument();
+  });
+
+  it("shows continue live game state when user is involved in a friend-started live game", async () => {
+    getLiveGamesMock.mockResolvedValueOnce([
+      { id: "live-1", created_by_user_id: "friend-1", opponent_user_id: "user-1" },
+      { id: "live-2", created_by_user_id: "friend-2", opponent_user_id: "friend-3" },
+    ]);
+
+    renderHomePage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Continue Live Game (1)")).toBeInTheDocument();
+      expect(screen.getByText("You have active live tracking sessions")).toBeInTheDocument();
+    });
+  });
 });
