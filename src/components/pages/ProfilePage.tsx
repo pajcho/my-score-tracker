@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/pageHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alertDialog';
 import { useToast } from '@/hooks/useToast';
 import { supabaseDb } from '@/lib/supabaseDatabase';
@@ -118,16 +119,11 @@ export function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <User className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">User Profile</h1>
-          <p className="text-muted-foreground">
-            Manage your account settings and preferences
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="User Profile"
+        description="Manage your account settings and preferences"
+        icon={User}
+      />
 
       {/* Profile Information */}
       <Card className="shadow-card border-0">

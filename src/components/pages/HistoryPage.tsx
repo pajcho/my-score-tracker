@@ -4,6 +4,7 @@ import {Filter, History, Search} from 'lucide-react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/pageHeader';
 import {ScoreList} from '@/components/scores/ScoreList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import { Score, Training } from '@/lib/supabaseDatabase';
@@ -102,18 +103,12 @@ export function HistoryPage({ view }: HistoryPageProps) {
   if (view === 'training') {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <History className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold">Training History</h1>
-              <p className="text-muted-foreground">
-                Browse all your recorded training sessions
-              </p>
-            </div>
-          </div>
-          {historyViewTabs}
-        </div>
+        <PageHeader
+          title="Training History"
+          description="Browse all your recorded training sessions"
+          icon={History}
+          actions={historyViewTabs}
+        />
 
         <Card className="shadow-card border-0">
           <CardHeader>
@@ -212,18 +207,12 @@ export function HistoryPage({ view }: HistoryPageProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <History className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Score History</h1>
-            <p className="text-muted-foreground">
-              View and manage all your recorded games
-            </p>
-          </div>
-        </div>
-        {historyViewTabs}
-      </div>
+      <PageHeader
+        title="Score History"
+        description="View and manage all your recorded games"
+        icon={History}
+        actions={historyViewTabs}
+      />
 
       <Card className="shadow-card border-0">
         <CardHeader>

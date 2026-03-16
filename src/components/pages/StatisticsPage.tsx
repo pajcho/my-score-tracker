@@ -4,6 +4,7 @@ import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, T
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/pageHeader';
 import { Score, Training } from '@/lib/supabaseDatabase';
 import {cn} from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
@@ -717,16 +718,12 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   if (view === 'training') {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold">Statistics</h1>
-              <p className="text-muted-foreground">Analyze your training consistency and load</p>
-            </div>
-          </div>
-          {statisticsViewTabs}
-        </div>
+        <PageHeader
+          title="Statistics"
+          description="Analyze your training consistency and load"
+          icon={BarChart3}
+          actions={statisticsViewTabs}
+        />
 
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
@@ -739,16 +736,12 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">Statistics</h1>
-            <p className="text-muted-foreground">Analyze your gaming performance</p>
-          </div>
-        </div>
-        {statisticsViewTabs}
-      </div>
+      <PageHeader
+        title="Statistics"
+        description="Analyze your gaming performance"
+        icon={BarChart3}
+        actions={statisticsViewTabs}
+      />
 
       <Card className="shadow-card border-0">
         <CardHeader>

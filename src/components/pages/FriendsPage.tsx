@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/ui/pageHeader';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alertDialog';
 import { useToast } from '@/hooks/useToast';
 import { supabaseFriends, Friend, FriendInvitation } from '@/lib/supabaseFriends';
@@ -191,10 +192,11 @@ export function FriendsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold">Friends</h1>
-      </div>
+      <PageHeader
+        title="Friends"
+        description="Manage your circle, invitations, and shared competition."
+        icon={Users}
+      />
 
       <Tabs defaultValue="friends" className="space-y-6">
         <TabsList className="grid w-full grid-cols-1 sm:grid-cols-4 h-auto">
