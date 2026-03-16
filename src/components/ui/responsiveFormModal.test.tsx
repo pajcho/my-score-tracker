@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-const { useIsMobileMock } = vi.hoisted(() => ({
+const { useIsMobileMock, dialogContentPropsMock, drawerContentPropsMock } = vi.hoisted(() => ({
   useIsMobileMock: vi.fn(),
+  dialogContentPropsMock: vi.fn(),
+  drawerContentPropsMock: vi.fn(),
 }));
 
 vi.mock('@/hooks/useMobile', () => ({
@@ -11,7 +13,10 @@ vi.mock('@/hooks/useMobile', () => ({
 
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-root">{children}</div>,
-  DialogContent: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-content">{children}</div>,
+  DialogContent: ({ children, ...props }: React.ComponentProps<'div'>) => {
+    dialogContentPropsMock(props);
+    return <div data-testid="dialog-content">{children}</div>;
+  },
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="dialog-header">{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -19,7 +24,10 @@ vi.mock('@/components/ui/dialog', () => ({
 
 vi.mock('@/components/ui/drawer', () => ({
   Drawer: ({ children }: { children: React.ReactNode }) => <div data-testid="drawer-root">{children}</div>,
-  DrawerContent: ({ children }: { children: React.ReactNode }) => <div data-testid="drawer-content">{children}</div>,
+  DrawerContent: ({ children, ...props }: React.ComponentProps<'div'>) => {
+    drawerContentPropsMock(props);
+    return <div data-testid="drawer-content">{children}</div>;
+  },
   DrawerHeader: ({ children }: { children: React.ReactNode }) => <div data-testid="drawer-header">{children}</div>,
   DrawerTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DrawerDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
@@ -30,6 +38,7 @@ import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 describe('ResponsiveFormModal', () => {
   it('renders dialog variant on desktop', () => {
     useIsMobileMock.mockReturnValue(false);
+    dialogContentPropsMock.mockClear();
 
     render(
       <ResponsiveFormModal open onOpenChange={() => undefined} title="Desktop Title" description="Desktop description">
@@ -42,10 +51,14 @@ describe('ResponsiveFormModal', () => {
     expect(screen.getByText('Desktop Title')).toBeInTheDocument();
     expect(screen.getByText('Desktop description')).toBeInTheDocument();
     expect(screen.getByText('Desktop content')).toBeInTheDocument();
+    expect(dialogContentPropsMock).toHaveBeenCalledWith(expect.objectContaining({
+      onOpenAutoFocus: expect.any(Function),
+    }));
   });
 
   it('renders drawer variant on mobile', () => {
     useIsMobileMock.mockReturnValue(true);
+    drawerContentPropsMock.mockClear();
 
     render(
       <ResponsiveFormModal open onOpenChange={() => undefined} title="Mobile Title" description="Mobile description">
@@ -58,6 +71,9 @@ describe('ResponsiveFormModal', () => {
     expect(screen.getByText('Mobile Title')).toBeInTheDocument();
     expect(screen.getByText('Mobile description')).toBeInTheDocument();
     expect(screen.getByText('Mobile content')).toBeInTheDocument();
+    expect(drawerContentPropsMock).toHaveBeenCalledWith(expect.objectContaining({
+      onOpenAutoFocus: expect.any(Function),
+    }));
   });
 
   it('omits description when not provided', () => {
