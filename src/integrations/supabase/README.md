@@ -23,5 +23,5 @@ Agent commands:
 Local setup:
 - Copy `.env.development.local.example` to `.env.development.local`.
 - Run `npm run supabase:start`.
-- Run `npm run supabase:status` and copy the local anon key into `.env.development.local`.
+- Run `npm run supabase:status` and copy the publishable key into `.env.development.local`.
 - Use `npm run dev:local` for local Supabase and `npm run dev:prod` for production Supabase.
