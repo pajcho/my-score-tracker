@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WizardLayout } from './WizardLayout';
 import { StepPoolSettings } from './steps/StepPoolSettings';
 import { StepOpponentSelect } from './steps/StepOpponentSelect';
@@ -16,6 +16,7 @@ interface PoolGameSetupProps {
   };
   currentUserName: string;
   onCancel: () => void;
+  onProgressChange?: (step: number, totalSteps: number) => void;
   onComplete: (data: {
     game: GameType;
     poolType: PoolType;
@@ -32,6 +33,7 @@ export function PoolGameSetup({
   lastPoolSettings,
   currentUserName,
   onCancel,
+  onProgressChange,
   onComplete,
 }: PoolGameSetupProps) {
   const [currentStep, setCurrentStep] = useState<Step>(1);
@@ -42,6 +44,10 @@ export function PoolGameSetup({
   const [selectedFriend, setSelectedFriend] = useState('');
   const [firstBreakerSelection, setFirstBreakerSelection] = useState<'player1' | 'player2' | 'random'>('random');
   const [randomBreakerHighlight, setRandomBreakerHighlight] = useState<'player1' | 'player2' | null>(null);
+
+  useEffect(() => {
+    onProgressChange?.(currentStep + 1, 4);
+  }, [currentStep, onProgressChange]);
 
   // Get opponent name for display
   const opponentName =
@@ -69,7 +75,7 @@ export function PoolGameSetup({
 
   const handleConfirmBreaker = (side: 'player1' | 'player2') => {
     setFirstBreakerSelection(side);
-    handleSubmit();
+    handleSubmit(side);
   };
 
   const handleNext = () => {
@@ -86,7 +92,7 @@ export function PoolGameSetup({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (submittedFirstBreakerSelection = firstBreakerSelection) => {
     onComplete({
       game: 'Pool',
       poolType,
@@ -94,7 +100,7 @@ export function PoolGameSetup({
       opponentType,
       selectedFriend: opponentType === 'friend' ? selectedFriend : '',
       breakRule,
-      firstBreakerSelection,
+      firstBreakerSelection: submittedFirstBreakerSelection,
     });
   };
 
@@ -107,9 +113,15 @@ export function PoolGameSetup({
 
   return (
     <WizardLayout
-      title="Start a New Game"
       step={currentStep}
       totalSteps={3}
+      subtitle={
+        currentStep === 1
+          ? 'Choose your pool rules.'
+          : currentStep === 2
+            ? 'Choose your opponent.'
+            : 'Choose who breaks first.'
+      }
       onBack={currentStep > 1 ? handlePrev : undefined}
       onCancel={onCancel}
       onNext={currentStep < 3 ? handleNext : undefined}

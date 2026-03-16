@@ -7,7 +7,7 @@ interface ResponsiveFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: ReactNode;
   children: ReactNode;
 }
 
@@ -23,8 +23,8 @@ export function ResponsiveFormModal({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex h-[92vh] flex-col overflow-hidden px-4 pb-3">
-          <DrawerHeader className="border-b pb-2 text-left">
+        <DrawerContent className="flex h-[92vh] flex-col overflow-hidden px-4 pb-4">
+          <DrawerHeader className="border-b pb-3 text-left">
             <DrawerTitle>{title}</DrawerTitle>
             {description ? <DrawerDescription>{description}</DrawerDescription> : null}
           </DrawerHeader>
@@ -37,7 +37,7 @@ export function ResponsiveFormModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-[680px] flex-col overflow-hidden p-6">
-        <DialogHeader className="border-b px-4 pb-3 text-left">
+        <DialogHeader className="border-b px-4 pb-4 text-left">
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>

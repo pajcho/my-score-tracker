@@ -73,4 +73,22 @@ describe('ResponsiveFormModal', () => {
     expect(screen.queryByText('Desktop description')).not.toBeInTheDocument();
     expect(screen.getByText('Body')).toBeInTheDocument();
   });
+
+  it('renders a description node', () => {
+    useIsMobileMock.mockReturnValue(false);
+
+    render(
+      <ResponsiveFormModal
+        open
+        onOpenChange={() => undefined}
+        title="Node description"
+        description={<span>Step 1 of 4</span>}
+      >
+        <div>Body</div>
+      </ResponsiveFormModal>
+    );
+
+    expect(screen.getByText('Node description')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 4')).toBeInTheDocument();
+  });
 });

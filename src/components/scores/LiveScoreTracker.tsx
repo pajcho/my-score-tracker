@@ -23,6 +23,7 @@ import {
   getGameTypeLabel,
   getPoolTypeLabel,
   isPoolGameType,
+  type GameType,
   type PoolType,
 } from '@/lib/gameTypes';
 import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
@@ -61,19 +62,9 @@ const getAlternateBreakerFromRackCount = (firstBreakerSide: PlayerSide, complete
   return completedRackCount % 2 === 0 ? firstBreakerSide : getOppositePlayerSide(firstBreakerSide);
 };
 
-export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
+export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
   const [games, setGames] = useState<LiveGameView[]>([]);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
-  const [newGame, setNewGame] = useState({
-    game: DEFAULT_GAME_TYPE,
-    poolType: DEFAULT_POOL_TYPE,
-    opponent: '',
-    opponentType: 'friend' as 'custom' | 'friend',
-    selectedFriend: '',
-    breakRule: 'alternate' as BreakRule,
-    firstBreakerSelection: 'random' as 'player1' | 'player2' | 'random',
-  });
-  const [_, setIsRuleSectionExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [syncClock, setSyncClock] = useState(new Date());
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
@@ -226,8 +217,16 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
     onActiveGamesChange?.(games.length > 0);
   }, [games, onActiveGamesChange]);
 
-  const addNewGame = async (gameData?: typeof newGame) => {
-    const dataToUse = gameData || newGame;
+  const addNewGame = async (gameData: {
+    game: GameType;
+    poolType: string;
+    opponent: string;
+    opponentType: 'custom' | 'friend';
+    selectedFriend: string;
+    breakRule: BreakRule;
+    firstBreakerSelection: 'player1' | 'player2' | 'random';
+  }) => {
+    const dataToUse = gameData;
 
     if (!dataToUse.game) {
       toast({
@@ -308,16 +307,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
             : undefined,
         },
       ]);
-      setNewGame({
-        game: DEFAULT_GAME_TYPE,
-        poolType: DEFAULT_POOL_TYPE,
-        opponent: '',
-        opponentType: 'friend',
-        selectedFriend: '',
-        breakRule: 'alternate',
-        firstBreakerSelection: 'random',
-      });
-      setIsRuleSectionExpanded(false);
       setShowNewGameForm(false);
 
       toast({
@@ -869,13 +858,6 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
                 Save all ({ownGamesCount})
               </button>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground hover:underline"
-            >
-              Close
-            </button>
           </>
         )}
       />
@@ -884,41 +866,17 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activePlayerGames.map(renderGameCard)}
 
-            {!showNewGameForm ? (
-              <Card className="h-full cursor-pointer border-2 border-dashed border-muted-foreground/25 shadow-card transition-colors hover:border-primary/50">
-                <CardContent
-                  className="flex h-full min-h-[220px] items-center justify-center p-8"
-                  onClick={() => setShowNewGameForm(true)}
-                >
-                  <div className="text-center">
-                    <Plus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Add New Game</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <GameSetupWizard
-                onComplete={(data) => {
-                  void addNewGame(data);
-                }}
-                onCancel={() => {
-                  setShowNewGameForm(false);
-                  setIsRuleSectionExpanded(false);
-                  setNewGame({
-                    game: DEFAULT_GAME_TYPE,
-                    poolType: DEFAULT_POOL_TYPE,
-                    opponent: '',
-                    opponentType: 'friend',
-                    selectedFriend: '',
-                    breakRule: 'alternate',
-                    firstBreakerSelection: 'random',
-                  });
-                }}
-                friends={friends}
-                lastPoolSettings={lastPoolSettings}
-                currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
-              />
-            )}
+            <Card className="h-full cursor-pointer border-2 border-dashed border-muted-foreground/25 shadow-card transition-colors hover:border-primary/50">
+              <CardContent
+                className="flex h-full min-h-[220px] items-center justify-center p-8"
+                onClick={() => setShowNewGameForm(true)}
+              >
+                <div className="text-center">
+                  <Plus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Add New Game</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
@@ -968,6 +926,18 @@ export function LiveScoreTracker({ onClose, onScoresSaved, onActiveGamesChange }
           <p>No active games. Click "Add New Game" to start tracking scores!</p>
         </div>
       )}
+
+      {showNewGameForm ? (
+        <GameSetupWizard
+          onOpenChange={setShowNewGameForm}
+          onComplete={(data) => {
+            void addNewGame(data);
+          }}
+          friends={friends}
+          lastPoolSettings={lastPoolSettings}
+          currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
+        />
+      ) : null}
 
       <Dialog open={decrementBreakerPrompt !== null} onOpenChange={() => setDecrementBreakerPrompt(null)}>
         <DialogContent>
