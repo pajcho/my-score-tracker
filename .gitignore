@@ -34,3 +34,9 @@ dist-ssr
 # Supabase local state
 supabase/.temp/
 supabase/.branches/
+
+# Vercel
+.vercel
+
+# Claude
+.claude/settings.local.json
