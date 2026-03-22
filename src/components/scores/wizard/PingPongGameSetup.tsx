@@ -77,7 +77,7 @@ export function PingPongGameSetup({
     <WizardLayout
       step={1}
       totalSteps={1}
-      subtitle="Choose your opponent."
+      subtitle="Who are you playing against?"
       onCancel={onCancel}
       onSubmit={handleSubmit}
       canProceed={canProceed}
