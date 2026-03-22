@@ -30,7 +30,7 @@ describe("router config", () => {
 
     expect(createBrowserRouterMock).toHaveBeenCalledTimes(1);
     const [routes, options] = createBrowserRouterMock.mock.calls[0];
-    expect(options).toEqual({ basename: "/mock-base" });
+    expect(options).toEqual({ basename: "/mock-base", future: { v7_relativeSplatPath: true } });
     expect(routes).toHaveLength(4);
     expect(routes[0].path).toBe("/login");
     expect(routes[1].path).toBe("/register");

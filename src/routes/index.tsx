@@ -72,4 +72,7 @@ export const router = createBrowserRouter([
   },
 ], {
   basename: getBaseName(),
+  future: {
+    v7_relativeSplatPath: true,
+  },
 });
