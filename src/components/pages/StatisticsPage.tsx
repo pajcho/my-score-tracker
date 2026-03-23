@@ -13,8 +13,11 @@ import { useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
+type MatchOutcome = 'win' | 'loss' | 'draw';
+
 interface MatchPerspective {
   didWin: boolean;
+  outcome: MatchOutcome;
   userScore: number;
   opponentScore: number;
   margin: number;
@@ -27,6 +30,7 @@ interface OpponentSummary {
   games: number;
   wins: number;
   losses: number;
+  draws: number;
 }
 
 interface TrainingGameSummary {
@@ -64,8 +68,11 @@ function parsePerspective(matchScore: ScoreWithFriend, currentUserId?: string): 
   const userScore = isCreatorPerspective ? leftScore : rightScore;
   const opponentScore = isCreatorPerspective ? rightScore : leftScore;
 
+  const outcome: MatchOutcome = userScore > opponentScore ? 'win' : userScore < opponentScore ? 'loss' : 'draw';
+
   return {
-    didWin: userScore > opponentScore,
+    didWin: outcome === 'win',
+    outcome,
     userScore,
     opponentScore,
     margin: Math.abs(userScore - opponentScore),
@@ -233,8 +240,9 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   );
 
   const totalGames = filteredScores.length;
-  const totalWins = perspectiveScores.filter((item) => item.didWin).length;
-  const totalLosses = totalGames - totalWins;
+  const totalWins = perspectiveScores.filter((item) => item.outcome === 'win').length;
+  const totalLosses = perspectiveScores.filter((item) => item.outcome === 'loss').length;
+  const totalDraws = perspectiveScores.filter((item) => item.outcome === 'draw').length;
   const winPercentage = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
 
   const averageScore =
@@ -293,12 +301,12 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
       };
     }
 
-    const chronologicalResults = [...sortedMatches].reverse().map((item) => item.perspective.didWin);
+    const chronologicalOutcomes = [...sortedMatches].reverse().map((item) => item.perspective.outcome);
 
     let currentCount = 1;
-    const latestResult = chronologicalResults[chronologicalResults.length - 1];
-    for (let index = chronologicalResults.length - 2; index >= 0; index -= 1) {
-      if (chronologicalResults[index] === latestResult) {
+    const latestOutcome = chronologicalOutcomes[chronologicalOutcomes.length - 1];
+    for (let index = chronologicalOutcomes.length - 2; index >= 0; index -= 1) {
+      if (chronologicalOutcomes[index] === latestOutcome) {
         currentCount += 1;
       } else {
         break;
@@ -307,8 +315,8 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
     let bestWinStreak = 0;
     let activeWinStreak = 0;
-    for (const didWin of chronologicalResults) {
-      if (didWin) {
+    for (const outcome of chronologicalOutcomes) {
+      if (outcome === 'win') {
         activeWinStreak += 1;
         bestWinStreak = Math.max(bestWinStreak, activeWinStreak);
       } else {
@@ -317,8 +325,8 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     }
 
     return {
-      currentType: latestResult ? 'win' : 'loss',
-      currentCount,
+      currentType: latestOutcome === 'draw' ? 'none' : latestOutcome,
+      currentCount: latestOutcome === 'draw' ? 0 : currentCount,
       bestWinStreak,
     };
   }, [sortedMatches]);
@@ -337,13 +345,16 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         games: 0,
         wins: 0,
         losses: 0,
+        draws: 0,
       };
 
       existingSummary.games += 1;
-      if (match.didWin) {
+      if (match.outcome === 'win') {
         existingSummary.wins += 1;
-      } else {
+      } else if (match.outcome === 'loss') {
         existingSummary.losses += 1;
+      } else {
+        existingSummary.draws += 1;
       }
 
       opponentSummaryMap.set(match.opponentName, existingSummary);
@@ -870,7 +881,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
               <CardContent>
                 <div className="text-2xl font-bold text-secondary">{winPercentage}%</div>
                 <p className="text-xs text-muted-foreground">
-                  {totalWins} wins, {totalLosses} losses
+                  {totalWins}W {totalLosses}L{totalDraws > 0 ? ` ${totalDraws}D` : ''}
                 </p>
               </CardContent>
             </Card>
@@ -951,19 +962,19 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label={`${match.perspective.didWin ? 'Win' : 'Loss'} vs ${match.perspective.opponentName}, score ${match.score.score}`}
+                          aria-label={`${match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs ${match.perspective.opponentName}, score ${match.score.score}`}
                           className={cn(
                             'w-full aspect-square rounded-sm sm:rounded-md text-xs font-semibold flex items-center justify-center border',
-                            match.perspective.didWin
-                              ? 'border-secondary/40 bg-secondary/15 text-secondary'
-                              : 'border-destructive/30 bg-destructive/10 text-destructive'
+                            match.perspective.outcome === 'win' && 'border-secondary/40 bg-secondary/15 text-secondary',
+                            match.perspective.outcome === 'loss' && 'border-destructive/30 bg-destructive/10 text-destructive',
+                            match.perspective.outcome === 'draw' && 'border-muted-foreground/40 bg-muted text-muted-foreground'
                           )}
                         >
-                          {match.perspective.didWin ? 'W' : 'L'}
+                          {match.perspective.outcome === 'win' ? 'W' : match.perspective.outcome === 'loss' ? 'L' : 'D'}
                         </button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                        {match.perspective.didWin ? 'Win' : 'Loss'} vs {match.perspective.opponentName} ({match.score.score})
+                        {match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs {match.perspective.opponentName} ({match.score.score})
                       </PopoverContent>
                     </Popover>
                   ))}
@@ -1106,7 +1117,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
                       <div key={opponent.opponentName} className="flex items-center justify-between text-sm">
                         <span className="text-foreground">{opponent.opponentName}</span>
                         <span className="text-muted-foreground">
-                          {opponent.wins}-{opponent.losses} ({opponent.games} games)
+                          {opponent.wins}W {opponent.losses}L{opponent.draws > 0 ? ` ${opponent.draws}D` : ''} ({opponent.games} games)
                         </span>
                       </div>
                     ))
