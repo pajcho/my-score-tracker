@@ -170,14 +170,6 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
 
       <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
         <Button
-          type="submit"
-          disabled={isLoading}
-          className="flex-1"
-        >
-          <Save className="h-4 w-4" />
-          {isLoading ? "Updating..." : "Update Score"}
-        </Button>
-        <Button
           type="button"
           variant="outline"
           onClick={() => onOpenChange(false)}
@@ -185,6 +177,14 @@ export function ScoreEditDialog({ score, open, onOpenChange, onSuccess }: ScoreE
         >
           <X className="h-4 w-4" />
           Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="flex-1"
+        >
+          <Save className="h-4 w-4" />
+          {isLoading ? "Updating..." : "Update Score"}
         </Button>
       </div>
     </form>

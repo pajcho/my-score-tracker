@@ -119,10 +119,9 @@ export function PoolGameSetup({
         currentStep === 1
           ? 'Choose your pool rules.'
           : currentStep === 2
-            ? 'Choose your opponent.'
+            ? 'Who are you playing against?'
             : 'Choose who breaks first.'
       }
-      onBack={currentStep > 1 ? handlePrev : undefined}
       onCancel={onCancel}
       onNext={currentStep < 3 ? handleNext : undefined}
       onSubmit={currentStep === 3 ? handleSubmit : undefined}

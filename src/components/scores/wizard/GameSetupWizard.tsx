@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
 import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
 import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
 import { PoolGameSetup } from './PoolGameSetup';
@@ -11,7 +10,6 @@ import {
 import {
   BreakRule,
 } from '@/lib/supabaseDatabase';
-import { Button } from '@/components/ui/button';
 
 interface GameSetupWizardProps {
   onOpenChange: (open: boolean) => void;
@@ -74,37 +72,22 @@ export function GameSetupWizard({
         title="Start a New Game"
         description={`Step ${stepMeta.step} of ${stepMeta.totalSteps}`}
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-7 sm:px-5 sm:pt-5 sm:pb-8">
-            <div className="space-y-7">
-              <p className="text-lg font-semibold text-foreground sm:text-xl">What game do you want to play?</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {GAME_TYPE_OPTIONS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => handleSportSelect(value)}
-                    className="flex min-h-44 flex-col items-center justify-center gap-3 rounded-lg border-2 border-border transition-all hover:border-primary hover:bg-primary/5"
-                  >
-                    <GameTypeIcon gameType={value} className="h-12 w-12" />
-                    <span className="text-lg font-semibold">{label}</span>
-                  </button>
-                ))}
-              </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-7 sm:px-5 sm:pt-5 sm:pb-8">
+          <div className="space-y-7">
+            <p className="text-lg font-semibold text-foreground sm:text-xl">What game do you want to play?</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {GAME_TYPE_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleSportSelect(value)}
+                  className="flex min-h-44 flex-col items-center justify-center gap-3 rounded-lg border-2 border-border transition-all hover:border-primary hover:bg-primary/5"
+                >
+                  <GameTypeIcon gameType={value} className="h-12 w-12" />
+                  <span className="text-lg font-semibold">{label}</span>
+                </button>
+              ))}
             </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 border-t px-4 pt-5 sm:px-5">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              className="flex-1 sm:flex-none"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-
-            <div />
           </div>
         </div>
       </ResponsiveFormModal>

@@ -19,8 +19,6 @@ export function StepOpponentSelect({
   return (
     <div className="space-y-6">
       <div>
-        <Label className="text-base mb-3 block">Who are you playing against?</Label>
-
         {friends.length > 0 && (
           <div className="mb-6">
             <p className="text-sm text-muted-foreground mb-3">Select a friend:</p>

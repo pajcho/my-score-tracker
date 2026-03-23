@@ -29,7 +29,7 @@ export function WizardLayout({
     <Button
       onClick={onNext}
       disabled={!canProceed}
-      className="flex-1 sm:flex-none"
+      className="flex-1"
     >
       <ArrowRight className="h-4 w-4" />
       Next
@@ -38,7 +38,7 @@ export function WizardLayout({
     <Button
       onClick={onSubmit}
       disabled={!canProceed}
-      className="flex-1 sm:flex-none"
+      className="flex-1"
     >
       <Play className="h-4 w-4" />
       Start Game
@@ -65,27 +65,23 @@ export function WizardLayout({
           ) : null}
 
           <div className="space-y-6">
-            <p className="text-lg font-semibold text-foreground sm:text-xl">{subtitle}</p>
+            {subtitle ? <p className="text-lg font-semibold text-foreground sm:text-xl">{subtitle}</p> : null}
             {children}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t px-4 pt-5 sm:px-5">
+      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
         <Button
           variant="outline"
           onClick={onCancel}
-          className="flex-1 sm:flex-none"
+          className="flex-1"
         >
           <X className="h-4 w-4" />
           Cancel
         </Button>
 
-        {primaryAction ? (
-          <div className="flex flex-1 justify-end">
-            {primaryAction}
-          </div>
-        ) : <div />}
+        {primaryAction ?? <div className="flex-1" />}
       </div>
     </div>
   );

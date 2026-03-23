@@ -226,13 +226,13 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
       </div>
 
       <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
-        <Button type="submit" disabled={isLoading} className="flex-1">
-          <Save className="h-4 w-4" />
-          {isLoading ? 'Updating...' : 'Update Training'}
-        </Button>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
           <X className="h-4 w-4" />
           Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading} className="flex-1">
+          <Save className="h-4 w-4" />
+          {isLoading ? 'Updating...' : 'Update Training'}
         </Button>
       </div>
     </form>
