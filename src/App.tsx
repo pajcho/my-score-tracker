@@ -2,14 +2,26 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ui/themeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { RouterProvider } from "react-router-dom";
 import { router } from "@/routes";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import { queryClient } from "@/lib/queryClient";
+import { localStoragePersister, queryClient } from "@/lib/queryClient";
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider
+    client={queryClient}
+    persistOptions={{
+      persister: localStoragePersister,
+      dehydrateOptions: {
+        shouldDehydrateQuery: (query) => {
+          // Don't persist live games — they are real-time and must always be fresh
+          const queryKey = query.queryKey as string[];
+          return queryKey[1] !== 'liveGames';
+        },
+      },
+    }}
+  >
     <ThemeProvider
       attribute="class"
       defaultTheme="system"
@@ -25,7 +37,7 @@ const App = () => (
         </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;
