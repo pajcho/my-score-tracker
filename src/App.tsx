@@ -13,13 +13,7 @@ const App = () => (
     client={queryClient}
     persistOptions={{
       persister: localStoragePersister,
-      dehydrateOptions: {
-        shouldDehydrateQuery: (query) => {
-          // Don't persist live games — they are real-time and must always be fresh
-          const queryKey = query.queryKey as string[];
-          return queryKey[1] !== 'liveGames';
-        },
-      },
+      maxAge: 10 * 60 * 1000,
     }}
   >
     <ThemeProvider
