@@ -456,18 +456,20 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     } catch (error) {
       toast({
         title: "Failed to cancel game",
-        description: "Only the game creator can cancel this game",
+        description: "Please try again",
         variant: "destructive",
       });
     }
   };
 
   const saveGame = async (game: LiveGameView) => {
-    if (!isAuthenticated) return;
-    if (!currentUser || game.created_by_user_id !== currentUser.id) {
+    if (!isAuthenticated || !currentUser) return;
+    const isParticipant =
+      game.created_by_user_id === currentUser.id || game.opponent_user_id === currentUser.id;
+    if (!isParticipant) {
       toast({
         title: "Cannot save game",
-        description: "Only the game creator can save the final score",
+        description: "Only game participants can save the final score",
         variant: "destructive",
       });
       return;
@@ -507,7 +509,11 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     let savedCount = 0;
     const savedGameIds: string[] = [];
 
-    for (const game of games.filter((activeGame) => activeGame.created_by_user_id === currentUser.id)) {
+    for (const game of games.filter(
+      (activeGame) =>
+        activeGame.created_by_user_id === currentUser.id ||
+        activeGame.opponent_user_id === currentUser.id
+    )) {
       try {
         await supabaseDb.completeLiveGame(game.id);
         savedGameIds.push(game.id);
@@ -541,7 +547,11 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   };
 
   const ownGamesCount = currentUser
-    ? games.filter((game) => game.created_by_user_id === currentUser.id).length
+    ? games.filter(
+        (game) =>
+          game.created_by_user_id === currentUser.id ||
+          game.opponent_user_id === currentUser.id
+      ).length
     : 0;
   const secondsSinceLastSync = lastSyncedAt
     ? Math.floor((syncClock.getTime() - lastSyncedAt.getTime()) / 1000)
@@ -650,7 +660,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
               )}
-              {isGameCreator ? (
+              {!isSpectator ? (
                 <div className="flex justify-end gap-1">
                   <Button
                     variant="ghost"
@@ -672,7 +682,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 </div>
               ) : (
                 <span className="block text-right text-xs leading-8 text-muted-foreground">
-                  {isSpectator ? 'Watching (read-only)' : 'Synced live'}
+                  Watching (read-only)
                 </span>
               )}
             </div>
