@@ -27,7 +27,7 @@ export function WizardLayout({
   const isLastStep = step === totalSteps;
   const primaryAction = !isLastStep && onNext ? (
     <Button
-      onClick={onNext}
+      onClick={() => onNext()}
       disabled={!canProceed}
       className="flex-1"
     >
@@ -36,7 +36,7 @@ export function WizardLayout({
     </Button>
   ) : isLastStep && onSubmit ? (
     <Button
-      onClick={onSubmit}
+      onClick={() => onSubmit()}
       disabled={!canProceed}
       className="flex-1"
     >
