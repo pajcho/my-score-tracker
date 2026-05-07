@@ -40,4 +40,27 @@ describe('PoolGameSetup', () => {
       selectedFriend: 'friend-1',
     }));
   });
+
+  it('submits a randomly chosen player side when starting via the Start Game button', () => {
+    const onComplete = vi.fn();
+
+    render(
+      <PoolGameSetup
+        friends={[{ id: 'friend-1', name: 'Opponent', email: 'opponent@example.com' }]}
+        currentUserName="Current User"
+        onCancel={() => undefined}
+        onComplete={onComplete}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Opponent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: /Random/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Start Game/ }));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    const submittedSelection = onComplete.mock.calls[0][0].firstBreakerSelection;
+    expect(['player1', 'player2']).toContain(submittedSelection);
+  });
 });
