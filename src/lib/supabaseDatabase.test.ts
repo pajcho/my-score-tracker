@@ -535,19 +535,47 @@ describe("supabaseDb", () => {
     expect(liveGames[0].pool_settings?.pool_type).toBe("8-ball");
   });
 
-  it("rejects completion when non-creator tries to save live game", async () => {
+  it("rejects completion when a non-participant tries to save live game", async () => {
     const liveGamesBuilder = harness.getBuilder("live_games");
     liveGamesBuilder.single.mockResolvedValue({
       data: {
         id: "live-1",
         created_by_user_id: "user-2",
+        opponent_user_id: "user-3",
         game: "Pool",
       },
       error: null,
     });
     await expect(supabaseDb.completeLiveGame("live-1")).rejects.toThrow(
-      "Only the game creator can save the final score"
+      "Only game participants can save the final score"
     );
+  });
+
+  it("flips score perspective when the opponent completes the live game", async () => {
+    const liveGamesBuilder = harness.getBuilder("live_games");
+    const createScoreSpy = vi.spyOn(supabaseDb, "createScore").mockResolvedValue({
+      id: "score-from-opponent",
+    } as never);
+    const deleteLiveGameSpy = vi.spyOn(supabaseDb, "deleteLiveGame").mockResolvedValue();
+
+    liveGamesBuilder.single.mockResolvedValue({
+      data: {
+        id: "live-flip",
+        created_by_user_id: "creator-9",
+        game: "Pool",
+        opponent_name: null,
+        opponent_user_id: "user-1",
+        score1: 7,
+        score2: 4,
+        date: "2026-05-07",
+      },
+      error: null,
+    });
+
+    await supabaseDb.completeLiveGame("live-flip");
+
+    expect(createScoreSpy).toHaveBeenCalledWith("Pool", null, "4-7", "2026-05-07", "creator-9");
+    expect(deleteLiveGameSpy).toHaveBeenCalledWith("live-flip");
   });
 
   it("rejects completion for unsupported live game type", async () => {

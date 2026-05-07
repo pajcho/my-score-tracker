@@ -591,19 +591,33 @@ class SupabaseDatabaseService {
 
     if (liveGameError) throw liveGameError;
     if (!liveGame) throw new Error('Live game not found');
-    if (liveGame.created_by_user_id !== user.id) {
-      throw new Error('Only the game creator can save the final score');
+
+    const isCreator = liveGame.created_by_user_id === user.id;
+    const isOpponent = liveGame.opponent_user_id === user.id;
+    if (!isCreator && !isOpponent) {
+      throw new Error('Only game participants can save the final score');
     }
     if (!isGameType(liveGame.game)) {
       throw new Error(`Unsupported live game type: ${liveGame.game}`);
     }
 
+    // scores.score is "<saver>-<their opponent>". live_games.score1 is creator side,
+    // score2 is opponent side — flip when the opponent is saving.
+    const saverScore = isCreator ? liveGame.score1 : liveGame.score2;
+    const opposingScore = isCreator ? liveGame.score2 : liveGame.score1;
+    const opponentUserIdForScore = isCreator
+      ? liveGame.opponent_user_id || undefined
+      : liveGame.created_by_user_id;
+    const opponentNameForScore = isCreator && !liveGame.opponent_user_id
+      ? liveGame.opponent_name
+      : null;
+
     const createdScore = await this.createScore(
       liveGame.game,
-      liveGame.opponent_user_id ? null : liveGame.opponent_name,
-      `${liveGame.score1}-${liveGame.score2}`,
+      opponentNameForScore,
+      `${saverScore}-${opposingScore}`,
       liveGame.date,
-      liveGame.opponent_user_id || undefined
+      opponentUserIdForScore
     );
 
     if (isPoolGameType(liveGame.game)) {
