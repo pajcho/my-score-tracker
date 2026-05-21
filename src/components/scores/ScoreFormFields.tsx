@@ -105,7 +105,7 @@ export function ScoreFormFields({
               if (!value) return;
               setGame(value as GameType);
             }}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+            className="grid grid-cols-2 gap-2"
           >
             {GAME_TYPE_OPTIONS.map(({ value, label }) => (
               <ToggleGroupItem
@@ -162,7 +162,7 @@ export function ScoreFormFields({
               if (!value) return;
               setPoolType(value as PoolType);
             }}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+            className="grid grid-cols-3 gap-2"
           >
             {POOL_TYPE_OPTIONS.map(({ value, label }) => (
               <ToggleGroupItem
