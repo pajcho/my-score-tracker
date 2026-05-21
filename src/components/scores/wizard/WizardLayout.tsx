@@ -46,8 +46,11 @@ export function WizardLayout({
   ) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 pb-7 sm:px-5 sm:pt-5 sm:pb-8">
+    // Same non-pinned footer pattern as the score/training forms: the
+    // wrapper is the scroll container and the action row rides at the
+    // natural end of content.
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+      <div className="px-4 pt-5 sm:px-5 sm:pt-5">
         <div className="space-y-7">
           {step > 1 && onBack ? (
             <div className="flex items-center">
@@ -71,7 +74,7 @@ export function WizardLayout({
         </div>
       </div>
 
-      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
+      <div className="mt-6 flex flex-row gap-3 border-t px-4 py-3 sm:px-5">
         <Button
           variant="outline"
           onClick={onCancel}

@@ -123,30 +123,38 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4">
-          <ScoreFormFields
-            game={game}
-            setGame={setGame}
-            poolType={poolType}
-            setPoolType={setPoolType}
-            opponent={opponent}
-            setOpponent={setOpponent}
-            yourScore={yourScore}
-            setYourScore={setYourScore}
-            opponentScore={opponentScore}
-            setOpponentScore={setOpponentScore}
-            date={date}
-            setDate={setDate}
-            opponentType={opponentType}
-            setOpponentType={setOpponentType}
-            selectedFriend={selectedFriend}
-            setSelectedFriend={setSelectedFriend}
-            initialData={initialData}
-          />
+    // The form is the scroll container; fields and the action row stack
+    // naturally inside it. We deliberately do NOT pin the buttons to the
+    // modal bottom — they ride at the natural end of content so short
+    // forms don't leave a band of empty space above a "floating" footer
+    // and long forms don't overlay scrolling content under one.
+    <form
+      onSubmit={handleSubmit}
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+    >
+      <div className="px-4 pt-4">
+        <ScoreFormFields
+          game={game}
+          setGame={setGame}
+          poolType={poolType}
+          setPoolType={setPoolType}
+          opponent={opponent}
+          setOpponent={setOpponent}
+          yourScore={yourScore}
+          setYourScore={setYourScore}
+          opponentScore={opponentScore}
+          setOpponentScore={setOpponentScore}
+          date={date}
+          setDate={setDate}
+          opponentType={opponentType}
+          setOpponentType={setOpponentType}
+          selectedFriend={selectedFriend}
+          setSelectedFriend={setSelectedFriend}
+          initialData={initialData}
+        />
       </div>
 
-      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
+      <div className="mt-6 flex flex-row gap-3 border-t px-4 py-3">
         <Button
           type="button"
           variant="outline"

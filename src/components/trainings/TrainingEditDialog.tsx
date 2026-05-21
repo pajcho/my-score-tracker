@@ -114,8 +114,12 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
   };
 
   const formContent = (
-    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 space-y-6">
+    // Same non-pinned footer pattern as TrainingForm.
+    <form
+      onSubmit={handleSubmit}
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+    >
+      <div className="space-y-6 px-4 pt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Game Type *</Label>
@@ -126,7 +130,7 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
                 if (!value) return;
                 setGame(value as GameType);
               }}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+              className="grid grid-cols-2 gap-2"
             >
               {GAME_TYPE_OPTIONS.map(({ value, label }) => (
                 <ToggleGroupItem
@@ -225,7 +229,7 @@ export function TrainingEditDialog({ training, open, onOpenChange, onSuccess }: 
         </div>
       </div>
 
-      <div className="mt-2 flex flex-row gap-3 border-t px-4 pt-3">
+      <div className="mt-6 flex flex-row gap-3 border-t px-4 py-3">
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
           <X className="h-4 w-4" />
           Cancel
