@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdownMenu';
 import { useToast } from '@/hooks/useToast';
+import { useIsKeyboardOpen } from '@/hooks/useIsKeyboardOpen';
 import { ThemeSelector } from '@/components/ThemeSelector';
 import { useAuth } from '@/components/auth/authContext';
 
@@ -20,6 +21,11 @@ export function Navigation() {
   const location = useLocation();
   const authState = useAuth();
   const { toast } = useToast();
+  // iOS Safari auto-elevates `position: fixed` elements above the
+  // on-screen keyboard, so the bottom tab bar ends up sandwiched
+  // between the form and the keyboard. Unmounting beats display:none
+  // beats any iOS auto-elevation heuristic.
+  const isKeyboardOpen = useIsKeyboardOpen();
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
@@ -145,27 +151,29 @@ export function Navigation() {
         </div>
       </nav>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 backdrop-blur md:hidden">
-        <div className="container mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
-          <div className="flex items-center justify-around">
-            {navItems.map(({ to, icon: Icon, label }) => (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  "flex min-w-20 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth",
-                  isNavItemActive(to)
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
-            ))}
+      {isKeyboardOpen ? null : (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 backdrop-blur md:hidden">
+          <div className="container mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+            <div className="flex items-center justify-around">
+              {navItems.map(({ to, icon: Icon, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={cn(
+                    "flex min-w-20 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth",
+                    isNavItemActive(to)
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  {label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

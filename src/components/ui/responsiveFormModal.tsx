@@ -25,7 +25,13 @@ export function ResponsiveFormModal({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      // `repositionInputs={false}` disables Vaul's translate-the-whole-
+      // drawer-up-by-keyboard-height heuristic, which overshoots on iOS
+      // Safari for tall drawers and parks the focused field above the
+      // viewport. Letting Safari's native scroll-into-view handle it
+      // only shifts the inner scroll container — no drawer transform,
+      // no exposed page background above the drawer.
+      <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
         <DrawerContent
           className="flex h-[92vh] flex-col overflow-hidden px-4 pb-4"
           onOpenAutoFocus={preventOpenAutoFocus}
