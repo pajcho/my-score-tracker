@@ -17,7 +17,7 @@ vi.mock("@/components/auth/LoginPage", () => ({ LoginPage: () => <div>LoginPage<
 vi.mock("@/components/auth/RegisterPage", () => ({ RegisterPage: () => <div>RegisterPage</div> }));
 vi.mock("@/components/pages/HomePage", () => ({ HomePage: () => <div>HomePage</div> }));
 vi.mock("@/components/pages/HistoryPage", () => ({ HistoryPage: ({ view }: { view: string }) => <div>{`History-${view}`}</div> }));
-vi.mock("@/components/pages/ProfilePage", () => ({ ProfilePage: () => <div>ProfilePage</div> }));
+vi.mock("@/components/pages/SettingsPage", () => ({ SettingsPage: () => <div>SettingsPage</div> }));
 vi.mock("@/components/pages/StatisticsPage", () => ({ StatisticsPage: ({ view }: { view: string }) => <div>{`Statistics-${view}`}</div> }));
 vi.mock("@/components/pages/FriendsPage", () => ({ FriendsPage: () => <div>FriendsPage</div> }));
 vi.mock("@/components/pages/LiveScorePage", () => ({ LiveScorePage: () => <div>LiveScorePage</div> }));

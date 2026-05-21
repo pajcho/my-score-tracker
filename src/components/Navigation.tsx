@@ -1,6 +1,19 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { BarChart3, History, Home, LogOut, Trophy, User, Users } from 'lucide-react';
+import {
+  BarChart3,
+  History,
+  Home,
+  LogOut,
+  Monitor,
+  Moon,
+  Settings,
+  Sun,
+  Trophy,
+  User,
+  Users,
+} from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { supabaseAuth } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 import { getBaseName } from '@/routerBase';
@@ -9,18 +22,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdownMenu';
 import { useToast } from '@/hooks/useToast';
 import { useIsKeyboardOpen } from '@/hooks/useIsKeyboardOpen';
-import { ThemeSelector } from '@/components/ThemeSelector';
 import { useAuth } from '@/components/auth/authContext';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 export function Navigation() {
   const location = useLocation();
   const authState = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   // iOS Safari auto-elevates `position: fixed` elements above the
   // on-screen keyboard, so the bottom tab bar ends up sandwiched
   // between the form and the keyboard. Unmounting beats display:none
@@ -51,7 +67,7 @@ export function Navigation() {
     const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hash = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    return `https://www.gravatar.com/avatar/${hash}?d=404&s=32`;
+    return `https://www.gravatar.com/avatar/${hash}?d=404&s=64`;
   };
 
   const [gravatarUrl, setGravatarUrl] = useState<string>('');
@@ -69,6 +85,7 @@ export function Navigation() {
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
+      navigate('/login');
     } catch (error) {
       toast({
         title: "Logout failed",
@@ -107,8 +124,6 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeSelector />
-
             {authState.profile && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-3 hover:bg-muted/50 rounded-lg p-2 transition-smooth">
@@ -125,11 +140,23 @@ export function Navigation() {
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                    Theme
+                  </DropdownMenuLabel>
+                  {/* The theme pill is rendered as plain buttons (not
+                      DropdownMenuItems) so picking a mode applies the
+                      change immediately without dismissing the menu —
+                      matches the iOS share-sheet pattern of keeping
+                      toggles available inside an open popover. */}
+                  <div className="px-2 py-1.5">
+                    <ThemePicker />
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                      <User className="h-4 w-4" />
-                      Profile
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" />
+                      Settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -175,5 +202,58 @@ export function Navigation() {
         </div>
       )}
     </>
+  );
+}
+
+function ThemePicker() {
+  const { theme, setTheme } = useTheme();
+  const current = (theme ?? 'system') as ThemeMode;
+
+  return (
+    <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1">
+      <ThemeButton
+        active={current === 'light'}
+        onClick={() => setTheme('light')}
+        ariaLabel="Light theme"
+        icon={Sun}
+      />
+      <ThemeButton
+        active={current === 'dark'}
+        onClick={() => setTheme('dark')}
+        ariaLabel="Dark theme"
+        icon={Moon}
+      />
+      <ThemeButton
+        active={current === 'system'}
+        onClick={() => setTheme('system')}
+        ariaLabel="System theme"
+        icon={Monitor}
+      />
+    </div>
+  );
+}
+
+interface ThemeButtonProps {
+  active: boolean;
+  onClick: () => void;
+  ariaLabel: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+}
+
+function ThemeButton({ active, onClick, ariaLabel, icon: Icon }: ThemeButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className={cn(
+        'flex flex-1 items-center justify-center rounded-md p-1.5 transition-colors',
+        active
+          ? 'bg-background text-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }

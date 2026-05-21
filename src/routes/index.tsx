@@ -4,7 +4,7 @@ import { LoginPage } from "@/components/auth/LoginPage";
 import { RegisterPage } from "@/components/auth/RegisterPage";
 import { HomePage } from "@/components/pages/HomePage";
 import { HistoryPage } from "@/components/pages/HistoryPage";
-import { ProfilePage } from "@/components/pages/ProfilePage";
+import { SettingsPage } from "@/components/pages/SettingsPage";
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
 import { FriendsPage } from "@/components/pages/FriendsPage";
 import { LiveScorePage } from "@/components/pages/LiveScorePage";
@@ -42,7 +42,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "profile",
-        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
+        element: <Navigate to="/settings" replace />
+      },
+      {
+        path: "settings",
+        element: <ProtectedRoute><SettingsPage /></ProtectedRoute>
       },
       {
         path: "statistics",
