@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -110,6 +130,51 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_log: {
+        Row: {
+          id: string
+          kind: string
+          ref_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          ref_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          ref_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string | null
+          notify_on_live_game_invite: boolean
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          notify_on_live_game_invite?: boolean
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          notify_on_live_game_invite?: boolean
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       pool_game_settings: {
         Row: {
           break_rule: string
@@ -150,7 +215,22 @@ export type Database = {
           score_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pool_game_settings_live_game_id_fkey"
+            columns: ["live_game_id"]
+            isOneToOne: false
+            referencedRelation: "live_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_game_settings_score_id_fkey"
+            columns: ["score_id"]
+            isOneToOne: false
+            referencedRelation: "scores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -175,6 +255,39 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
@@ -267,9 +380,9 @@ export type Database = {
       get_user_friends: {
         Args: { target_user_id?: string }
         Returns: {
+          friend_email: string
           friend_id: string
           friend_name: string
-          friend_email: string
           friendship_created_at: string
         }[]
       }
@@ -401,7 +514,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+
