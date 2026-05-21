@@ -7,31 +7,35 @@ import { RouterProvider } from "react-router-dom";
 import { router } from "@/routes";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { localStoragePersister, queryClient } from "@/lib/queryClient";
+import { usePwaUpdate } from "@/hooks/usePwaUpdate";
 
-const App = () => (
-  <PersistQueryClientProvider
-    client={queryClient}
-    persistOptions={{
-      persister: localStoragePersister,
-      maxAge: 10 * 60 * 1000,
-    }}
-  >
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      storageKey="score-tracker-theme"
-      disableTransitionOnChange
+const App = () => {
+  usePwaUpdate();
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: localStoragePersister,
+        maxAge: 10 * 60 * 1000,
+      }}
     >
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <RouterProvider router={router} future={{ v7_startTransition: true }} />
-        </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </PersistQueryClientProvider>
-);
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        storageKey="score-tracker-theme"
+        disableTransitionOnChange
+      >
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </PersistQueryClientProvider>
+  );
+};
 
 export default App;
