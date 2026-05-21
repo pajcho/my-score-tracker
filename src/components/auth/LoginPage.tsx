@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { IosInstallHint } from '@/components/IosInstallHint';
 import { useToast } from '@/hooks/useToast';
 import { supabaseAuth } from '@/lib/supabaseAuth';
 
@@ -61,6 +62,7 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted md:p-4">
+      <IosInstallHint />
       <div className="w-full md:max-w-md md:animate-scale-in">
         <Card className="border-0 rounded-none shadow-none bg-transparent md:shadow-card md:rounded-lg md:bg-card">
           <CardHeader className="text-center pb-8">
