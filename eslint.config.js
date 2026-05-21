@@ -43,9 +43,21 @@ export default tseslint.config(
     },
   },
   {
-    files: ["vite.config.ts", "vitest.config.ts", "tailwind.config.ts"],
+    files: ["vite.config.ts", "vitest.config.ts", "tailwind.config.ts", "pwa-assets.config.ts"],
     languageOptions: {
       globals: globals.node,
+    },
+  },
+  {
+    files: ["src/sw.ts"],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        ServiceWorkerGlobalScope: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "off",
     },
   }
 );
