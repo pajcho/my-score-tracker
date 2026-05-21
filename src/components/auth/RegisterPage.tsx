@@ -90,9 +90,9 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <div className="w-full max-w-md animate-scale-in">
-        <Card className="shadow-card border-0">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted md:p-4">
+      <div className="w-full md:max-w-md md:animate-scale-in">
+        <Card className="border-0 rounded-none shadow-none bg-transparent md:shadow-card md:rounded-lg md:bg-card">
           <CardHeader className="text-center pb-6">
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-gradient-primary rounded-full">
