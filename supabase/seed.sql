@@ -217,3 +217,29 @@ INSERT INTO public.trainings (id, user_id, game, title, training_date, duration_
   ('eeeeeeee-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Pool',      'Break practice',     CURRENT_DATE - 7,  45, '9-ball break technique, focus on cue ball control.'),
   ('eeeeeeee-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Ping Pong', 'Backhand topspin',   CURRENT_DATE - 3,  30, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 6. Vault: Edge Functions base URL for the live-game notification trigger
+-- ---------------------------------------------------------------------------
+-- The notify_on_live_game_insert trigger now reads the functions base URL
+-- from `vault.decrypted_secrets` (see migration 20260522091431). For local
+-- dev that's the kong gateway inside the supabase docker network. Seeding
+-- it here means `npm run supabase:reset` leaves a working push pipeline
+-- without manual setup.
+--
+-- The `cron_secret` vault entry is intentionally NOT seeded — its value
+-- must match the CRON_SECRET in supabase/functions/.env.local, which is
+-- gitignored. See the push-notifications-local-setup memory for how to
+-- create it. Without it, requests still go out but the Edge Function
+-- rejects them with 401 (loud and easy to debug).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'functions_url') THEN
+    PERFORM vault.create_secret(
+      'http://kong:8000/functions/v1',
+      'functions_url',
+      'Edge Functions base URL for pg_net trigger callbacks (local dev)'
+    );
+  END IF;
+END
+$$;
