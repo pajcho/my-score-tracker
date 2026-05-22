@@ -7,6 +7,11 @@ import {
 
 const preset = {
   ...minimal2023Preset,
+  // Maskable icon is generated separately from public/maskable-icon.svg via
+  // scripts/generate-maskable-icon.mjs. That SVG has the trophy shrunk into
+  // Android's adaptive-icon safe zone so it doesn't get a white halo after
+  // the launcher applies its mask shape.
+  maskable: { sizes: [] },
   apple: {
     sizes: [180],
     padding: 0,

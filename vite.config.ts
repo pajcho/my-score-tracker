@@ -29,15 +29,19 @@ export default defineConfig(() => ({
         scope: ".",
         lang: "en",
         icons: [
-          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
-          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          // Maskable first + "any maskable" so Samsung One UI and other
+          // pickier launchers pick this one and render it edge-to-edge
+          // instead of dropping back to the non-maskable icon and wrapping
+          // it in their own white circle.
           {
             src: "maskable-icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "maskable",
+            purpose: "any maskable",
           },
+          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
         ],
       },
       injectManifest: {
