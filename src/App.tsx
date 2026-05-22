@@ -16,7 +16,10 @@ const App = () => {
       client={queryClient}
       persistOptions={{
         persister: localStoragePersister,
-        maxAge: 10 * 60 * 1000,
+        // 24h — long enough that a phone-off overnight still hydrates the live
+        // score cards from disk on cold mount, instead of showing the loader
+        // gate and then snapping back to the same data.
+        maxAge: 24 * 60 * 60 * 1000,
       }}
     >
       <ThemeProvider

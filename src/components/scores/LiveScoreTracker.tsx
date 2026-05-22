@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
 import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,9 +39,20 @@ import {
 } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/components/auth/authContext';
-import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { invalidateTrackerQueries, trackerQueryKeys } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
 import { GameSetupWizard } from './wizard/GameSetupWizard';
+
+// Debounce window for batching rapid +/- clicks into a single Supabase write.
+// Long enough to coalesce a burst of taps; short enough that a watching device
+// sees the result within a beat of the user stopping.
+const SCORE_WRITE_DEBOUNCE_MS = 350;
+
+interface PendingWrite {
+  score1: number;
+  score2: number;
+  poolSettingsPatch?: Partial<PoolGameSettingsInput>;
+}
 
 interface LiveScoreTrackerProps {
   onClose: () => void;
@@ -63,7 +75,6 @@ const getAlternateBreakerFromRackCount = (firstBreakerSide: PlayerSide, complete
 };
 
 export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveScoreTrackerProps) {
-  const [games, setGames] = useState<LiveGameView[]>([]);
   const [showNewGameForm, setShowNewGameForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [syncClock, setSyncClock] = useState(new Date());
@@ -78,6 +89,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
   const [isWatchingSectionOpen, setIsWatchingSectionOpen] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { user: currentUser, isAuthenticated } = useAuth();
   const currentUserId = isAuthenticated ? currentUser?.id : undefined;
   const isQueryEnabled = !!currentUserId;
@@ -86,7 +98,20 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const friendsQuery = useFriendsQuery(currentUserId);
   const scoresQuery = useScoresQuery(currentUserId);
   const friends = friendsQuery.data ?? [];
+  const games = useMemo<LiveGameView[]>(
+    () => (isAuthenticated ? liveGamesQuery.data ?? [] : []),
+    [isAuthenticated, liveGamesQuery.data]
+  );
   const isInitialLoading = isQueryEnabled && liveGamesQuery.isLoading && games.length === 0;
+
+  // Per-game debounced writes. While a game has unflushed local edits, we treat
+  // the cache as the source of truth and ignore realtime echoes for any game —
+  // a refetch in the middle of a burst would overwrite the optimistic state
+  // with a server snapshot that's behind the clicks still in flight.
+  const pendingWritesRef = useRef<Set<string>>(new Set());
+  const needsResyncRef = useRef(false);
+  const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const latestPendingRef = useRef<Map<string, PendingWrite>>(new Map());
 
   // Get last pool game settings to pre-fill in wizard
   const lastPoolGame = scoresQuery.data
@@ -100,58 +125,124 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       }
     : undefined;
 
-  const updateGameLocally = (
-    gameId: string,
-    nextScore1: number,
-    nextScore2: number,
-    poolSettingsPatch?: Partial<PoolGameSettingsInput>
-  ) => {
-    setGames((previousGames) =>
-      previousGames.map((game) =>
-        game.id !== gameId
-          ? game
-          : {
-              ...game,
-              score1: nextScore1,
-              score2: nextScore2,
-              pool_settings: game.pool_settings
-                ? {
-                    ...game.pool_settings,
-                    ...(poolSettingsPatch?.pool_type !== undefined ? { pool_type: poolSettingsPatch.pool_type } : {}),
-                    ...(poolSettingsPatch?.break_rule !== undefined ? { break_rule: poolSettingsPatch.break_rule } : {}),
-                    ...(poolSettingsPatch?.first_breaker_side !== undefined
-                      ? { first_breaker_side: poolSettingsPatch.first_breaker_side }
-                      : {}),
-                    ...(poolSettingsPatch?.current_breaker_side !== undefined
-                      ? { current_breaker_side: poolSettingsPatch.current_breaker_side }
-                      : {}),
-                    ...(poolSettingsPatch?.last_rack_winner_side !== undefined
-                      ? { last_rack_winner_side: poolSettingsPatch.last_rack_winner_side }
-                      : {}),
-                  }
-                : undefined,
-            }
-      )
-    );
-  };
-
-  const persistScoreUpdate = async (
-    gameId: string,
-    nextScore1: number,
-    nextScore2: number,
-    poolSettingsPatch?: Partial<PoolGameSettingsInput>
-  ) => {
-    updateGameLocally(gameId, nextScore1, nextScore2, poolSettingsPatch);
-    try {
-      await supabaseDb.updateLiveGameScore(gameId, nextScore1, nextScore2, poolSettingsPatch);
-    } catch (error) {
-      toast({
-        title: "Failed to sync score",
-        description: "Your score change could not be saved",
-        variant: "destructive",
+  const writeGameToCache = useCallback(
+    (
+      gameId: string,
+      nextScore1: number,
+      nextScore2: number,
+      poolSettingsPatch?: Partial<PoolGameSettingsInput>
+    ) => {
+      queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) => {
+        if (!previousGames) return previousGames;
+        return previousGames.map((game) =>
+          game.id !== gameId
+            ? game
+            : {
+                ...game,
+                score1: nextScore1,
+                score2: nextScore2,
+                pool_settings: game.pool_settings
+                  ? {
+                      ...game.pool_settings,
+                      ...(poolSettingsPatch?.pool_type !== undefined ? { pool_type: poolSettingsPatch.pool_type } : {}),
+                      ...(poolSettingsPatch?.break_rule !== undefined ? { break_rule: poolSettingsPatch.break_rule } : {}),
+                      ...(poolSettingsPatch?.first_breaker_side !== undefined
+                        ? { first_breaker_side: poolSettingsPatch.first_breaker_side }
+                        : {}),
+                      ...(poolSettingsPatch?.current_breaker_side !== undefined
+                        ? { current_breaker_side: poolSettingsPatch.current_breaker_side }
+                        : {}),
+                      ...(poolSettingsPatch?.last_rack_winner_side !== undefined
+                        ? { last_rack_winner_side: poolSettingsPatch.last_rack_winner_side }
+                        : {}),
+                    }
+                  : undefined,
+              }
+        );
       });
+    },
+    [queryClient]
+  );
+
+  const flushPendingWrite = useCallback(
+    async (gameId: string) => {
+      const pending = latestPendingRef.current.get(gameId);
+      if (!pending) return;
+
+      latestPendingRef.current.delete(gameId);
+      const existingTimer = debounceTimersRef.current.get(gameId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        debounceTimersRef.current.delete(gameId);
+      }
+
+      try {
+        await supabaseDb.updateLiveGameScore(
+          gameId,
+          pending.score1,
+          pending.score2,
+          pending.poolSettingsPatch
+        );
+      } catch (error) {
+        toast({
+          title: "Failed to sync score",
+          description: "Your score change could not be saved",
+          variant: "destructive",
+        });
+        // Resync from server so the UI matches truth after the failure.
+        await invalidateTrackerQueries({ liveGames: true });
+      } finally {
+        pendingWritesRef.current.delete(gameId);
+        if (pendingWritesRef.current.size === 0 && needsResyncRef.current) {
+          needsResyncRef.current = false;
+          void invalidateTrackerQueries({ liveGames: true });
+        }
+      }
+    },
+    [toast]
+  );
+
+  const scheduleScoreWrite = useCallback(
+    (
+      gameId: string,
+      nextScore1: number,
+      nextScore2: number,
+      poolSettingsPatch?: Partial<PoolGameSettingsInput>
+    ) => {
+      writeGameToCache(gameId, nextScore1, nextScore2, poolSettingsPatch);
+
+      // Merge any prior pending pool patch with the new one — later wins per field.
+      const existing = latestPendingRef.current.get(gameId);
+      const mergedPatch =
+        poolSettingsPatch || existing?.poolSettingsPatch
+          ? { ...(existing?.poolSettingsPatch ?? {}), ...(poolSettingsPatch ?? {}) }
+          : undefined;
+
+      latestPendingRef.current.set(gameId, {
+        score1: nextScore1,
+        score2: nextScore2,
+        poolSettingsPatch: mergedPatch && Object.keys(mergedPatch).length > 0 ? mergedPatch : undefined,
+      });
+      pendingWritesRef.current.add(gameId);
+
+      const existingTimer = debounceTimersRef.current.get(gameId);
+      if (existingTimer) clearTimeout(existingTimer);
+
+      const timer = setTimeout(() => {
+        debounceTimersRef.current.delete(gameId);
+        void flushPendingWrite(gameId);
+      }, SCORE_WRITE_DEBOUNCE_MS);
+      debounceTimersRef.current.set(gameId, timer);
+    },
+    [flushPendingWrite, writeGameToCache]
+  );
+
+  const flushAllPendingWrites = useCallback(() => {
+    const gameIds = Array.from(debounceTimersRef.current.keys());
+    for (const gameId of gameIds) {
+      void flushPendingWrite(gameId);
     }
-  };
+  }, [flushPendingWrite]);
 
   // Update timer every minute
   useEffect(() => {
@@ -161,17 +252,6 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setGames([]);
-      return;
-    }
-
-    if (liveGamesQuery.data) {
-      setGames(liveGamesQuery.data);
-    }
-  }, [isAuthenticated, liveGamesQuery.data]);
 
   useEffect(() => {
     if (!liveGamesQuery.dataUpdatedAt) return;
@@ -184,12 +264,19 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   }, [isAuthenticated, liveGamesQuery.error]);
 
   // Subscribe to realtime updates and let TanStack Query handle refetch behavior.
+  // If local writes are still pending, we mark a resync flag instead of refetching
+  // immediately — otherwise the refetch would replace our optimistic cache with a
+  // server snapshot that's behind the clicks the user is still bursting through.
   useEffect(() => {
     if (!isAuthenticated) {
       return undefined;
     }
 
     const unsubscribe = supabaseDb.subscribeToLiveGames(() => {
+      if (pendingWritesRef.current.size > 0) {
+        needsResyncRef.current = true;
+        return;
+      }
       void invalidateTrackerQueries({ liveGames: true });
     }, setIsRealtimeConnected);
 
@@ -199,19 +286,43 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     };
   }, [isAuthenticated]);
 
-  // Fix 1: Detect when the user returns to the app (screen wakes up).
+  // Detect when the user backgrounds or returns to the app.
+  // - On hide: flush any debounced writes so the tab can be safely suspended.
+  // - On show: refetch live games (deferred if local writes are still in flight).
   useEffect(() => {
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushAllPendingWrites();
+        return;
+      }
       if (document.visibilityState === 'visible') {
+        if (pendingWritesRef.current.size > 0) {
+          needsResyncRef.current = true;
+          return;
+        }
         void invalidateTrackerQueries({ liveGames: true });
       }
     };
 
+    const handleBeforeUnload = () => {
+      flushAllPendingWrites();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []);
+  }, [flushAllPendingWrites]);
+
+  // On unmount: best-effort flush any outstanding debounced writes so navigating
+  // away mid-burst doesn't drop the user's last clicks.
+  useEffect(() => {
+    return () => {
+      flushAllPendingWrites();
+    };
+  }, [flushAllPendingWrites]);
 
   useEffect(() => {
     onActiveGamesChange?.(games.length > 0);
@@ -288,25 +399,25 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         initialPoolSettings
       );
 
-      setGames(prev => [
-        ...prev,
-        {
-          ...createdLiveGame,
-          creator_name: currentUser?.user_metadata?.name,
-          opponent_user_name: opponentUserId ? opponentName : undefined,
-          pool_settings: initialPoolSettings
-            ? {
-                id: `temp-${createdLiveGame.id}`,
-                live_game_id: createdLiveGame.id,
-                score_id: null,
-                created_by_user_id: createdLiveGame.created_by_user_id,
-                ...initialPoolSettings,
-                created_at: createdLiveGame.created_at,
-                updated_at: createdLiveGame.updated_at,
-              }
-            : undefined,
-        },
-      ]);
+      const newGame: LiveGameView = {
+        ...createdLiveGame,
+        creator_name: currentUser?.user_metadata?.name,
+        opponent_user_name: opponentUserId ? opponentName : undefined,
+        pool_settings: initialPoolSettings
+          ? {
+              id: `temp-${createdLiveGame.id}`,
+              live_game_id: createdLiveGame.id,
+              score_id: null,
+              created_by_user_id: createdLiveGame.created_by_user_id,
+              ...initialPoolSettings,
+              created_at: createdLiveGame.created_at,
+              updated_at: createdLiveGame.updated_at,
+            }
+          : undefined,
+      };
+      queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
+        previousGames ? [...previousGames, newGame] : [newGame]
+      );
       setShowNewGameForm(false);
 
       toast({
@@ -345,7 +456,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     }
 
     if (!isPoolGameType(gameToUpdate.game) || !gameToUpdate.pool_settings) {
-      void persistScoreUpdate(gameId, nextScore1, nextScore2);
+      scheduleScoreWrite(gameId, nextScore1, nextScore2);
       return;
     }
 
@@ -360,14 +471,14 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
           ? getOppositePlayerSide(currentBreakerSide)
           : getAlternateBreakerFromRackCount(poolSettings.first_breaker_side, completedRackCountBeforeChange + 1);
 
-        void persistScoreUpdate(gameId, nextScore1, nextScore2, {
+        scheduleScoreWrite(gameId, nextScore1, nextScore2, {
           current_breaker_side: nextBreakerSide,
           last_rack_winner_side: player,
         });
         return;
       }
 
-      void persistScoreUpdate(gameId, nextScore1, nextScore2, {
+      scheduleScoreWrite(gameId, nextScore1, nextScore2, {
         current_breaker_side: player,
         last_rack_winner_side: player,
       });
@@ -376,7 +487,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
     if (breakRule === 'alternate') {
       const completedRackCountAfterChange = nextScore1 + nextScore2;
-      void persistScoreUpdate(gameId, nextScore1, nextScore2, {
+      scheduleScoreWrite(gameId, nextScore1, nextScore2, {
         current_breaker_side: getAlternateBreakerFromRackCount(
           poolSettings.first_breaker_side,
           completedRackCountAfterChange
@@ -402,7 +513,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const { gameId, nextScore1, nextScore2, settingsPatch } = decrementBreakerPrompt;
     setDecrementBreakerPrompt(null);
 
-    void persistScoreUpdate(gameId, nextScore1, nextScore2, {
+    scheduleScoreWrite(gameId, nextScore1, nextScore2, {
       ...settingsPatch,
       current_breaker_side: nextBreakerSide,
     });
@@ -416,7 +527,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   };
 
   const changeBreakerSide = (game: LiveGameView, nextBreakerSide: PlayerSide) => {
-    void persistScoreUpdate(game.id, game.score1, game.score2, {
+    scheduleScoreWrite(game.id, game.score1, game.score2, {
       current_breaker_side: nextBreakerSide,
     });
   };
@@ -430,7 +541,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       completedRackCount
     );
 
-    void persistScoreUpdate(game.id, game.score1, game.score2, {
+    scheduleScoreWrite(game.id, game.score1, game.score2, {
       break_rule: breakRule,
       ...(breakRule === 'alternate' ? { current_breaker_side: nextBreakerForAlternate } : {}),
     });
@@ -439,7 +550,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const changePoolType = (game: LiveGameView, poolType: PoolType) => {
     if (!game.pool_settings) return;
 
-    void persistScoreUpdate(game.id, game.score1, game.score2, {
+    scheduleScoreWrite(game.id, game.score1, game.score2, {
       pool_type: poolType,
     });
   };
@@ -447,7 +558,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const removeGame = async (gameId: string) => {
     try {
       await supabaseDb.deleteLiveGame(gameId);
-      setGames((previousGames) => previousGames.filter((game) => game.id !== gameId));
+      queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
+        previousGames ? previousGames.filter((game) => game.id !== gameId) : previousGames
+      );
       await invalidateTrackerQueries({ liveGames: true });
       toast({
         title: "Game cancelled",
@@ -479,7 +592,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
     try {
       await supabaseDb.completeLiveGame(game.id);
-      setGames((previousGames) => previousGames.filter((activeGame) => activeGame.id !== game.id));
+      queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
+        previousGames ? previousGames.filter((activeGame) => activeGame.id !== game.id) : previousGames
+      );
       await invalidateTrackerQueries({
         scores: true,
         liveGames: true,
@@ -531,8 +646,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     });
 
     if (savedGameIds.length > 0) {
-      setGames((previousGames) =>
-        previousGames.filter((game) => !savedGameIds.includes(game.id))
+      queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
+        previousGames ? previousGames.filter((game) => !savedGameIds.includes(game.id)) : previousGames
       );
     }
 
