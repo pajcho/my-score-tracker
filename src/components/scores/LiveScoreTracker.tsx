@@ -192,10 +192,20 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         // Resync from server so the UI matches truth after the failure.
         await invalidateTrackerQueries({ liveGames: true });
       } finally {
-        pendingWritesRef.current.delete(gameId);
-        if (pendingWritesRef.current.size === 0 && needsResyncRef.current) {
-          needsResyncRef.current = false;
-          void invalidateTrackerQueries({ liveGames: true });
+        // Only release the pending lock once this game has no more queued work.
+        // If the user clicked again while we were writing (a fresh latestPending
+        // snapshot or a pending debounce timer), keep the lock so the next
+        // realtime echo is deferred — otherwise the echo would refetch the
+        // server snapshot we just wrote (now N clicks stale) and overwrite the
+        // cache, glitching the UI back before the next debounce flushes.
+        const hasMoreWork =
+          latestPendingRef.current.has(gameId) || debounceTimersRef.current.has(gameId);
+        if (!hasMoreWork) {
+          pendingWritesRef.current.delete(gameId);
+          if (pendingWritesRef.current.size === 0 && needsResyncRef.current) {
+            needsResyncRef.current = false;
+            void invalidateTrackerQueries({ liveGames: true });
+          }
         }
       }
     },
