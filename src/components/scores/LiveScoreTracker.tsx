@@ -219,6 +219,15 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       nextScore2: number,
       poolSettingsPatch?: Partial<PoolGameSettingsInput>
     ) => {
+      // Cancel any in-flight refetch for live games before we write the new
+      // optimistic value. Otherwise the fetch — kicked off by either the prior
+      // PATCH's resync or a realtime echo — would resolve after this cache
+      // write and overwrite it with a server snapshot that's now one or more
+      // clicks behind, glitching the score back briefly before the next
+      // debounce flushes. The PATCH's finally still invalidates afterwards, so
+      // we re-acquire authoritative server state at the right moment.
+      void queryClient.cancelQueries({ queryKey: trackerQueryKeys.liveGames });
+
       writeGameToCache(gameId, nextScore1, nextScore2, poolSettingsPatch);
 
       // Merge any prior pending pool patch with the new one — later wins per field.
@@ -244,7 +253,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       }, SCORE_WRITE_DEBOUNCE_MS);
       debounceTimersRef.current.set(gameId, timer);
     },
-    [flushPendingWrite, writeGameToCache]
+    [flushPendingWrite, queryClient, writeGameToCache]
   );
 
   const flushAllPendingWrites = useCallback(() => {
