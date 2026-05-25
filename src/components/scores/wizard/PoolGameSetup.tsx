@@ -73,9 +73,9 @@ export function PoolGameSetup({
     setFirstBreakerSelection(randomSide);
   };
 
-  const handleConfirmBreaker = (side: 'player1' | 'player2') => {
+  const handleSelectBreaker = (side: 'player1' | 'player2') => {
+    setRandomBreakerHighlight(null);
     setFirstBreakerSelection(side);
-    handleSubmit(side);
   };
 
   const handleNext = () => {
@@ -92,7 +92,7 @@ export function PoolGameSetup({
     }
   };
 
-  const handleSubmit = (submittedFirstBreakerSelection = firstBreakerSelection) => {
+  const handleSubmit = () => {
     onComplete({
       game: 'Pool',
       poolType,
@@ -100,13 +100,16 @@ export function PoolGameSetup({
       opponentType,
       selectedFriend: opponentType === 'friend' ? selectedFriend : '',
       breakRule,
-      firstBreakerSelection: submittedFirstBreakerSelection,
+      firstBreakerSelection,
     });
   };
 
   const canProceed = (() => {
     if (currentStep === 2) {
       return opponentType === 'friend' ? !!selectedFriend : !!opponent;
+    }
+    if (currentStep === 3) {
+      return firstBreakerSelection !== 'random';
     }
     return true;
   })();
@@ -152,7 +155,7 @@ export function PoolGameSetup({
           player2Name={opponentName}
           selectedBreaker={firstBreakerSelection}
           randomHighlight={randomBreakerHighlight}
-          onSelectBreaker={handleConfirmBreaker}
+          onSelectBreaker={handleSelectBreaker}
           onRandomize={handleRandomizeBreaker}
         />
       )}
