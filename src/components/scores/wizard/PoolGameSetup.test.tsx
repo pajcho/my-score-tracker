@@ -18,7 +18,7 @@ vi.mock('@/components/ui/toggleGroup', () => ({
 }));
 
 describe('PoolGameSetup', () => {
-  it('submits the selected breaker immediately on the final step', () => {
+  it('requires an explicit Start Game click after selecting the breaker on the final step', () => {
     const onComplete = vi.fn();
 
     render(
@@ -33,7 +33,16 @@ describe('PoolGameSetup', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Opponent' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByRole('button', { name: /Start Game/ })).toBeDisabled();
+
     fireEvent.click(screen.getByRole('button', { name: 'Opponent Opponent' }));
+
+    expect(onComplete).not.toHaveBeenCalled();
+
+    const startButton = screen.getByRole('button', { name: /Start Game/ });
+    expect(startButton).not.toBeDisabled();
+    fireEvent.click(startButton);
 
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       firstBreakerSelection: 'player2',
