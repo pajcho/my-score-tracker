@@ -910,10 +910,6 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const leftScore = game.score1;
     const rightScore = game.score2;
     const nextBreakerSide = game.pool_settings?.current_breaker_side;
-    // The breaker's name stays at full strength; the other side dims so
-    // whose break it is reads from across the table.
-    const dimmedNameSide: PlayerSide | null =
-      isPoolGame && nextBreakerSide ? getOppositePlayerSide(nextBreakerSide) : null;
     const rackNumber = leftScore + rightScore + 1;
     const isPoolSettingsExpanded = !!expandedPoolSettingsByGameId[game.id];
     const disableGameInteractions = isLoading;
@@ -1093,13 +1089,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 <div className="flex w-full flex-col text-center">
                   <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
                     {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <BreakIndicator />}
-                    <span
-                      className={cn(
-                        'truncate',
-                        leftPlayerLabel === 'You' && 'font-semibold text-primary',
-                        dimmedNameSide === 'player1' && 'opacity-60'
-                      )}
-                    >
+                    <span className={cn('truncate', leftPlayerLabel === 'You' && 'font-semibold text-primary')}>
                       {leftPlayerLabel}
                     </span>
                   </div>
@@ -1120,13 +1110,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 <div className="flex w-full flex-col text-center">
                   <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
                     {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <BreakIndicator />}
-                    <span
-                      className={cn(
-                        'truncate',
-                        rightPlayerLabel === 'You' && 'font-semibold text-primary',
-                        dimmedNameSide === 'player2' && 'opacity-60'
-                      )}
-                    >
+                    <span className={cn('truncate', rightPlayerLabel === 'You' && 'font-semibold text-primary')}>
                       {rightPlayerLabel}
                     </span>
                   </div>

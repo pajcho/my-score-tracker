@@ -61,6 +61,21 @@ describe("ScoreDayList", () => {
     expect(screen.getByText("You 1–1 Marko")).toBeInTheDocument();
   });
 
+  it("shows a per-opponent tally when an evening had multiple opponents", () => {
+    const eveningScores = [
+      { id: "e1", user_id: "user-1", game: "Pool", opponent_name: "Marko Djedovic", friend_name: null, score: "7-5", date: "2026-07-10", created_at: "", updated_at: "" },
+      { id: "e2", user_id: "user-1", game: "Pool", opponent_name: "Marko Djedovic", friend_name: null, score: "5-7", date: "2026-07-10", created_at: "", updated_at: "" },
+      { id: "e3", user_id: "user-1", game: "Pool", opponent_name: "Marko Djedovic", friend_name: null, score: "7-6", date: "2026-07-10", created_at: "", updated_at: "" },
+      { id: "e4", user_id: "user-1", game: "Pool", opponent_name: "Ana Anic", friend_name: null, score: "7-4", date: "2026-07-10", created_at: "", updated_at: "" },
+      { id: "e5", user_id: "user-1", game: "Pool", opponent_name: "Ana Anic", friend_name: null, score: "3-7", date: "2026-07-10", created_at: "", updated_at: "" },
+    ] as unknown as ScoreWithFriend[];
+
+    render(<ScoreDayList scores={eveningScores} currentUserId="user-1" onScoreUpdated={() => undefined} />);
+
+    // Ordered by games played per opponent, first names only.
+    expect(screen.getByText("You 2–1 Marko · 1–1 Ana")).toBeInTheDocument();
+  });
+
   it("shows scores from the current user's perspective", () => {
     render(<ScoreDayList scores={scores} currentUserId="user-1" onScoreUpdated={() => undefined} />);
 
