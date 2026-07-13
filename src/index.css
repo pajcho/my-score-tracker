@@ -37,6 +37,11 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Live-game player identity colors. One shade deeper than the old
+       tailwind blue/red-500 so white numerals reach ~5:1 contrast. */
+    --player-one: 221 83% 53%;
+    --player-two: 0 72% 51%;
+
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 213 72% 38%;
@@ -97,6 +102,10 @@ All colors MUST be HSL.
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 210 40% 98%;
+
+    /* Brighter player colors hold up better on dark cards. */
+    --player-one: 217 91% 60%;
+    --player-two: 0 84% 60%;
 
     --border: 217 18% 22%;
     --input: 217 18% 22%;

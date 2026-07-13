@@ -53,6 +53,8 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				'player-one': 'hsl(var(--player-one))',
+				'player-two': 'hsl(var(--player-two))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -101,6 +103,11 @@ export default {
 				'slide-up': {
 					'0%': { transform: 'translateY(100%)', opacity: '0' },
 					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				'score-pop': {
+					'0%': { transform: 'scale(1)' },
+					'40%': { transform: 'scale(1.18)' },
+					'100%': { transform: 'scale(1)' }
 				}
 			},
 			animation: {
@@ -108,7 +115,8 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'fade-in': 'fade-in 0.3s ease-out',
 				'scale-in': 'scale-in 0.2s ease-out',
-				'slide-up': 'slide-up 0.3s ease-out'
+				'slide-up': 'slide-up 0.3s ease-out',
+				'score-pop': 'score-pop 0.18s ease-out'
 			}
 		}
 	},

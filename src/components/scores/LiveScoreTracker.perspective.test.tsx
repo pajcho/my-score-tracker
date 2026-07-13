@@ -223,7 +223,7 @@ describe("LiveScoreTracker perspective labels", () => {
     renderLiveScoreTracker();
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Live Score Tracking" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Live" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Watching friends" })).toBeInTheDocument();
     });
 
@@ -231,8 +231,14 @@ describe("LiveScoreTracker perspective labels", () => {
 
     expect(watchingSection).not.toBeNull();
     expect(screen.getByText("Friend One")).toBeInTheDocument();
+
+    // With own active games present the watched list starts collapsed.
+    fireEvent.click(screen.getByRole("button", { name: "Show watched games" }));
+
+    await waitFor(() => {
+      expect(watchingSection).toContainElement(screen.getByText("Friend Two"));
+    });
     expect(watchingSection).not.toContainElement(screen.getByText("Friend One"));
-    expect(watchingSection).toContainElement(screen.getByText("Friend Two"));
     expect(watchingSection).toContainElement(screen.getByText("Watching (read-only)"));
   });
 
@@ -282,10 +288,10 @@ describe("LiveScoreTracker perspective labels", () => {
     renderLiveScoreTracker();
 
     await waitFor(() => {
-      expect(screen.getByText("Add New Game")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start a new game" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Add New Game"));
+    fireEvent.click(screen.getByRole("button", { name: "Start a new game" }));
 
     expect(screen.getByText("Start a New Game")).toBeInTheDocument();
     expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
