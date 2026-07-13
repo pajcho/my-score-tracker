@@ -42,7 +42,9 @@ export function PageHeader({
             {status ? <div className="shrink-0">{status}</div> : null}
           </div>
           {description ? (
-            <p className={cn('mt-1 max-w-2xl text-base text-muted-foreground sm:text-lg', descriptionClassName)}>
+            // Hidden on mobile: page explainers are read once, then cost a
+            // card of content on every visit in the standalone PWA.
+            <p className={cn('mt-1 hidden max-w-2xl text-base text-muted-foreground sm:text-lg md:block', descriptionClassName)}>
               {description}
             </p>
           ) : null}

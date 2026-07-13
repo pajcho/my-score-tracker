@@ -52,13 +52,10 @@ describe("LoginPage", () => {
 
     await waitFor(() => {
       expect(signInMock).toHaveBeenCalledWith("user@example.com", "Passw0rd!");
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Welcome back!",
-        })
-      );
       expect(navigateMock).toHaveBeenCalledWith("/");
     });
+    // No success toast — landing on Home is the confirmation.
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("shows invalid credentials message", async () => {
@@ -121,7 +118,7 @@ describe("LoginPage", () => {
     });
   });
 
-  it("toggles password visibility and remember me", () => {
+  it("toggles password visibility", () => {
     render(<LoginPage />);
 
     const passwordInput = screen.getByLabelText("Password");
@@ -130,10 +127,12 @@ describe("LoginPage", () => {
     const togglePasswordButton = passwordInput.parentElement?.querySelector("button");
     fireEvent.click(togglePasswordButton);
     expect(passwordInput).toHaveAttribute("type", "text");
+  });
 
-    const rememberMeButton = screen.getByRole("button", { name: "Remember me" });
-    expect(rememberMeButton).toHaveTextContent("unchecked");
-    fireEvent.click(rememberMeButton);
-    expect(rememberMeButton).toHaveTextContent("checked");
+  it("uses autofill-friendly input attributes", () => {
+    render(<LoginPage />);
+
+    expect(screen.getByLabelText("Email")).toHaveAttribute("autocomplete", "email");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
   });
 });

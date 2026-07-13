@@ -14,6 +14,7 @@ export default tseslint.config(
       globals: {
         ...globals.browser,
         React: "readonly",
+        __APP_VERSION__: "readonly",
       },
       parserOptions: {
         projectService: true,

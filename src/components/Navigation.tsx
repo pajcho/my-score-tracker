@@ -1,23 +1,20 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import {
   BarChart3,
   History,
   Home,
   LogOut,
-  Monitor,
-  Moon,
+  Play,
   Settings,
-  Sun,
   Trophy,
   User,
   Users,
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { supabaseAuth } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 import { getBaseName } from '@/routerBase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ThemePicker } from '@/components/ui/themePicker';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,8 +26,8 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { useIsKeyboardOpen } from '@/hooks/useIsKeyboardOpen';
 import { useAuth } from '@/components/auth/authContext';
-
-type ThemeMode = 'light' | 'dark' | 'system';
+import { useLiveGamesQuery } from '@/hooks/useTrackerData';
+import { useGravatarUrl } from '@/hooks/useGravatar';
 
 export function Navigation() {
   const location = useLocation();
@@ -43,10 +40,18 @@ export function Navigation() {
   // beats any iOS auto-elevation heuristic.
   const isKeyboardOpen = useIsKeyboardOpen();
 
+  const currentUserId = authState.isAuthenticated ? authState.user?.id : undefined;
+  const liveGamesQuery = useLiveGamesQuery(currentUserId);
+  const hasActiveLiveGames = (liveGamesQuery.data ?? []).some(
+    (liveGame) =>
+      liveGame.created_by_user_id === currentUserId || liveGame.opponent_user_id === currentUserId
+  );
+
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
+    { to: '/live', icon: Play, label: 'Live', showLiveDot: hasActiveLiveGames },
     { to: '/history/score', icon: History, label: 'History' },
-    { to: '/statistics/score', icon: BarChart3, label: 'Statistics' },
+    { to: '/statistics/score', icon: BarChart3, label: 'Stats' },
   ];
 
   const isNavItemActive = (path: string): boolean => {
@@ -58,33 +63,25 @@ export function Navigation() {
       return location.pathname.startsWith('/statistics');
     }
 
+    if (path === '/live') {
+      return location.pathname.startsWith('/live');
+    }
+
+    if (path === '/profile') {
+      // Settings and Friends live under the Profile hub on mobile.
+      return ['/profile', '/settings', '/friends'].some((profilePath) =>
+        location.pathname.startsWith(profilePath)
+      );
+    }
+
     return location.pathname === path;
   };
 
-  const getGravatarUrl = async (email: string) => {
-    const normalizedEmail = email.toLowerCase().trim();
-    const emailBytes = new TextEncoder().encode(normalizedEmail);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hash = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    return `https://www.gravatar.com/avatar/${hash}?d=404&s=64`;
-  };
-
-  const [gravatarUrl, setGravatarUrl] = useState<string>('');
-
-  useEffect(() => {
-    if (authState.profile?.email) {
-      void getGravatarUrl(authState.profile.email).then(setGravatarUrl);
-    }
-  }, [authState.profile?.email]);
+  const gravatarUrl = useGravatarUrl(authState.profile?.email);
 
   const handleLogout = async () => {
     try {
       await supabaseAuth.signOut();
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
       navigate('/login');
     } catch (error) {
       toast({
@@ -97,7 +94,10 @@ export function Navigation() {
 
   return (
     <>
-      <nav className="bg-card border-b border-border shadow-card">
+      {/* Top header is desktop-only: in the standalone PWA the wordmark
+          costs 64px of every screen just to restate the app's name. On
+          mobile the bottom tab bar (incl. Profile) covers navigation. */}
+      <nav className="hidden bg-card border-b border-border shadow-card md:block">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
           <a href={getBaseName()} className="flex items-center gap-2 font-bold text-xl text-primary">
@@ -105,7 +105,7 @@ export function Navigation() {
             <span>ScoreTracker</span>
           </a>
 
-          <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
+          <div className="flex items-center gap-1 flex-1 justify-center">
             {navItems.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
@@ -180,80 +180,50 @@ export function Navigation() {
 
       {isKeyboardOpen ? null : (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/95 backdrop-blur md:hidden">
-          <div className="container mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+          <div className="container mx-auto px-2 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] pt-1.5">
             <div className="flex items-center justify-around">
-              {navItems.map(({ to, icon: Icon, label }) => (
+              {navItems.map(({ to, icon: Icon, label, showLiveDot }) => (
                 <Link
                   key={to}
                   to={to}
                   className={cn(
-                    "flex min-w-20 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth",
+                    "relative flex min-w-14 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth active:scale-95",
                     isNavItemActive(to)
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <Icon className="h-5 w-5" />
+                  {showLiveDot ? (
+                    <span
+                      data-testid="live-nav-dot"
+                      className="absolute right-3 top-1 h-2 w-2 rounded-full border-2 border-card bg-secondary"
+                    />
+                  ) : null}
                   {label}
                 </Link>
               ))}
+              <Link
+                to="/profile"
+                className={cn(
+                  "relative flex min-w-14 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth active:scale-95",
+                  isNavItemActive('/profile')
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Avatar className={cn("h-5 w-5", isNavItemActive('/profile') ? "ring-2 ring-primary" : "")}>
+                  <AvatarImage src={gravatarUrl} alt={authState.profile?.name ?? 'Profile'} />
+                  <AvatarFallback className="bg-transparent">
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                Profile
+              </Link>
             </div>
           </div>
         </div>
       )}
     </>
-  );
-}
-
-function ThemePicker() {
-  const { theme, setTheme } = useTheme();
-  const current = (theme ?? 'system') as ThemeMode;
-
-  return (
-    <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1">
-      <ThemeButton
-        active={current === 'light'}
-        onClick={() => setTheme('light')}
-        ariaLabel="Light theme"
-        icon={Sun}
-      />
-      <ThemeButton
-        active={current === 'dark'}
-        onClick={() => setTheme('dark')}
-        ariaLabel="Dark theme"
-        icon={Moon}
-      />
-      <ThemeButton
-        active={current === 'system'}
-        onClick={() => setTheme('system')}
-        ariaLabel="System theme"
-        icon={Monitor}
-      />
-    </div>
-  );
-}
-
-interface ThemeButtonProps {
-  active: boolean;
-  onClick: () => void;
-  ariaLabel: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-}
-
-function ThemeButton({ active, onClick, ariaLabel, icon: Icon }: ThemeButtonProps) {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={onClick}
-      className={cn(
-        'flex flex-1 items-center justify-center rounded-md p-1.5 transition-colors',
-        active
-          ? 'bg-background text-foreground shadow-sm'
-          : 'text-muted-foreground hover:text-foreground'
-      )}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
   );
 }

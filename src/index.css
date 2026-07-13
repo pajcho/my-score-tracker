@@ -126,7 +126,20 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    /* Custom active: states replace the gray flash on every tap. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    /* Kills double-tap-to-zoom on controls — the classic web-app tell
+       when tapping score buttons in quick succession. */
+    touch-action: manipulation;
   }
 }

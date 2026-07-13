@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Bell, Lock, Save, Settings as SettingsIcon, Smartphone, Trash2, User, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,10 @@ import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { parseUserAgent } from '@/lib/userAgent';
 
 export function SettingsPage() {
+  const [searchParams] = useSearchParams();
+  // The Profile hub deep-links straight to a tab (/settings?tab=notifications).
+  const initialTab = searchParams.get('tab') === 'notifications' ? 'notifications' : 'profile';
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
       <PageHeader
@@ -38,7 +43,7 @@ export function SettingsPage() {
         icon={SettingsIcon}
       />
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue={initialTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex">
           <TabsTrigger value="profile" className="gap-2">
             <User className="h-4 w-4" />

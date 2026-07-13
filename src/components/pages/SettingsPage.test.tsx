@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -121,13 +122,13 @@ describe("SettingsPage", () => {
   });
 
   it("syncs profile inputs from auth state", () => {
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     expect(screen.getByLabelText("Full Name")).toHaveValue("Nikola");
     expect(screen.getByLabelText("Email Address")).toHaveValue("nikola@example.com");
   });
 
   it("saves profile and toasts on success", async () => {
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     fireEvent.change(screen.getByLabelText("Full Name"), { target: { value: "N. P." } });
     fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "n@example.com" } });
     fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
@@ -141,14 +142,14 @@ describe("SettingsPage", () => {
   });
 
   it("renders the Enable notifications button when not subscribed", () => {
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     expect(screen.getByRole("button", { name: /enable notifications/i })).toBeInTheDocument();
   });
 
   it("calls subscribe when Enable notifications is clicked", () => {
     const subscribe = vi.fn();
     useNotificationsMock.mockReturnValue({ ...defaultNotifications, subscribe });
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: /enable notifications/i }));
     expect(subscribe).toHaveBeenCalledTimes(1);
   });
@@ -159,7 +160,7 @@ describe("SettingsPage", () => {
       isSubscribed: true,
       subscription: { endpoint: "https://push.test/abc", keys: { p256dh: "", auth: "" } },
     });
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     expect(screen.getByRole("button", { name: /disable notifications/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send local test/i })).toBeInTheDocument();
   });
@@ -169,14 +170,14 @@ describe("SettingsPage", () => {
       ...defaultNotifications,
       permission: "denied" as NotificationPermission,
     });
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     expect(
       screen.getByText(/Notifications permission was denied/i),
     ).toBeInTheDocument();
   });
 
   it("disables Save until the preferences toggle changes", () => {
-    render(<SettingsPage />);
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     const save = screen.getAllByRole("button", { name: /^save$/i })[0];
     expect(save).toBeDisabled();
     fireEvent.click(screen.getByLabelText(/Live game invites from friends/i));

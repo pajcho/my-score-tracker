@@ -21,6 +21,7 @@ vi.mock("@/components/pages/SettingsPage", () => ({ SettingsPage: () => <div>Set
 vi.mock("@/components/pages/StatisticsPage", () => ({ StatisticsPage: ({ view }: { view: string }) => <div>{`Statistics-${view}`}</div> }));
 vi.mock("@/components/pages/FriendsPage", () => ({ FriendsPage: () => <div>FriendsPage</div> }));
 vi.mock("@/components/pages/LiveScorePage", () => ({ LiveScorePage: () => <div>LiveScorePage</div> }));
+vi.mock("@/components/pages/ProfilePage", () => ({ ProfilePage: () => <div>ProfilePage</div> }));
 vi.mock("@/components/auth/ProtectedRoute", () => ({ ProtectedRoute: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 vi.mock("@/routerBase.ts", () => ({ getBaseName: () => "/mock-base" }));
 

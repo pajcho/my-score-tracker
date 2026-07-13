@@ -8,6 +8,7 @@ import { SettingsPage } from "@/components/pages/SettingsPage";
 import { StatisticsPage } from "@/components/pages/StatisticsPage";
 import { FriendsPage } from "@/components/pages/FriendsPage";
 import { LiveScorePage } from "@/components/pages/LiveScorePage";
+import { ProfilePage } from "@/components/pages/ProfilePage";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {getBaseName} from "@/routerBase.ts";
 
@@ -42,7 +43,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "profile",
-        element: <Navigate to="/settings" replace />
+        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
       },
       {
         path: "settings",
