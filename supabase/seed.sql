@@ -243,3 +243,15 @@ BEGIN
   END IF;
 END
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 6. API role grants
+-- ---------------------------------------------------------------------------
+-- With the CLI version in use here, tables created through raw SQL
+-- migrations end up without SELECT/INSERT/UPDATE/DELETE for the API roles
+-- locally, so every REST call fails with 42501. RLS still applies; these
+-- grants only restore the hosted-Supabase baseline.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;

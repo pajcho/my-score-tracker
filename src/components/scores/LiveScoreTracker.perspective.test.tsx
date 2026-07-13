@@ -294,7 +294,7 @@ describe("LiveScoreTracker perspective labels", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start a new game" }));
 
     expect(screen.getByText("Start a New Game")).toBeInTheDocument();
-    expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
+    expect(screen.getByLabelText("Step 1 of 4")).toBeInTheDocument();
     expect(screen.getByText("What game do you want to play?")).toBeInTheDocument();
   });
 });

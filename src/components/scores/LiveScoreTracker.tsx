@@ -143,6 +143,45 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       }
     : undefined;
 
+  // Most recent recorded game — powers the wizard's one-tap rematch card.
+  // getScoresByUserId returns newest-first, so [0] is the last game played.
+  const lastScore = scoresQuery.data?.[0];
+  const lastGameSetup = (() => {
+    if (!lastScore || !currentUserId) return undefined;
+    const friendId = lastScore.user_id === currentUserId ? lastScore.opponent_user_id : lastScore.user_id;
+    const friend = friendId ? friends.find((candidate) => candidate.id === friendId) : undefined;
+    const opponentName = friend?.name ?? lastScore.friend_name ?? lastScore.opponent_name ?? '';
+    if (!opponentName) return undefined;
+    return {
+      game: lastScore.game,
+      poolType: isPoolGameType(lastScore.game)
+        ? ((lastScore.pool_type as PoolType | null) ?? lastPoolSettings?.poolType)
+        : undefined,
+      breakRule: isPoolGameType(lastScore.game)
+        ? ((lastScore.break_rule as BreakRule | null) ?? lastPoolSettings?.breakRule)
+        : undefined,
+      opponentType: friend ? ('friend' as const) : ('custom' as const),
+      opponentName,
+      selectedFriendId: friend?.id,
+    };
+  })();
+
+  // The right opponent is usually the last one — order friend chips by
+  // how recently each was played.
+  const friendsByRecency = useMemo(() => {
+    const baseFriends = friendsQuery.data ?? [];
+    const lastPlayedAt = new Map<string, number>();
+    for (const score of scoresQuery.data ?? []) {
+      const otherId = score.user_id === currentUserId ? score.opponent_user_id : score.user_id;
+      if (otherId && !lastPlayedAt.has(otherId)) {
+        lastPlayedAt.set(otherId, new Date(score.created_at).getTime());
+      }
+    }
+    return [...baseFriends].sort(
+      (first, second) => (lastPlayedAt.get(second.id) ?? 0) - (lastPlayedAt.get(first.id) ?? 0)
+    );
+  }, [currentUserId, scoresQuery.data, friendsQuery.data]);
+
   const writeGameToCache = useCallback(
     (
       gameId: string,
@@ -763,8 +802,18 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
   if (isInitialLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-        Loading live games...
+      <div className="space-y-4">
+        <span className="sr-only">Loading live games...</span>
+        <div aria-hidden="true" className="space-y-4">
+          <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+            <div className="flex gap-2">
+              <div className="h-24 flex-1 animate-pulse rounded-xl bg-muted" />
+              <div className="h-24 flex-1 animate-pulse rounded-xl bg-muted" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1286,8 +1335,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
           onComplete={(data) => {
             void addNewGame(data);
           }}
-          friends={friends}
+          friends={friendsByRecency}
           lastPoolSettings={lastPoolSettings}
+          lastGameSetup={lastGameSetup}
           currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
         />
       ) : null}

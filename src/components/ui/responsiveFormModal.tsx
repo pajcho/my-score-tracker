@@ -9,6 +9,8 @@ interface ResponsiveFormModalProps {
   title: string;
   description?: ReactNode;
   children: ReactNode;
+  /** 'tall' pins the sheet at 92vh (forms); 'fit' hugs the content (detail sheets). */
+  height?: 'tall' | 'fit';
 }
 
 export function ResponsiveFormModal({
@@ -17,6 +19,7 @@ export function ResponsiveFormModal({
   title,
   description,
   children,
+  height = 'tall',
 }: ResponsiveFormModalProps) {
   const isMobile = useIsMobile();
   const preventOpenAutoFocus = (event: Event) => {
@@ -33,7 +36,11 @@ export function ResponsiveFormModal({
       // no exposed page background above the drawer.
       <Drawer open={open} onOpenChange={onOpenChange} repositionInputs={false}>
         <DrawerContent
-          className="flex h-[92vh] flex-col overflow-hidden px-4 pb-4"
+          className={
+            height === 'fit'
+              ? 'flex max-h-[92vh] flex-col overflow-hidden px-4 pb-4'
+              : 'flex h-[92vh] flex-col overflow-hidden px-4 pb-4'
+          }
           onOpenAutoFocus={preventOpenAutoFocus}
         >
           <DrawerHeader className="border-b pb-3 text-left">

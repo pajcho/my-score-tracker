@@ -110,6 +110,7 @@ export function Navigation() {
               <Link
                 key={to}
                 to={to}
+                viewTransition
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-smooth hover:bg-muted",
                   isNavItemActive(to)
@@ -186,6 +187,7 @@ export function Navigation() {
                 <Link
                   key={to}
                   to={to}
+                  viewTransition
                   className={cn(
                     "relative flex min-w-14 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth active:scale-95",
                     isNavItemActive(to)
@@ -205,6 +207,7 @@ export function Navigation() {
               ))}
               <Link
                 to="/profile"
+                viewTransition
                 className={cn(
                   "relative flex min-w-14 flex-col items-center gap-1 rounded-md p-2 text-xs transition-smooth active:scale-95",
                   isNavItemActive('/profile')

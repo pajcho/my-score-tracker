@@ -31,8 +31,8 @@ describe('PoolGameSetup', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Picking a friend advances to the breaker step automatically.
     fireEvent.click(screen.getByRole('button', { name: 'Opponent' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(screen.getByRole('button', { name: /Start Game/ })).toBeDisabled();
 
@@ -63,8 +63,8 @@ describe('PoolGameSetup', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Picking a friend advances to the breaker step automatically.
     fireEvent.click(screen.getByRole('button', { name: 'Opponent' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     fireEvent.click(screen.getByRole('button', { name: /Random/ }));
     fireEvent.click(screen.getByRole('button', { name: /Start Game/ }));
 

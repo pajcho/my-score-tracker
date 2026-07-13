@@ -29,7 +29,7 @@ export function WizardLayout({
     <Button
       onClick={() => onNext()}
       disabled={!canProceed}
-      className="flex-1"
+      className="h-11 flex-1"
     >
       <ArrowRight className="h-4 w-4" />
       Next
@@ -38,7 +38,7 @@ export function WizardLayout({
     <Button
       onClick={() => onSubmit()}
       disabled={!canProceed}
-      className="flex-1"
+      className="h-11 flex-1"
     >
       <Play className="h-4 w-4" />
       Start Game
@@ -46,12 +46,11 @@ export function WizardLayout({
   ) : null;
 
   return (
-    // Same non-pinned footer pattern as the score/training forms: the
-    // wrapper is the scroll container and the action row rides at the
-    // natural end of content.
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-      <div className="px-4 pt-5 sm:px-5 sm:pt-5">
-        <div className="space-y-7">
+    // Pinned footer: only the content scrolls, so Cancel/Next stay under
+    // the thumb at a constant position across every step.
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-5 sm:px-5 sm:pt-5">
+        <div className="space-y-7 pb-6">
           {step > 1 && onBack ? (
             <div className="flex items-center">
               <Button
@@ -74,11 +73,11 @@ export function WizardLayout({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-row gap-3 border-t px-4 py-3 sm:px-5">
+      <div className="flex flex-row gap-3 border-t px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 sm:px-5">
         <Button
           variant="outline"
           onClick={onCancel}
-          className="flex-1"
+          className="h-11 flex-1"
         >
           <X className="h-4 w-4" />
           Cancel

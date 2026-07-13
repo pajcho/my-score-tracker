@@ -31,6 +31,23 @@ function useLaunchIntoLive() {
     mountedAtRef.current ??= Date.now();
   }, []);
 
+  // Active own games show as a count on the installed app icon
+  // (iOS 16.4+ installed PWAs, Chromium). Silent no-op elsewhere.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || typeof navigator.setAppBadge !== 'function') return;
+    const ownActiveGameCount = currentUserId
+      ? (liveGames ?? []).filter(
+          (liveGame) =>
+            liveGame.created_by_user_id === currentUserId || liveGame.opponent_user_id === currentUserId
+        ).length
+      : 0;
+    if (ownActiveGameCount > 0) {
+      void navigator.setAppBadge(ownActiveGameCount).catch(() => undefined);
+    } else {
+      void navigator.clearAppBadge?.().catch(() => undefined);
+    }
+  }, [currentUserId, liveGames]);
+
   useEffect(() => {
     if (!currentUserId || !liveGames) return;
     if (sessionStorage.getItem(LIVE_LAUNCH_SESSION_KEY)) return;
@@ -66,8 +83,14 @@ export function Layout() {
   // remains visible even if isLoading is true.
   if (authState.isLoading && !authState.profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-sm text-muted-foreground">Loading your profile...</div>
+      <div className="min-h-screen bg-background px-6 pt-16">
+        <span className="sr-only">Loading your profile...</span>
+        <div className="mx-auto w-full max-w-sm space-y-4" aria-hidden="true">
+          <div className="h-7 w-44 animate-pulse rounded-md bg-muted" />
+          <div className="h-24 animate-pulse rounded-xl bg-muted" />
+          <div className="h-40 animate-pulse rounded-xl bg-muted" />
+          <div className="h-40 animate-pulse rounded-xl bg-muted" />
+        </div>
       </div>
     );
   }

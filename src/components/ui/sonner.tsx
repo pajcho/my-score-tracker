@@ -11,6 +11,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position="bottom-center"
+      // Clear the bottom tab bar + safe area so snackbars sit above the nav.
+      offset={88}
+      style={{ "--mobile-offset": "calc(env(safe-area-inset-bottom) + 84px)" } as React.CSSProperties}
       toastOptions={{
         classNames: {
           toast:

@@ -124,7 +124,7 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
       <button
         type="button"
         onClick={() => setIsFlipped((flipped) => !flipped)}
-        className="absolute left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] -translate-x-1/2 whitespace-nowrap rounded-full bg-foreground/80 px-4 py-2 text-xs font-bold uppercase tracking-wide text-background backdrop-blur transition-transform active:scale-95"
+        className="absolute left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] max-w-[calc(100%-7.5rem)] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-foreground/80 px-4 py-2 text-xs font-bold uppercase tracking-wide text-background backdrop-blur transition-transform active:scale-95"
         aria-label="Flip scoreboard to face the opponent"
         title="Tap to flip the board for the player across the table"
       >

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Bell, Lock, Save, Settings as SettingsIcon, Smartphone, Trash2, User, X } from 'lucide-react';
+import { Bell, ChevronDown, Lock, Save, Settings as SettingsIcon, Smartphone, Trash2, User, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/pageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,6 +145,7 @@ function ProfileInfoCard() {
 }
 
 function ChangePasswordCard() {
+  const [isPasswordSectionOpen, setIsPasswordSectionOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -196,13 +198,24 @@ function ChangePasswordCard() {
 
   return (
     <Card className="shadow-card border-0">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Lock className="h-5 w-5" />
-          Change Password
-        </CardTitle>
-        <CardDescription>Update your account password</CardDescription>
-      </CardHeader>
+      <Collapsible open={isPasswordSectionOpen} onOpenChange={setIsPasswordSectionOpen}>
+        <CollapsibleTrigger asChild>
+          <button type="button" className="w-full text-left">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Change Password
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${isPasswordSectionOpen ? 'rotate-180' : ''}`}
+                />
+              </CardTitle>
+              <CardDescription>Update your account password</CardDescription>
+            </CardHeader>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
       <CardContent>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div className="space-y-2">
@@ -248,6 +261,8 @@ function ChangePasswordCard() {
           </Button>
         </form>
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
