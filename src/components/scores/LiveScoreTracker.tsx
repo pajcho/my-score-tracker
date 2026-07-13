@@ -1179,7 +1179,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   };
 
   return (
-    <div className="space-y-4">
+    // Extra mobile bottom padding keeps the floating + button from covering
+    // the last card's footer row when scrolled to the end.
+    <div className="space-y-4 pb-16 md:pb-0">
       <PageHeader
         title="Live"
         description="Track scores live and keep an eye on active friend games"
