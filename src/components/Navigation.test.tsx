@@ -3,11 +3,16 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "@/components/auth/authContext";
 
-const { signOutMock, toastMock, setThemeMock, navigateMock } = vi.hoisted(() => ({
+const { signOutMock, toastMock, setThemeMock, navigateMock, liveGamesDataMock } = vi.hoisted(() => ({
   signOutMock: vi.fn(),
   toastMock: vi.fn(),
   setThemeMock: vi.fn(),
   navigateMock: vi.fn(),
+  liveGamesDataMock: { current: [] as Array<Record<string, unknown>> },
+}));
+
+vi.mock("@/hooks/useTrackerData", () => ({
+  useLiveGamesQuery: () => ({ data: liveGamesDataMock.current }),
 }));
 
 vi.mock("@/lib/supabaseAuth", () => ({
@@ -73,11 +78,11 @@ const profile = {
   updated_at: "",
 };
 
-function renderNav(initialPath = "/") {
+function renderNav(initialPath = "/", user: { id: string } | null = null) {
   return render(
     <AuthContext.Provider
       value={{
-        user: null,
+        user: user as never,
         session: null,
         isAuthenticated: true,
         isLoading: false,
@@ -94,6 +99,7 @@ function renderNav(initialPath = "/") {
 describe("Navigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    liveGamesDataMock.current = [];
     Object.defineProperty(globalThis, "crypto", {
       value: {
         subtle: {
@@ -129,19 +135,16 @@ describe("Navigation", () => {
     expect(setThemeMock).toHaveBeenCalledWith("dark");
   });
 
-  it("logs out and shows toast", async () => {
+  it("logs out and navigates to login without a toast", async () => {
     signOutMock.mockResolvedValue({});
     renderNav();
 
     fireEvent.click(screen.getByRole("button", { name: /logout/i }));
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Logged out",
-        })
-      );
+      expect(navigateMock).toHaveBeenCalledWith("/login");
     });
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it("shows destructive toast when logout fails", async () => {
@@ -157,6 +160,23 @@ describe("Navigation", () => {
         })
       );
     });
+  });
+
+  it("shows the live dot on the Live tab when the user has active games", () => {
+    liveGamesDataMock.current = [{ created_by_user_id: "user-1", opponent_user_id: null }];
+    renderNav("/", { id: "user-1" });
+    expect(screen.getByTestId("live-nav-dot")).toBeInTheDocument();
+  });
+
+  it("hides the live dot when active games belong to other players", () => {
+    liveGamesDataMock.current = [{ created_by_user_id: "someone-else", opponent_user_id: null }];
+    renderNav("/", { id: "user-1" });
+    expect(screen.queryByTestId("live-nav-dot")).not.toBeInTheDocument();
+  });
+
+  it("renders the Profile tab in the bottom nav", () => {
+    renderNav();
+    expect(screen.getByText("Profile")).toBeInTheDocument();
   });
 
   it("renders safely when profile email is missing", async () => {

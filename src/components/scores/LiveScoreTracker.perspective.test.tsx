@@ -98,12 +98,15 @@ vi.mock("@/hooks/useMobile", () => ({
   useIsMobile: () => useIsMobileMock(),
 }));
 
+import { Toaster } from "sonner";
 import { LiveScoreTracker } from "@/components/scores/LiveScoreTracker";
 
 function renderLiveScoreTracker() {
   return render(
     <QueryClientProvider client={queryClient}>
       <LiveScoreTracker onClose={() => undefined} onScoresSaved={() => undefined} />
+      {/* Real sonner toaster so the undo snackbar is interactable. */}
+      <Toaster />
     </QueryClientProvider>
   );
 }
@@ -223,7 +226,7 @@ describe("LiveScoreTracker perspective labels", () => {
     renderLiveScoreTracker();
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Live Score Tracking" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Live" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Watching friends" })).toBeInTheDocument();
     });
 
@@ -231,8 +234,14 @@ describe("LiveScoreTracker perspective labels", () => {
 
     expect(watchingSection).not.toBeNull();
     expect(screen.getByText("Friend One")).toBeInTheDocument();
+
+    // With own active games present the watched list starts collapsed.
+    fireEvent.click(screen.getByRole("button", { name: "Show watched games" }));
+
+    await waitFor(() => {
+      expect(watchingSection).toContainElement(screen.getByText("Friend Two"));
+    });
     expect(watchingSection).not.toContainElement(screen.getByText("Friend One"));
-    expect(watchingSection).toContainElement(screen.getByText("Friend Two"));
     expect(watchingSection).toContainElement(screen.getByText("Watching (read-only)"));
   });
 
@@ -276,19 +285,44 @@ describe("LiveScoreTracker perspective labels", () => {
     });
   });
 
+  it("undoes exactly the last tap from the snackbar, even from a stale render", async () => {
+    authState.currentUserId = "user-1";
+
+    renderLiveScoreTracker();
+
+    // Seeded game: You 7 – 5 Friend One.
+    const youTile = await screen.findByRole("button", { name: /Score for You: 7/ });
+    fireEvent.click(youTile);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Score for You: 8/ })).toBeInTheDocument();
+    });
+
+    // The snackbar's Undo fires from a closure created at tap time; it must
+    // operate on the current cache (8 → 7), not the pre-tap snapshot
+    // (7 → 6, the old revert-by-two bug).
+    const undoButton = await screen.findByRole("button", { name: "Undo" });
+    fireEvent.click(undoButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Score for You: 7/ })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Score for You: 6/ })).not.toBeInTheDocument();
+  });
+
   it("opens the live game setup inside the shared modal", async () => {
     authState.currentUserId = "user-1";
 
     renderLiveScoreTracker();
 
     await waitFor(() => {
-      expect(screen.getByText("Add New Game")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start a new game" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Add New Game"));
+    fireEvent.click(screen.getByRole("button", { name: "Start a new game" }));
 
     expect(screen.getByText("Start a New Game")).toBeInTheDocument();
-    expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
+    expect(screen.getByLabelText("Step 1 of 4")).toBeInTheDocument();
     expect(screen.getByText("What game do you want to play?")).toBeInTheDocument();
   });
 });

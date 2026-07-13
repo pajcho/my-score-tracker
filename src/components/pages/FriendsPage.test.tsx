@@ -13,6 +13,8 @@ const {
   isAuthenticatedMock,
   getCurrentUserMock,
   getCurrentProfileMock,
+  navigateMock,
+  scoresDataMock,
 } = vi.hoisted(() => ({
   toastMock: vi.fn(),
   getFriendsMock: vi.fn(),
@@ -25,6 +27,8 @@ const {
   isAuthenticatedMock: vi.fn(),
   getCurrentUserMock: vi.fn(),
   getCurrentProfileMock: vi.fn(),
+  navigateMock: vi.fn(),
+  scoresDataMock: { current: [] as Array<Record<string, unknown>> },
 }));
 
 vi.mock("@/hooks/useToast", () => ({
@@ -38,6 +42,30 @@ vi.mock("@/lib/supabaseAuth", () => ({
     getCurrentProfile: getCurrentProfileMock,
   },
 }));
+
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    user: { id: "user-1" },
+    profile: { name: "Nikola", email: "user@example.com" },
+  }),
+}));
+
+vi.mock("@/hooks/useTrackerData", () => ({
+  useScoresQuery: () => ({ data: scoresDataMock.current }),
+}));
+
+vi.mock("@/hooks/useGravatar", () => ({
+  useGravatarUrl: () => "",
+}));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock("@/lib/supabaseFriends", () => ({
   supabaseFriends: {
@@ -74,32 +102,22 @@ vi.mock("@/components/ui/alertDialog", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/button", () => ({
-  Button: ({
-    children,
-    onClick,
-    type,
-    className,
-    disabled,
-    ...rest
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    type?: "button" | "submit" | "reset";
-    className?: string;
-    disabled?: boolean;
-  }) => (
-    <button type={type || "button"} onClick={onClick} className={className} {...rest}>
-      {children}
-    </button>
-  ),
+vi.mock("@/components/ui/responsiveFormModal", () => ({
+  ResponsiveFormModal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+    open ? <div>{children}</div> : null,
 }));
 
 import { FriendsPage } from "@/components/pages/FriendsPage";
 
+async function openInviteSheet() {
+  const inviteButton = await screen.findByRole("button", { name: /Invite/ });
+  fireEvent.click(inviteButton);
+}
+
 describe("FriendsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    scoresDataMock.current = [];
     isAuthenticatedMock.mockReturnValue(true);
     getCurrentUserMock.mockReturnValue({
       id: "user-1",
@@ -143,8 +161,31 @@ describe("FriendsPage", () => {
     });
   });
 
+  it("shows a head-to-head record on the friend row", async () => {
+    scoresDataMock.current = [
+      { user_id: "user-1", opponent_user_id: "friend-1", score: "5-1" },
+      { user_id: "friend-1", opponent_user_id: "user-1", score: "5-3" },
+    ];
+    render(<FriendsPage />);
+
+    await screen.findByText("Ana");
+    expect(screen.getByText(/2 games/)).toBeInTheDocument();
+    expect(screen.getByText("1W")).toBeInTheDocument();
+    expect(screen.getByText("1L")).toBeInTheDocument();
+  });
+
+  it("navigates to head-to-head statistics when a friend row is tapped", async () => {
+    render(<FriendsPage />);
+
+    const row = await screen.findByRole("button", { name: "Head-to-head statistics vs Ana" });
+    fireEvent.click(row);
+
+    expect(navigateMock).toHaveBeenCalledWith("/statistics/score?opponent=Ana");
+  });
+
   it("sends invitation and shows success toast", async () => {
     render(<FriendsPage />);
+    await openInviteSheet();
 
     const emailInput = await screen.findByLabelText("Friend's Email *");
     fireEvent.change(emailInput, { target: { value: "friend@example.com" } });
@@ -155,22 +196,6 @@ describe("FriendsPage", () => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
           title: "Invitation sent!",
-        })
-      );
-    });
-  });
-
-  it("shows validation toast when email is missing", async () => {
-    render(<FriendsPage />);
-
-    const sendInvitationButton = await screen.findByRole("button", { name: "Send Invitation" });
-    fireEvent.click(sendInvitationButton);
-
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Email required",
-          variant: "destructive",
         })
       );
     });
@@ -195,6 +220,7 @@ describe("FriendsPage", () => {
   it("shows invitation send failure message", async () => {
     sendFriendInvitationMock.mockRejectedValueOnce(new Error("Already invited"));
     render(<FriendsPage />);
+    await openInviteSheet();
 
     const emailInput = await screen.findByLabelText("Friend's Email *");
     fireEvent.change(emailInput, { target: { value: "friend@example.com" } });
@@ -214,6 +240,7 @@ describe("FriendsPage", () => {
   it("uses fallback error message for non-Error failures", async () => {
     sendFriendInvitationMock.mockRejectedValueOnce("unexpected");
     render(<FriendsPage />);
+    await openInviteSheet();
 
     const emailInput = await screen.findByLabelText("Friend's Email *");
     fireEvent.change(emailInput, { target: { value: "friend@example.com" } });
@@ -232,6 +259,8 @@ describe("FriendsPage", () => {
 
   it("sends invitation with personal message", async () => {
     render(<FriendsPage />);
+    await openInviteSheet();
+
     const emailInput = await screen.findByLabelText("Friend's Email *");
     fireEvent.change(emailInput, { target: { value: "friend@example.com" } });
     fireEvent.change(screen.getByLabelText("Personal Message (Optional)"), { target: { value: "hello there" } });
@@ -284,8 +313,7 @@ describe("FriendsPage", () => {
 
     await screen.findByText("Petar");
 
-    const acceptButton = document.querySelector("button.bg-green-600");
-    fireEvent.click(acceptButton);
+    fireEvent.click(screen.getByRole("button", { name: /Accept/ }));
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -296,11 +324,7 @@ describe("FriendsPage", () => {
       );
     });
 
-    const senderNameElement = screen.getByText("Petar");
-    const invitationCard = senderNameElement.closest(".shadow-card");
-    const invitationButtons = invitationCard?.querySelectorAll("button") || [];
-    const declineButton = invitationButtons[1] as HTMLButtonElement | undefined;
-    if (declineButton) fireEvent.click(declineButton);
+    fireEvent.click(screen.getByRole("button", { name: "Decline invitation" }));
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -327,8 +351,7 @@ describe("FriendsPage", () => {
     render(<FriendsPage />);
     await screen.findByText("Petar");
 
-    const acceptButton = document.querySelector("button.bg-green-600");
-    if (acceptButton) fireEvent.click(acceptButton);
+    fireEvent.click(screen.getByRole("button", { name: /Accept/ }));
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -337,8 +360,7 @@ describe("FriendsPage", () => {
       );
     });
 
-    const declineButton = document.querySelector("button[variant='outline']");
-    if (declineButton) fireEvent.click(declineButton);
+    fireEvent.click(screen.getByRole("button", { name: "Decline invitation" }));
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({

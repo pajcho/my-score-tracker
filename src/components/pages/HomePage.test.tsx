@@ -39,8 +39,8 @@ vi.mock("@/components/scores/ScoreForm", () => ({
   ),
 }));
 
-vi.mock("@/components/scores/ScoreList", () => ({
-  ScoreList: ({ onScoreUpdated }: { onScoreUpdated: () => void }) => (
+vi.mock("@/components/scores/ScoreDayList", () => ({
+  ScoreDayList: ({ onScoreUpdated }: { onScoreUpdated: () => void }) => (
     <button onClick={onScoreUpdated} type="button">
       ScoreListUpdate
     </button>

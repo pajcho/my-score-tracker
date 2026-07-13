@@ -113,6 +113,7 @@ export function RegisterPage() {
                   <Input
                     id="name"
                     type="text"
+                    autoComplete="name"
                     placeholder="Enter your full name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -129,6 +130,8 @@ export function RegisterPage() {
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
+                    inputMode="email"
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -145,6 +148,7 @@ export function RegisterPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -183,6 +187,7 @@ export function RegisterPage() {
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Confirm your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

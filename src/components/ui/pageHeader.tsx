@@ -29,7 +29,9 @@ export function PageHeader({
   hideIconOnMobile = true,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex flex-col gap-3 md:flex-row md:items-center md:justify-between', className)}>
+    // Actions share the title row on all breakpoints — a stacked action
+    // row costs a full line of content on small screens.
+    <div className={cn('flex flex-row items-center justify-between gap-3', className)}>
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
         {Icon ? (
           <div className={cn('shrink-0 text-primary', hideIconOnMobile ? 'hidden sm:block' : 'block')}>
@@ -42,13 +44,15 @@ export function PageHeader({
             {status ? <div className="shrink-0">{status}</div> : null}
           </div>
           {description ? (
-            <p className={cn('mt-1 max-w-2xl text-base text-muted-foreground sm:text-lg', descriptionClassName)}>
+            // Hidden on mobile: page explainers are read once, then cost a
+            // card of content on every visit in the standalone PWA.
+            <p className={cn('mt-1 hidden max-w-2xl text-base text-muted-foreground sm:text-lg md:block', descriptionClassName)}>
               {description}
             </p>
           ) : null}
         </div>
       </div>
-      {actions ? <div className="flex items-center gap-3 text-sm">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 items-center gap-3 text-sm">{actions}</div> : null}
     </div>
   );
 }

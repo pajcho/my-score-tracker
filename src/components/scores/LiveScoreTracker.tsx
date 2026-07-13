@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye } from 'lucide-react';
+import { Plus, Minus, Flag, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye, Maximize2 } from 'lucide-react';
+import { toast as snackbar } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alertDialog';
+import { cn } from '@/lib/utils';
+import { hapticTick } from '@/lib/haptics';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/pageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -42,6 +56,7 @@ import { useAuth } from '@/components/auth/authContext';
 import { invalidateTrackerQueries, trackerQueryKeys } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
 import { GameSetupWizard } from './wizard/GameSetupWizard';
+import { ScoreboardMode } from './ScoreboardMode';
 
 // Debounce window for batching rapid +/- clicks into a single Supabase write.
 // Long enough to coalesce a burst of taps; short enough that a watching device
@@ -87,7 +102,10 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     settingsPatch: Partial<PoolGameSettingsInput>;
   } | null>(null);
   const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
-  const [isWatchingSectionOpen, setIsWatchingSectionOpen] = useState(true);
+  // null = no explicit user choice yet; the section then defaults to open
+  // only when the user has no games of their own to focus on.
+  const [watchingSectionOpenOverride, setWatchingSectionOpenOverride] = useState<boolean | null>(null);
+  const [scoreboardGameId, setScoreboardGameId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser, isAuthenticated } = useAuth();
@@ -124,6 +142,45 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         breakRule: lastPoolGame.break_rule as BreakRule,
       }
     : undefined;
+
+  // Most recent recorded game — powers the wizard's one-tap rematch card.
+  // getScoresByUserId returns newest-first, so [0] is the last game played.
+  const lastScore = scoresQuery.data?.[0];
+  const lastGameSetup = (() => {
+    if (!lastScore || !currentUserId) return undefined;
+    const friendId = lastScore.user_id === currentUserId ? lastScore.opponent_user_id : lastScore.user_id;
+    const friend = friendId ? friends.find((candidate) => candidate.id === friendId) : undefined;
+    const opponentName = friend?.name ?? lastScore.friend_name ?? lastScore.opponent_name ?? '';
+    if (!opponentName) return undefined;
+    return {
+      game: lastScore.game,
+      poolType: isPoolGameType(lastScore.game)
+        ? ((lastScore.pool_type as PoolType | null) ?? lastPoolSettings?.poolType)
+        : undefined,
+      breakRule: isPoolGameType(lastScore.game)
+        ? ((lastScore.break_rule as BreakRule | null) ?? lastPoolSettings?.breakRule)
+        : undefined,
+      opponentType: friend ? ('friend' as const) : ('custom' as const),
+      opponentName,
+      selectedFriendId: friend?.id,
+    };
+  })();
+
+  // The right opponent is usually the last one — order friend chips by
+  // how recently each was played.
+  const friendsByRecency = useMemo(() => {
+    const baseFriends = friendsQuery.data ?? [];
+    const lastPlayedAt = new Map<string, number>();
+    for (const score of scoresQuery.data ?? []) {
+      const otherId = score.user_id === currentUserId ? score.opponent_user_id : score.user_id;
+      if (otherId && !lastPlayedAt.has(otherId)) {
+        lastPlayedAt.set(otherId, new Date(score.created_at).getTime());
+      }
+    }
+    return [...baseFriends].sort(
+      (first, second) => (lastPlayedAt.get(second.id) ?? 0) - (lastPlayedAt.get(first.id) ?? 0)
+    );
+  }, [currentUserId, scoresQuery.data, friendsQuery.data]);
 
   const writeGameToCache = useCallback(
     (
@@ -458,8 +515,23 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     }
   };
 
+  const getSideLabel = (game: LiveGameView, side: PlayerSide): string => {
+    if (side === 'player1') {
+      return currentUser?.id === game.created_by_user_id ? 'you' : game.creator_name || 'Unknown player';
+    }
+    return currentUser?.id === game.opponent_user_id
+      ? 'you'
+      : game.opponent_name || game.opponent_user_name || 'Unknown opponent';
+  };
+
   const updateScore = (gameId: string, player: PlayerSide, change: 1 | -1) => {
-    const gameToUpdate = games.find((game) => game.id === gameId);
+    // Read the freshest optimistic cache, not the render-time `games`
+    // closure: this callback also fires later from the undo snackbar and
+    // from tap bursts that outrun re-renders, where the closure is stale —
+    // an undo computed from a stale score reverts by two (or no-ops at 0).
+    const currentGames =
+      queryClient.getQueryData<LiveGameView[]>(trackerQueryKeys.liveGames) ?? games;
+    const gameToUpdate = currentGames.find((game) => game.id === gameId);
     if (!gameToUpdate) return;
 
     const nextScore1 = player === 'player1'
@@ -472,6 +544,22 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const isNoopChange = nextScore1 === gameToUpdate.score1 && nextScore2 === gameToUpdate.score2;
     if (isNoopChange) {
       return;
+    }
+
+    // Physical + peripheral confirmation: taps often happen while walking
+    // back to the table, not while watching the screen.
+    hapticTick();
+    if (change === 1) {
+      // One reusable snackbar (fixed id) so rapid taps update in place
+      // instead of stacking. Undo routes through the same score pipeline.
+      snackbar(`+1 ${getSideLabel(gameToUpdate, player)}`, {
+        id: 'score-undo',
+        duration: 2500,
+        action: {
+          label: 'Undo',
+          onClick: () => updateScore(gameId, player, -1),
+        },
+      });
     }
 
     if (!isPoolGameType(gameToUpdate.game) || !gameToUpdate.pool_settings) {
@@ -716,11 +804,22 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const watchedGames = orderedGames.filter((game) =>
     currentUser ? game.created_by_user_id !== currentUser.id && game.opponent_user_id !== currentUser.id : true
   );
+  const isWatchingSectionOpen = watchingSectionOpenOverride ?? activePlayerGames.length === 0;
 
   if (isInitialLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-        Loading live games...
+      <div className="space-y-4">
+        <span className="sr-only">Loading live games...</span>
+        <div aria-hidden="true" className="space-y-4">
+          <div className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+            <div className="flex gap-2">
+              <div className="h-24 flex-1 animate-pulse rounded-xl bg-muted" />
+              <div className="h-24 flex-1 animate-pulse rounded-xl bg-muted" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -744,15 +843,70 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     );
   };
 
-  const BreakIndicator = () => {
-    return <Play className="h-3 w-3 fill-current text-primary" />;
+  // A cue ball, not a play glyph — "break" in pool language.
+  const BreakIndicator = () => (
+    <svg viewBox="0 0 12 12" className="h-3 w-3 shrink-0 text-primary" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.5" fill="currentColor" />
+      <circle cx="4.2" cy="4.2" r="1.7" fill="hsl(var(--card))" opacity="0.9" />
+    </svg>
+  );
+
+  const renderWatchedGameCard = (game: LiveGameView) => {
+    const isPoolGame = isPoolGameType(game.game) && !!game.pool_settings;
+    const creatorName = game.creator_name || 'Unknown player';
+    const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
+    const nextBreakerSide = game.pool_settings?.current_breaker_side;
+
+    // Spectators get a clean scoreline — no controls at all. Disabled
+    // steppers would only suggest something is broken.
+    return (
+      <Card key={game.id} className="border border-border/60 bg-card/70 shadow-none">
+        <CardContent className="space-y-3 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              {isPoolGame && game.pool_settings?.pool_type ? (
+                <PoolTypeIcon poolType={game.pool_settings.pool_type} className="h-4 w-4" />
+              ) : (
+                <GameTypeIcon gameType={game.game} className="h-4 w-4" />
+              )}
+              <span>{getGameTypeLabel(game.game)}</span>
+              {isPoolGame && game.pool_settings?.pool_type && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {getPoolTypeLabel(game.pool_settings.pool_type)}
+                </span>
+              )}
+            </div>
+            <span className="text-right text-xs text-muted-foreground">Watching (read-only)</span>
+          </div>
+
+          <div className="flex items-center justify-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-xs font-medium text-muted-foreground">
+              {isPoolGame && nextBreakerSide === 'player1' && <BreakIndicator />}
+              <span className="truncate">{creatorName}</span>
+            </div>
+            <div className="flex shrink-0 items-baseline gap-1.5 text-2xl font-bold tabular-nums">
+              <span className="text-player-one">{game.score1}</span>
+              <span className="text-base font-medium text-muted-foreground">–</span>
+              <span className="text-player-two">{game.score2}</span>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <span className="truncate">{opponentName}</span>
+              {isPoolGame && nextBreakerSide === 'player2' && <BreakIndicator />}
+            </div>
+          </div>
+
+          <div className="text-center text-xs text-muted-foreground">
+            Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   const renderGameCard = (game: LiveGameView) => {
     const isPoolGame = isPoolGameType(game.game) && !!game.pool_settings;
     const isGameCreator = currentUser?.id === game.created_by_user_id;
     const isGameOpponent = currentUser?.id === game.opponent_user_id;
-    const isSpectator = !isGameCreator && !isGameOpponent;
     const creatorName = game.creator_name || 'Unknown player';
     const opponentName = game.opponent_name || game.opponent_user_name || 'Unknown opponent';
     const leftPlayerLabel = isGameCreator ? 'You' : creatorName;
@@ -762,11 +916,12 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const leftScore = game.score1;
     const rightScore = game.score2;
     const nextBreakerSide = game.pool_settings?.current_breaker_side;
+    const rackNumber = leftScore + rightScore + 1;
     const isPoolSettingsExpanded = !!expandedPoolSettingsByGameId[game.id];
-    const disableGameInteractions = isSpectator || isLoading;
+    const disableGameInteractions = isLoading;
 
     return (
-      <Card key={game.id} className={`border-0 shadow-card ${isSpectator ? 'border border-border/60 bg-card/70' : ''}`}>
+      <Card key={game.id} className="border-0 shadow-card">
         <CardHeader className="pb-2">
           <div className="flex min-h-8 items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -782,43 +937,73 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 </span>
               )}
             </CardTitle>
-            <div className="flex shrink-0 items-center justify-end gap-1">
+            <div className="flex shrink-0 items-center justify-end">
               {isPoolGame && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => togglePoolSettingsPanel(game.id)}
-                  className="h-8 w-8 p-0"
-                  aria-label="Toggle pool settings"
+                  className={cn('h-11 w-11 p-0', isPoolSettingsExpanded && 'bg-muted text-primary')}
+                  aria-label="Game rules"
                 >
-                  <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Settings2 className={cn('!h-[18px] !w-[18px]', !isPoolSettingsExpanded && 'text-muted-foreground')} />
                 </Button>
               )}
-              {!isSpectator ? (
-                <div className="flex justify-end gap-1">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => saveGame(game)}
                     disabled={isLoading}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 p-0"
+                    aria-label="Finish game"
                   >
-                    <Save className="h-3 w-3" />
+                    <Flag className="!h-[18px] !w-[18px] text-muted-foreground" />
                   </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Finish this game?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The final score {leftScore}–{rightScore} vs {isGameCreator ? opponentName : creatorName} will
+                      be saved to your history.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => void saveGame(game)}>Finish & save</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeGame(game.id)}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 p-0"
+                    aria-label="Delete game"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="!h-[18px] !w-[18px] text-muted-foreground" />
                   </Button>
-                </div>
-              ) : (
-                <span className="block text-right text-xs leading-8 text-muted-foreground">
-                  Watching (read-only)
-                </span>
-              )}
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this live game?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The current score {leftScore}–{rightScore} will be discarded. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => void removeGame(game.id)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </CardHeader>
@@ -832,7 +1017,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                     <Select
                       value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
                       onValueChange={(value) => changePoolType(game, value as PoolType)}
-                      disabled={isSpectator || isLoading}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -851,7 +1036,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                     <Select
                       value={game.pool_settings?.break_rule || 'alternate'}
                       onValueChange={(value) => changeBreakRule(game, value as BreakRule)}
-                      disabled={isSpectator || isLoading}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -867,7 +1052,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                     <Select
                       value={nextBreakerSide || 'player1'}
                       onValueChange={(value) => changeBreakerSide(game, value as PlayerSide)}
-                      disabled={isSpectator || isLoading}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
@@ -882,84 +1067,110 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
               </div>
             )}
 
-            <div className="flex items-end justify-between gap-2 sm:gap-3">
-              <div className="flex flex-col gap-1">
+            <div className="flex items-stretch justify-between gap-2 sm:gap-3">
+              <div className="flex flex-col justify-center gap-2 pt-5">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, leftPlayer, 1)}
                   disabled={disableGameInteractions}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 p-0"
+                  aria-label={`Add point for ${leftPlayerLabel}`}
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, leftPlayer, -1)}
                   disabled={disableGameInteractions || leftScore === 0}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 p-0"
+                  aria-label={`Remove point for ${leftPlayerLabel}`}
                 >
-                  <Minus className="h-3 w-3" />
+                  <Minus className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="flex flex-1 items-center justify-center gap-2 sm:gap-3">
-                <div className="w-full text-center">
+              <div className="flex flex-1 items-stretch justify-center gap-2 sm:gap-3">
+                <div className="flex w-full flex-col text-center">
                   <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
                     {isPoolGameType(game.game) && nextBreakerSide === 'player1' && <BreakIndicator />}
-                    <span className={leftPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                    <span className={cn('truncate', leftPlayerLabel === 'You' && 'font-semibold text-primary')}>
                       {leftPlayerLabel}
                     </span>
                   </div>
-                  <div
-                    className={`flex min-w-[72px] items-center justify-center rounded-lg px-3 py-4 text-center text-2xl font-bold sm:min-w-[80px] sm:px-6 ${isSpectator ? 'cursor-default border border-blue-200 bg-transparent text-blue-400 dark:border-blue-800 dark:text-blue-600' : 'cursor-pointer bg-blue-500 text-white transition-colors hover:bg-blue-600'}`}
-                    onClick={disableGameInteractions ? undefined : () => updateScore(game.id, leftPlayer, 1)}
+                  <button
+                    type="button"
+                    className="flex min-h-[96px] w-full select-none items-center justify-center rounded-xl bg-player-one text-4xl font-bold text-white transition-[filter,transform] active:scale-[0.99] active:brightness-110 disabled:opacity-60 [-webkit-touch-callout:none]"
+                    onClick={() => updateScore(game.id, leftPlayer, 1)}
+                    disabled={disableGameInteractions}
+                    aria-label={`Score for ${leftPlayerLabel}: ${leftScore}. Tap to add a point.`}
                   >
-                    {leftScore}
-                  </div>
+                    {/* Keyed remount replays the pop animation on every change. */}
+                    <span key={leftScore} className="animate-score-pop tabular-nums">
+                      {leftScore}
+                    </span>
+                  </button>
                 </div>
 
-                <div className="w-full text-center">
+                <div className="flex w-full flex-col text-center">
                   <div className="mb-1 flex items-center justify-center gap-1 truncate text-xs font-medium text-muted-foreground">
                     {isPoolGameType(game.game) && nextBreakerSide === 'player2' && <BreakIndicator />}
-                    <span className={rightPlayerLabel === 'You' ? 'font-semibold text-primary' : ''}>
+                    <span className={cn('truncate', rightPlayerLabel === 'You' && 'font-semibold text-primary')}>
                       {rightPlayerLabel}
                     </span>
                   </div>
-                  <div
-                    className={`flex min-w-[72px] items-center justify-center rounded-lg px-3 py-4 text-center text-2xl font-bold sm:min-w-[80px] sm:px-6 ${isSpectator ? 'cursor-default border border-red-200 bg-transparent text-red-400 dark:border-red-800 dark:text-red-600' : 'cursor-pointer bg-red-500 text-white transition-colors hover:bg-red-600'}`}
-                    onClick={disableGameInteractions ? undefined : () => updateScore(game.id, rightPlayer, 1)}
+                  <button
+                    type="button"
+                    className="flex min-h-[96px] w-full select-none items-center justify-center rounded-xl bg-player-two text-4xl font-bold text-white transition-[filter,transform] active:scale-[0.99] active:brightness-110 disabled:opacity-60 [-webkit-touch-callout:none]"
+                    onClick={() => updateScore(game.id, rightPlayer, 1)}
+                    disabled={disableGameInteractions}
+                    aria-label={`Score for ${rightPlayerLabel}: ${rightScore}. Tap to add a point.`}
                   >
-                    {rightScore}
-                  </div>
+                    <span key={rightScore} className="animate-score-pop tabular-nums">
+                      {rightScore}
+                    </span>
+                  </button>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col justify-center gap-2 pt-5">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, rightPlayer, 1)}
                   disabled={disableGameInteractions}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 p-0"
+                  aria-label={`Add point for ${rightPlayerLabel}`}
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, rightPlayer, -1)}
                   disabled={disableGameInteractions || rightScore === 0}
-                  className="h-8 w-8 p-0"
+                  className="h-11 w-11 p-0"
+                  aria-label={`Remove point for ${rightPlayerLabel}`}
                 >
-                  <Minus className="h-3 w-3" />
+                  <Minus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="text-center text-xs text-muted-foreground">
-              Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {isPoolGame ? `Rack ${rackNumber} · ` : ''}
+                Started {formatDistanceToNow(new Date(game.started_at), { addSuffix: true })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setScoreboardGameId(game.id)}
+                className="inline-flex min-h-11 items-center gap-1 px-1 text-xs font-semibold text-primary transition-transform active:scale-95"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Fullscreen
+              </button>
             </div>
           </div>
         </CardContent>
@@ -968,9 +1179,11 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   };
 
   return (
-    <div className="space-y-4">
+    // Extra mobile bottom padding keeps the floating + button from covering
+    // the last card's footer row when scrolled to the end.
+    <div className="space-y-4 pb-16 md:pb-0">
       <PageHeader
-        title="Live Score Tracking"
+        title="Live"
         description="Track scores live and keep an eye on active friend games"
         icon={Play}
         status={(
@@ -993,15 +1206,25 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         actions={(
           <>
             {ownGamesCount > 0 && (
-              <button
-                type="button"
-                onClick={saveAllGames}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void saveAllGames()}
                 disabled={isLoading}
-                className="text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
+                className="gap-1.5"
               >
-                Save all ({ownGamesCount})
-              </button>
+                <Flag className="h-3.5 w-3.5" />
+                Finish all ({ownGamesCount})
+              </Button>
             )}
+            <Button
+              size="sm"
+              onClick={() => setShowNewGameForm(true)}
+              className="hidden gap-1.5 md:inline-flex"
+            >
+              <Plus className="h-4 w-4" />
+              New game
+            </Button>
           </>
         )}
       />
@@ -1009,23 +1232,11 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         <section className="space-y-3">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activePlayerGames.map(renderGameCard)}
-
-            <Card className="h-full cursor-pointer border-2 border-dashed border-muted-foreground/25 shadow-card transition-colors hover:border-primary/50">
-              <CardContent
-                className="flex h-full min-h-[220px] items-center justify-center p-8"
-                onClick={() => setShowNewGameForm(true)}
-              >
-                <div className="text-center">
-                  <Plus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Add New Game</p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </section>
 
         {watchedGames.length > 0 && (
-          <Collapsible open={isWatchingSectionOpen} onOpenChange={setIsWatchingSectionOpen}>
+          <Collapsible open={isWatchingSectionOpen} onOpenChange={(open) => setWatchingSectionOpenOverride(open)}>
             <section className="space-y-3 rounded-2xl border border-border/70 bg-card/40 p-3 sm:p-4" aria-labelledby="watching-games-heading">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3">
@@ -1056,7 +1267,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
               <CollapsibleContent>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {watchedGames.map(renderGameCard)}
+                  {watchedGames.map(renderWatchedGameCard)}
                 </div>
               </CollapsibleContent>
             </section>
@@ -1065,11 +1276,50 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       </div>
 
       {games.length === 0 && !showNewGameForm && (
-        <div className="text-center py-8 text-muted-foreground">
-          <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No active games. Click "Add New Game" to start tracking scores!</p>
+        <div className="space-y-4 py-8 text-center text-muted-foreground">
+          <Trophy className="mx-auto h-12 w-12 opacity-50" />
+          <p>No active games right now.</p>
+          <Button onClick={() => setShowNewGameForm(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Start a game
+          </Button>
         </div>
       )}
+
+      {/* Thumb-reach entry point for the most common mid-evening action. */}
+      <button
+        type="button"
+        onClick={() => setShowNewGameForm(true)}
+        aria-label="Start a new game"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95 md:hidden"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {(() => {
+        // Scoreboard reads the same live cache entry as the cards, so
+        // realtime updates flow straight through; it closes itself if the
+        // game finishes or is deleted elsewhere.
+        const scoreboardGame = scoreboardGameId
+          ? activePlayerGames.find((game) => game.id === scoreboardGameId)
+          : undefined;
+        if (!scoreboardGame) return null;
+        const isCreator = currentUser?.id === scoreboardGame.created_by_user_id;
+        const isOpponent = currentUser?.id === scoreboardGame.opponent_user_id;
+        return (
+          <ScoreboardMode
+            game={scoreboardGame}
+            leftLabel={isCreator ? 'You' : scoreboardGame.creator_name || 'Unknown player'}
+            rightLabel={
+              isOpponent
+                ? 'You'
+                : scoreboardGame.opponent_name || scoreboardGame.opponent_user_name || 'Unknown opponent'
+            }
+            onScore={(side, change) => updateScore(scoreboardGame.id, side, change)}
+            onClose={() => setScoreboardGameId(null)}
+          />
+        );
+      })()}
 
       {showNewGameForm ? (
         <GameSetupWizard
@@ -1077,8 +1327,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
           onComplete={(data) => {
             void addNewGame(data);
           }}
-          friends={friends}
+          friends={friendsByRecency}
           lastPoolSettings={lastPoolSettings}
+          lastGameSetup={lastGameSetup}
           currentUserName={currentUser?.user_metadata?.name || 'Player 1'}
         />
       ) : null}

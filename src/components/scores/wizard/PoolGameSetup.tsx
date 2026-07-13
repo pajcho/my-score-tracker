@@ -59,6 +59,11 @@ export function PoolGameSetup({
     setSelectedFriend(friendId);
     setOpponentType('friend');
     setOpponent('');
+    // Picking a friend answers the step's whole question — advance
+    // immediately, the same way the Ping Pong flow already does.
+    if (currentStep === 2) {
+      setCurrentStep(3);
+    }
   };
 
   const handleCustomOpponentSelect = (name: string) => {

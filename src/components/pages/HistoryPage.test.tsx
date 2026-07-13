@@ -20,8 +20,8 @@ vi.mock("@/lib/supabaseDatabase", () => ({
   },
 }));
 
-vi.mock("@/components/scores/ScoreList", () => ({
-  ScoreList: ({ scores }: { scores: Array<{ id: string }> }) => <div>{`ScoreList-${scores.length}`}</div>,
+vi.mock("@/components/scores/ScoreDayList", () => ({
+  ScoreDayList: ({ scores }: { scores: Array<{ id: string }> }) => <div>{`ScoreDayList-${scores.length}`}</div>,
 }));
 
 vi.mock("@/components/trainings/TrainingCard", () => ({
@@ -30,30 +30,6 @@ vi.mock("@/components/trainings/TrainingCard", () => ({
       TrainingCard
     </button>
   ),
-}));
-
-vi.mock("@/components/ui/select", () => ({
-  Select: ({
-    children,
-    onValueChange,
-  }: {
-    children: React.ReactNode;
-    onValueChange?: (value: string) => void;
-  }) => (
-    <div>
-      <button type="button" onClick={() => onValueChange?.("Pool")}>
-        SelectPool
-      </button>
-      <button type="button" onClick={() => onValueChange?.("Chess")}>
-        SelectChess
-      </button>
-      {children}
-    </div>
-  ),
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <div>{placeholder}</div>,
 }));
 
 import { HistoryPage } from "@/components/pages/HistoryPage";
@@ -67,6 +43,10 @@ function renderHistoryPage(view: "score" | "training") {
       </MemoryRouter>
     </QueryClientProvider>
   );
+}
+
+function openSearch() {
+  fireEvent.click(screen.getByRole("button", { name: "Search" }));
 }
 
 describe("HistoryPage", () => {
@@ -83,19 +63,19 @@ describe("HistoryPage", () => {
     });
     useAuthMock.mockReturnValue({ isAuthenticated: true, user: { id: "user-1" } });
     getScoresByUserIdMock.mockResolvedValue([
-      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null },
+      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "5-1" },
     ]);
     getTrainingsByUserIdMock.mockResolvedValue([
       { id: "t1", game: "Pool", title: "Drill", notes: "notes" },
     ]);
   });
 
-  it("renders score history view", async () => {
+  it("renders score history view with day list", async () => {
     renderHistoryPage("score");
 
     await waitFor(() => {
-      expect(screen.getByText("Score History")).toBeInTheDocument();
-      expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
   });
 
@@ -103,7 +83,7 @@ describe("HistoryPage", () => {
     renderHistoryPage("training");
 
     await waitFor(() => {
-      expect(screen.getByText("Training History")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
   });
@@ -118,39 +98,56 @@ describe("HistoryPage", () => {
     });
   });
 
-  it("updates score search term", async () => {
+  it("filters scores via the search toggle", async () => {
     renderHistoryPage("score");
 
     await waitFor(() => {
-      expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
 
-    const searchInput = screen.getAllByPlaceholderText("Search by opponent name...")[0];
-    fireEvent.change(searchInput, { target: { value: "nobody" } });
+    openSearch();
+    fireEvent.change(screen.getByPlaceholderText("Search by opponent name..."), { target: { value: "nobody" } });
     await waitFor(() => {
       expect(screen.getByText("No games match your filters")).toBeInTheDocument();
     });
   });
 
-  it("applies score and training game filters", async () => {
-    const scoreView = renderHistoryPage("score");
+  it("filters scores by opponent chip and toggles it off", async () => {
+    getScoresByUserIdMock.mockResolvedValue([
+      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "5-1" },
+      { id: "s2", game: "Pool", opponent_name: "Marko", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "2-5" },
+    ]);
+    renderHistoryPage("score");
+
     await waitFor(() => {
-      expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getAllByRole("button", { name: "SelectChess" })[0]);
-    await waitFor(() => {
-      expect(screen.getByText("No games match your filters")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-2")).toBeInTheDocument();
     });
 
-    scoreView.unmount();
-
-    renderHistoryPage("training");
+    fireEvent.click(screen.getByRole("button", { name: "Marko" }));
     await waitFor(() => {
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getAllByRole("button", { name: "SelectChess" })[0]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Marko" }));
     await waitFor(() => {
-      expect(screen.getByText("No trainings match your filters")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-2")).toBeInTheDocument();
+    });
+  });
+
+  it("filters by game chip", async () => {
+    getScoresByUserIdMock.mockResolvedValue([
+      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "5-1" },
+      { id: "s2", game: "Ping Pong", opponent_name: "Marko", friend_name: null, date: "2026-07-05", user_id: "user-1", score: "11-8" },
+    ]);
+    renderHistoryPage("score");
+
+    await waitFor(() => {
+      expect(screen.getByText("ScoreDayList-2")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Ping Pong" }));
+    await waitFor(() => {
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
   });
 
@@ -161,6 +158,7 @@ describe("HistoryPage", () => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
 
+    openSearch();
     const trainingSearchInput = screen.getByPlaceholderText("Search by training name or notes...");
     fireEvent.change(trainingSearchInput, { target: { value: "not-found" } });
     await waitFor(() => {
@@ -189,7 +187,7 @@ describe("HistoryPage", () => {
 
   it("covers score friend-name search and training notes fallback branches", async () => {
     getScoresByUserIdMock.mockResolvedValueOnce([
-      { id: "s1", game: "Pool", opponent_name: null, friend_name: "Friend Ana" },
+      { id: "s1", game: "Pool", opponent_name: null, friend_name: "Friend Ana", date: "2026-07-06", user_id: "user-1", score: "5-1" },
     ]);
     getTrainingsByUserIdMock.mockResolvedValueOnce([
       { id: "t1", game: "Pool", title: "Drill", notes: null },
@@ -198,11 +196,12 @@ describe("HistoryPage", () => {
     const scoreView = renderHistoryPage("score");
 
     await waitFor(() => {
-      expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
+    openSearch();
     fireEvent.change(screen.getByPlaceholderText("Search by opponent name..."), { target: { value: "friend" } });
     await waitFor(() => {
-      expect(screen.getByText("ScoreList-1")).toBeInTheDocument();
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
     });
 
     scoreView.unmount();
@@ -210,6 +209,7 @@ describe("HistoryPage", () => {
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
+    openSearch();
     fireEvent.change(screen.getByPlaceholderText("Search by training name or notes..."), { target: { value: "x" } });
     await waitFor(() => {
       expect(screen.getByText("No trainings match your filters")).toBeInTheDocument();
@@ -232,6 +232,7 @@ describe("HistoryPage", () => {
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();
     });
+    openSearch();
     fireEvent.change(screen.getByPlaceholderText("Search by training name or notes..."), { target: { value: "serve" } });
     await waitFor(() => {
       expect(screen.getByText("TrainingCard")).toBeInTheDocument();

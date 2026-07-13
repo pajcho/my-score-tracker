@@ -37,6 +37,11 @@ All colors MUST be HSL.
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Live-game player identity colors. One shade deeper than the old
+       tailwind blue/red-500 so white numerals reach ~5:1 contrast. */
+    --player-one: 221 83% 53%;
+    --player-two: 0 72% 51%;
+
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 213 72% 38%;
@@ -98,6 +103,10 @@ All colors MUST be HSL.
     --destructive: 0 84% 65%;
     --destructive-foreground: 210 40% 98%;
 
+    /* Brighter player colors hold up better on dark cards. */
+    --player-one: 217 91% 60%;
+    --player-two: 0 84% 60%;
+
     --border: 217 18% 22%;
     --input: 217 18% 22%;
     --ring: 213 62% 62%;
@@ -126,7 +135,32 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    /* Custom active: states replace the gray flash on every tap. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    /* Kills double-tap-to-zoom on controls — the classic web-app tell
+       when tapping score buttons in quick succession. */
+    touch-action: manipulation;
+  }
+}
+
+@layer utilities {
+  /* Horizontal chip rows scroll without showing a scrollbar. */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

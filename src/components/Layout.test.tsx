@@ -15,6 +15,10 @@ vi.mock("@/components/scores/LiveGameInviteNotifier", () => ({
   LiveGameInviteNotifier: () => <div>InviteNotifier</div>,
 }));
 
+vi.mock("@/hooks/useTrackerData", () => ({
+  useLiveGamesQuery: () => ({ data: [] }),
+}));
+
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
@@ -23,6 +27,7 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
+import { MemoryRouter } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 
 describe("Layout", () => {
@@ -41,13 +46,13 @@ describe("Layout", () => {
 
   it("shows loading state on initial load when there's no profile data", () => {
     useAuthMock.mockReturnValue({ isLoading: true, profile: null });
-    render(<Layout />);
+    render(<MemoryRouter><Layout /></MemoryRouter>);
     expect(screen.getByText("Loading your profile...")).toBeInTheDocument();
   });
 
   it("renders layout content once auth is loaded with profile", () => {
     useAuthMock.mockReturnValue({ isLoading: false, profile: mockProfile });
-    render(<Layout />);
+    render(<MemoryRouter><Layout /></MemoryRouter>);
     expect(screen.getByText("Navigation")).toBeInTheDocument();
     expect(screen.getByText("InviteNotifier")).toBeInTheDocument();
     expect(screen.getByText("OutletContent")).toBeInTheDocument();
@@ -55,7 +60,7 @@ describe("Layout", () => {
 
   it("does NOT show loading state during background refetch when profile already exists", () => {
     useAuthMock.mockReturnValue({ isLoading: true, profile: mockProfile });
-    render(<Layout />);
+    render(<MemoryRouter><Layout /></MemoryRouter>);
     expect(screen.queryByText("Loading your profile...")).not.toBeInTheDocument();
     expect(screen.getByText("Navigation")).toBeInTheDocument();
     expect(screen.getByText("OutletContent")).toBeInTheDocument();
