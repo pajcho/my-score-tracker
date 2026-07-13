@@ -1,12 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
-import {Link, useSearchParams} from 'react-router-dom';
-import {BarChart3, CalendarRange, Dumbbell, Filter, Flame, Target, TrendingUp, Trophy, Users,} from 'lucide-react';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  BarChart3,
+  CalendarRange,
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  Target,
+  TrendingUp,
+  Trophy,
+  Users,
+} from 'lucide-react';
+import { Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { PageHeader } from '@/components/ui/pageHeader';
+import { FilterChip } from '@/components/ui/filterChip';
+import { ScoreDetailSheet } from '@/components/scores/ScoreDetailSheet';
 import { Score, Training } from '@/lib/supabaseDatabase';
-import {cn} from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
 import { useAuth } from '@/components/auth/authContext';
 import { useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
@@ -47,6 +60,9 @@ interface HeatmapCell {
 }
 
 const HEATMAP_WEEKS = 12;
+const TREND_WEEKS = 12;
+const CLOSE_GAME_MARGIN = 2;
+const MAX_OPPONENT_CHIPS = 8;
 
 function formatDateKey(dateValue: Date): string {
   const year = dateValue.getFullYear();
@@ -94,15 +110,6 @@ interface WeightedDateEntry {
   weight: number;
 }
 
-function buildHeatmapDataFromDateValues(dateValues: string[]): { weeks: HeatmapCell[][]; maxCount: number } {
-  const weightedDateEntries: WeightedDateEntry[] = dateValues.map((dateValue) => ({
-    dateValue,
-    weight: 1,
-  }));
-
-  return buildWeightedHeatmapData(weightedDateEntries);
-}
-
 function buildWeightedHeatmapData(weightedDateEntries: WeightedDateEntry[]): { weeks: HeatmapCell[][]; maxCount: number } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -146,7 +153,7 @@ function buildWeightedHeatmapData(weightedDateEntries: WeightedDateEntry[]): { w
 }
 
 function buildHeatmapData(scoreList: ScoreWithFriend[]): { weeks: HeatmapCell[][]; maxCount: number } {
-  return buildHeatmapDataFromDateValues(scoreList.map((score) => score.date));
+  return buildWeightedHeatmapData(scoreList.map((score) => ({ dateValue: score.date, weight: 1 })));
 }
 
 function getHeatmapIntensityClass(activityCount: number, maxCount: number, isFuture: boolean): string {
@@ -159,19 +166,188 @@ function getHeatmapIntensityClass(activityCount: number, maxCount: number, isFut
   return 'bg-primary/80';
 }
 
+function buildMonthLabels(weeks: HeatmapCell[][]): string[] {
+  return weeks.map((weekColumn, weekIndex) => {
+    const currentMonth = weekColumn[0].date.getMonth();
+    if (weekIndex === 0) {
+      return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
+    }
+
+    const previousMonth = weeks[weekIndex - 1][0].date.getMonth();
+    if (currentMonth !== previousMonth) {
+      return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
+    }
+
+    return '';
+  });
+}
+
+const HEATMAP_WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+interface ActivityHeatmapGridProps {
+  weeks: HeatmapCell[][];
+  maxCount: number;
+  cellAriaLabel: (cell: HeatmapCell) => string;
+  cellDetail: (cell: HeatmapCell) => ReactNode;
+}
+
+/**
+ * 12-week activity grid with fixed-size (legible) cells: on narrow screens
+ * the weeks scroll horizontally with the current week docked at the right,
+ * instead of the cells shrinking to fit.
+ */
+function ActivityHeatmapGrid({ weeks, maxCount, cellAriaLabel, cellDetail }: ActivityHeatmapGridProps) {
+  const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
+  const monthLabels = useMemo(() => buildMonthLabels(weeks), [weeks]);
+
+  // Dock the scroll position at the current week once on mount; inline
+  // arrows would re-run on every render and fight the user's scrolling.
+  const dockRight = useCallback((node: HTMLDivElement | null) => {
+    if (node) node.scrollLeft = node.scrollWidth;
+  }, []);
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-1 pt-4">
+          {HEATMAP_WEEKDAY_LABELS.map((dayLabel, dayIndex) => (
+            <div
+              key={`day-${dayIndex}`}
+              className="flex h-6 items-center text-[10px] leading-none text-muted-foreground"
+            >
+              {dayLabel}
+            </div>
+          ))}
+        </div>
+
+        <div ref={dockRight} className="scrollbar-none overflow-x-auto">
+          <div className="w-max space-y-1">
+            <div className="flex gap-1">
+              {monthLabels.map((monthLabel, index) => (
+                <div key={`month-${index}`} className="h-3 w-6 text-[10px] leading-none text-muted-foreground">
+                  {monthLabel}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {weeks.map((weekColumn, weekIndex) => (
+                <div key={`week-${weekIndex}`} className="flex flex-col gap-1">
+                  {weekColumn.map((cell) => (
+                    <Popover
+                      key={cell.key}
+                      open={activeCellKey === cell.key}
+                      onOpenChange={(isOpen) => {
+                        setActiveCellKey(isOpen ? cell.key : null);
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={cellAriaLabel(cell)}
+                          className={cn(
+                            'h-6 w-6 rounded-[4px] border border-border/60',
+                            getHeatmapIntensityClass(cell.count, maxCount, cell.isFuture)
+                          )}
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
+                        {cellDetail(cell)}
+                      </PopoverContent>
+                    </Popover>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>Less</span>
+        <div className="flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-muted/60" />
+          <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-primary/30" />
+          <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-primary/55" />
+          <span className="h-2.5 w-2.5 rounded-sm border border-border/60 bg-primary/80" />
+        </div>
+        <span>More</span>
+      </div>
+    </div>
+  );
+}
+
+interface WeekTrendPoint {
+  label: string;
+  winRate: number | null;
+  wins: number;
+  losses: number;
+  games: number;
+}
+
+function buildWeeklyTrend(perspectives: MatchPerspective[]): WeekTrendPoint[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentWeekMonday = startOfWeekMonday(today);
+
+  const buckets = new Map<number, { wins: number; losses: number; games: number }>();
+  for (const match of perspectives) {
+    const weekStart = startOfWeekMonday(match.playedAt).getTime();
+    const bucket = buckets.get(weekStart) ?? { wins: 0, losses: 0, games: 0 };
+    bucket.games += 1;
+    if (match.outcome === 'win') bucket.wins += 1;
+    else if (match.outcome === 'loss') bucket.losses += 1;
+    buckets.set(weekStart, bucket);
+  }
+
+  const points: WeekTrendPoint[] = [];
+  for (let weekIndex = TREND_WEEKS - 1; weekIndex >= 0; weekIndex -= 1) {
+    const weekStart = new Date(currentWeekMonday);
+    weekStart.setDate(currentWeekMonday.getDate() - weekIndex * 7);
+    const bucket = buckets.get(weekStart.getTime());
+    points.push({
+      label: weekStart.toLocaleString('en-US', { month: 'short', day: 'numeric' }),
+      winRate: bucket ? Math.round((bucket.wins / bucket.games) * 100) : null,
+      wins: bucket?.wins ?? 0,
+      losses: bucket?.losses ?? 0,
+      games: bucket?.games ?? 0,
+    });
+  }
+  return points;
+}
+
+const formPillStyles: Record<MatchOutcome, string> = {
+  win: 'bg-secondary/15 text-secondary',
+  loss: 'bg-destructive/10 text-destructive',
+  draw: 'bg-muted text-muted-foreground',
+};
+
+function FormPill({ outcome }: { outcome: MatchOutcome }) {
+  return (
+    <span
+      className={cn(
+        'flex h-7 w-7 items-center justify-center rounded-md text-xs font-extrabold',
+        formPillStyles[outcome]
+      )}
+    >
+      {outcome === 'win' ? 'W' : outcome === 'loss' ? 'L' : 'D'}
+    </span>
+  );
+}
+
 interface StatisticsPageProps {
   view: 'score' | 'training';
 }
 
 export function StatisticsPage({ view }: StatisticsPageProps) {
-  const [searchParams] = useSearchParams();
-  const [gameFilter, setGameFilter] = useState<string>(searchParams.get('game') || 'all');
-  const [poolTypeFilter, setPoolTypeFilter] = useState<string>(searchParams.get('poolType') || 'all');
-  const [opponentFilter, setOpponentFilter] = useState<string>(searchParams.get('opponent') || 'all');
+  // The chips write straight to the URL, so FriendsPage can deep-link to
+  // /statistics/score?opponent=NAME and a chosen matchup survives reloads.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const gameFilter = searchParams.get('game') || 'all';
+  const poolTypeFilter = searchParams.get('poolType') || 'all';
+  const opponentFilter = searchParams.get('opponent') || 'all';
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
   const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
-  const [activeHeatmapCellKey, setActiveHeatmapCellKey] = useState<string | null>(null);
-  const [activeTrainingHeatmapCellKey, setActiveTrainingHeatmapCellKey] = useState<string | null>(null);
+  const [detailScore, setDetailScore] = useState<ScoreWithFriend | null>(null);
   const { profile, isAuthenticated, user } = useAuth();
   const currentUserId = isAuthenticated ? user?.id : undefined;
   const isQueryEnabled = !!currentUserId;
@@ -185,6 +361,24 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     if (!scoresQuery.error && !trainingsQuery.error) return;
     console.error('Failed to load scores:', scoresQuery.error ?? trainingsQuery.error);
   }, [scoresQuery.error, trainingsQuery.error]);
+
+  const updateFilters = (updates: Partial<Record<'game' | 'poolType' | 'opponent', string>>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    for (const [key, value] of Object.entries(updates)) {
+      if (!value || value === 'all') nextParams.delete(key);
+      else nextParams.set(key, value);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleGameChipClick = (game: string) => {
+    const nextGame = gameFilter === game ? 'all' : game;
+    updateFilters({
+      game: nextGame,
+      // Pool-type only applies while Pool is the selected game.
+      ...(isPoolGameType(nextGame) ? {} : { poolType: 'all' }),
+    });
+  };
 
   const uniqueGames = useMemo(() => [...new Set(scores.map((score) => score.game))], [scores]);
 
@@ -202,15 +396,26 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     [scores]
   );
 
-  const shouldShowPoolTypeFilter = gameFilter !== 'all' && isPoolGameType(gameFilter);
-
-  // Handler for game filter changes that resets pool type filter if needed
-  const handleGameFilterChange = (value: string) => {
-    setGameFilter(value);
-    if (value === 'all' || !isPoolGameType(value)) {
-      setPoolTypeFilter('all');
+  // Opponent chips are first-class: everyone you've played, ranked by
+  // games played, capped to keep the row scannable.
+  const opponentChips = useMemo(() => {
+    const countByName = new Map<string, number>();
+    for (const score of scores) {
+      const name = score.friend_name || score.opponent_name;
+      if (!name) continue;
+      countByName.set(name, (countByName.get(name) ?? 0) + 1);
     }
-  };
+    const topNames = [...countByName.entries()]
+      .sort((first, second) => second[1] - first[1])
+      .slice(0, MAX_OPPONENT_CHIPS)
+      .map(([name]) => name);
+    if (opponentFilter !== 'all' && !topNames.includes(opponentFilter)) {
+      topNames.unshift(opponentFilter);
+    }
+    return topNames;
+  }, [opponentFilter, scores]);
+
+  const shouldShowPoolTypeFilter = isPoolGameType(gameFilter);
 
   const filteredScores = useMemo(() => {
     return scores.filter((score) => {
@@ -245,9 +450,13 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const totalDraws = perspectiveScores.filter((item) => item.outcome === 'draw').length;
   const winPercentage = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
 
-  const averageScore =
+  const averageUserScore =
     totalGames > 0
       ? perspectiveScores.reduce((sumValue, perspectiveItem) => sumValue + perspectiveItem.userScore, 0) / totalGames
+      : 0;
+  const averageOpponentScore =
+    totalGames > 0
+      ? perspectiveScores.reduce((sumValue, perspectiveItem) => sumValue + perspectiveItem.opponentScore, 0) / totalGames
       : 0;
 
   const mostPlayedGame = useMemo(() => {
@@ -263,20 +472,6 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     );
   }, [filteredScores]);
 
-  const mostPlayedOpponent = useMemo(() => {
-    if (perspectiveScores.length === 0) return 'N/A';
-
-    const opponentCountMap = new Map<string, number>();
-    for (const match of perspectiveScores) {
-      opponentCountMap.set(match.opponentName, (opponentCountMap.get(match.opponentName) || 0) + 1);
-    }
-
-    return (
-      Array.from(opponentCountMap.entries()).sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1])[0]?.[0] ||
-      'N/A'
-    );
-  }, [perspectiveScores]);
-
   const sortedMatches = useMemo(
     () =>
       filteredScores
@@ -291,6 +486,8 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const lastTenForm = useMemo(() => sortedMatches.slice(0, 10), [sortedMatches]);
 
   const lastTenFormChronological = useMemo(() => [...lastTenForm].reverse(), [lastTenForm]);
+
+  const lastFiveChronological = useMemo(() => [...sortedMatches.slice(0, 5)].reverse(), [sortedMatches]);
 
   const streakInfo = useMemo(() => {
     if (sortedMatches.length === 0) {
@@ -331,10 +528,22 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     };
   }, [sortedMatches]);
 
-  const closeGamesCount = useMemo(
-    () => perspectiveScores.filter((match) => match.margin <= 2).length,
+  const closeGames = useMemo(
+    () => perspectiveScores.filter((match) => match.margin <= CLOSE_GAME_MARGIN),
     [perspectiveScores]
   );
+  const closeGamesCount = closeGames.length;
+  const closeGamesWinRate =
+    closeGamesCount > 0
+      ? Math.round((closeGames.filter((match) => match.outcome === 'win').length / closeGamesCount) * 100)
+      : 0;
+
+  const closeGamesHref = useMemo(() => {
+    const params = new URLSearchParams({ close: '1' });
+    if (gameFilter !== 'all') params.set('game', gameFilter);
+    if (opponentFilter !== 'all') params.set('opponent', opponentFilter);
+    return `/history/score?${params.toString()}`;
+  }, [gameFilter, opponentFilter]);
 
   const topOpponents = useMemo(() => {
     const opponentSummaryMap = new Map<string, OpponentSummary>();
@@ -390,6 +599,9 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     })[0];
   }, [sortedMatches]);
 
+  const weeklyTrend = useMemo(() => buildWeeklyTrend(perspectiveScores), [perspectiveScores]);
+  const trendHasData = useMemo(() => weeklyTrend.some((point) => point.winRate !== null), [weeklyTrend]);
+
   const heatmapData = useMemo(() => buildHeatmapData(filteredScores), [filteredScores]);
 
   const gamesInHeatmapRange = useMemo(
@@ -397,23 +609,16 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     [heatmapData.weeks]
   );
 
-  const heatmapMonthLabels = useMemo(() => {
-    return heatmapData.weeks.map((weekColumn, weekIndex) => {
-      const currentMonth = weekColumn[0].date.getMonth();
-      if (weekIndex === 0) {
-        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
-      }
-
-      const previousMonth = heatmapData.weeks[weekIndex - 1][0].date.getMonth();
-      if (currentMonth !== previousMonth) {
-        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
-      }
-
-      return '';
-    });
-  }, [heatmapData.weeks]);
-
-  const heatmapWeekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  // Per-day win counts so a heatmap tap can answer "Jun 12 · 5 games · 3W".
+  const winsByDateKey = useMemo(() => {
+    const wins = new Map<string, number>();
+    for (const match of perspectiveScores) {
+      if (match.outcome !== 'win') continue;
+      const key = formatDateKey(match.playedAt);
+      wins.set(key, (wins.get(key) ?? 0) + 1);
+    }
+    return wins;
+  }, [perspectiveScores]);
 
   const trainingGames = useMemo(
     () => [...new Set(trainings.map((training) => training.game))],
@@ -451,21 +656,6 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     () => trainingHeatmapData.weeks.flat().reduce((sumValue, cell) => sumValue + cell.count, 0),
     [trainingHeatmapData.weeks]
   );
-  const trainingHeatmapMonthLabels = useMemo(() => {
-    return trainingHeatmapData.weeks.map((weekColumn, weekIndex) => {
-      const currentMonth = weekColumn[0].date.getMonth();
-      if (weekIndex === 0) {
-        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
-      }
-
-      const previousMonth = trainingHeatmapData.weeks[weekIndex - 1][0].date.getMonth();
-      if (currentMonth !== previousMonth) {
-        return weekColumn[0].date.toLocaleString('en-US', { month: 'short' });
-      }
-
-      return '';
-    });
-  }, [trainingHeatmapData.weeks]);
 
   const trainingSummaryByGame = useMemo(() => {
     const summaryMap = new Map<string, TrainingGameSummary>();
@@ -521,6 +711,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
     return streakDays;
   }, [filteredTrainings]);
+
   const statisticsViewTabs = (
     <div className="flex items-center gap-2">
       <Link
@@ -548,35 +739,130 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
     </div>
   );
 
+  const opponentFirstName = opponentFilter === 'all' ? '' : opponentFilter.split(' ')[0];
+  const isHeadToHead = opponentFilter !== 'all' && totalGames > 0;
+
+  const headToHeadCard = (
+    <Card className="shadow-card border-0">
+      <CardContent className="space-y-4 p-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-base font-bold">You vs {opponentFilter}</h2>
+        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{totalGames} games</span>
+        </div>
+
+        <div>
+          <div className="flex h-3.5 overflow-hidden rounded-full bg-muted">
+            <div className="bg-player-one" style={{ width: `${(totalWins / Math.max(totalGames, 1)) * 100}%` }} />
+            <div className="bg-muted" style={{ width: `${(totalDraws / Math.max(totalGames, 1)) * 100}%` }} />
+            <div className="bg-player-two" style={{ width: `${(totalLosses / Math.max(totalGames, 1)) * 100}%` }} />
+          </div>
+          <div className="mt-1.5 flex items-baseline justify-between text-sm font-bold">
+            <span className="text-player-one">
+              You {totalWins}W · {winPercentage}%
+            </span>
+            <span className="text-player-two">
+              {opponentFirstName} {totalLosses}W · {totalGames > 0 ? Math.round((totalLosses / totalGames) * 100) : 0}%
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Your form</p>
+            <div className="flex gap-1">
+              {lastFiveChronological.map((match, index) => (
+                <FormPill key={`you-${match.score.id}-${index}`} outcome={match.perspective.outcome} />
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              {opponentFirstName}'s form
+            </p>
+            <div className="flex gap-1">
+              {lastFiveChronological.map((match, index) => (
+                <FormPill
+                  key={`opp-${match.score.id}-${index}`}
+                  outcome={
+                    match.perspective.outcome === 'win'
+                      ? 'loss'
+                      : match.perspective.outcome === 'loss'
+                        ? 'win'
+                        : 'draw'
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Current streak</span>
+          <span
+            className={cn(
+              'font-semibold',
+              streakInfo.currentType === 'win' && 'text-secondary',
+              streakInfo.currentType === 'loss' && 'text-destructive'
+            )}
+          >
+            {streakInfo.currentCount > 0
+              ? `${streakInfo.currentCount} ${streakInfo.currentType === 'win' ? 'W' : 'L'}`
+              : 'No streak'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Average score</span>
+          <span className="font-semibold tabular-nums">
+            {averageUserScore.toFixed(1)} – {averageOpponentScore.toFixed(1)}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const headlineRecordCard = (
+    <Card className="border-0 shadow-card">
+      <CardContent className="grid grid-cols-2 gap-2 p-3 lg:grid-cols-4">
+        <div className="rounded-md border border-border bg-card px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">Total Games</p>
+            <Trophy className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <p className="text-lg font-semibold leading-tight">{totalGames}</p>
+        </div>
+        <div className="rounded-md border border-border bg-card px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">Win Rate</p>
+            <TrendingUp className="h-3.5 w-3.5 text-secondary" />
+          </div>
+          <p className="text-lg font-semibold leading-tight text-secondary">{winPercentage}%</p>
+          <p className="text-[11px] text-muted-foreground">
+            {totalWins}W {totalLosses}L{totalDraws > 0 ? ` ${totalDraws}D` : ''}
+          </p>
+        </div>
+        <div className="rounded-md border border-border bg-card px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">Favorite Game</p>
+            <Target className="h-3.5 w-3.5 text-accent" />
+          </div>
+          <p className="text-lg font-semibold leading-tight">{mostPlayedGame}</p>
+        </div>
+        <div className="rounded-md border border-border bg-card px-3 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[11px] font-medium text-muted-foreground">Opponents</p>
+            <Users className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <p className="text-lg font-semibold leading-tight">{uniqueOpponents.length}</p>
+          {topOpponents[0] ? (
+            <p className="truncate text-[11px] text-muted-foreground">Most played: {topOpponents[0].opponentName}</p>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const trainingStatisticsSection = (
     <>
-      <Card className="shadow-card border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>Filter training statistics by game type</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full sm:w-48">
-            <Select value={trainingGameFilter} onValueChange={setTrainingGameFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter trainings by game" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Games</SelectItem>
-                {trainingGames.map((game) => (
-                  <SelectItem key={game} value={game}>
-                    {getGameTypeLabel(game)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
         <Card className="shadow-card border-0 order-1 lg:col-span-2">
           <CardHeader>
@@ -587,67 +873,16 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
             <CardDescription>Last 12 weeks ({(trainingMinutesInHeatmapRange / 60).toFixed(1)}h)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1">
-              <div />
-              <div className="grid grid-cols-12 gap-1">
-                {trainingHeatmapMonthLabels.map((monthLabel, index) => (
-                  <div key={`training-month-${index}`} className="text-[10px] text-muted-foreground leading-none h-3">
-                    {monthLabel}
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-rows-7 gap-1">
-                {heatmapWeekdayLabels.map((dayLabel, dayIndex) => (
-                  <div
-                    key={`training-day-${dayIndex}`}
-                    className="h-full flex items-center justify-start text-[10px] text-muted-foreground leading-none"
-                  >
-                    {dayLabel}
-                  </div>
-                ))}
-              </div>
-
-              <div className="w-full grid grid-cols-12 gap-1">
-                {trainingHeatmapData.weeks.map((weekColumn, weekIndex) => (
-                  <div key={`training-week-${weekIndex}`} className="grid grid-rows-7 gap-1">
-                    {weekColumn.map((cell) => (
-                      <Popover
-                        key={`training-${cell.key}`}
-                        open={activeTrainingHeatmapCellKey === cell.key}
-                        onOpenChange={(isOpen) => {
-                          setActiveTrainingHeatmapCellKey(isOpen ? cell.key : null);
-                        }}
-                      >
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={`${formatTooltipDate(cell.date)}: ${cell.count} training minutes`}
-                            className={cn(
-                              'w-full aspect-square rounded-[3px] border border-border/60',
-                              getHeatmapIntensityClass(cell.count, trainingHeatmapData.maxCount, cell.isFuture)
-                            )}
-                          />
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                          {formatTooltipDate(cell.date)}: {cell.count} min ({(cell.count / 60).toFixed(1)}h)
-                        </PopoverContent>
-                      </Popover>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>Less</span>
-              <div className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-sm bg-muted/60 border border-border/60" />
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary/30 border border-border/60" />
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary/55 border border-border/60" />
-                <span className="h-2.5 w-2.5 rounded-sm bg-primary/80 border border-border/60" />
-              </div>
-              <span>More</span>
-            </div>
+            <ActivityHeatmapGrid
+              weeks={trainingHeatmapData.weeks}
+              maxCount={trainingHeatmapData.maxCount}
+              cellAriaLabel={(cell) => `${formatTooltipDate(cell.date)}: ${cell.count} training minutes`}
+              cellDetail={(cell) => (
+                <>
+                  {formatTooltipDate(cell.date)}: {cell.count} min ({(cell.count / 60).toFixed(1)}h)
+                </>
+              )}
+            />
             {totalTrainingSessions === 0 ? (
               <div className="mt-4 text-sm text-muted-foreground">
                 No trainings found for the selected filter.
@@ -728,13 +963,31 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
 
   if (view === 'training') {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         <PageHeader
           title="Statistics"
           description="Analyze your training consistency and load"
           icon={BarChart3}
           actions={statisticsViewTabs}
         />
+
+        <div className="sticky top-0 z-30 -mx-4 bg-background/95 px-4 py-2 backdrop-blur">
+          <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1">
+            <FilterChip
+              label="All Games"
+              active={trainingGameFilter === 'all'}
+              onClick={() => setTrainingGameFilter('all')}
+            />
+            {trainingGames.map((game) => (
+              <FilterChip
+                key={game}
+                label={getGameTypeLabel(game)}
+                active={trainingGameFilter === game}
+                onClick={() => setTrainingGameFilter(trainingGameFilter === game ? 'all' : game)}
+              />
+            ))}
+          </div>
+        </div>
 
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
@@ -746,7 +999,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <PageHeader
         title="Statistics"
         description="Analyze your gaming performance"
@@ -754,68 +1007,50 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         actions={statisticsViewTabs}
       />
 
-      <Card className="shadow-card border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>Filter statistics by game type or opponent</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="w-full sm:w-48">
-              <Select value={gameFilter} onValueChange={handleGameFilterChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by game" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Games</SelectItem>
-                  {uniqueGames.map((game) => (
-                    <SelectItem key={game} value={game}>
-                      {getGameTypeLabel(game)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {shouldShowPoolTypeFilter ? (
-              <div className="w-full sm:w-48">
-                <Select value={poolTypeFilter} onValueChange={setPoolTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by pool type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Pool Types</SelectItem>
-                    {uniquePoolTypes.map((poolType) => (
-                      <SelectItem key={poolType} value={poolType}>
-                        {getPoolTypeLabel(poolType)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-
-            <div className="w-full sm:w-48">
-              <Select value={opponentFilter} onValueChange={setOpponentFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by opponent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Opponents</SelectItem>
-                  {uniqueOpponents.map((opponent) => (
-                    <SelectItem key={opponent} value={opponent}>
-                      {opponent}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="sticky top-0 z-30 -mx-4 space-y-2 bg-background/95 px-4 py-2 backdrop-blur">
+        <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1">
+          <FilterChip
+            label="All"
+            active={opponentFilter === 'all'}
+            onClick={() => updateFilters({ opponent: 'all' })}
+          />
+          {opponentChips.map((opponent) => (
+            <FilterChip
+              key={opponent}
+              label={opponent.split(' ')[0]}
+              active={opponentFilter === opponent}
+              onClick={() => updateFilters({ opponent: opponentFilter === opponent ? 'all' : opponent })}
+            />
+          ))}
+        </div>
+        <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1">
+          <FilterChip
+            label="All games"
+            active={gameFilter === 'all'}
+            onClick={() => updateFilters({ game: 'all', poolType: 'all' })}
+            className="px-3 py-1.5 text-[11px]"
+          />
+          {uniqueGames.map((game) => (
+            <FilterChip
+              key={game}
+              label={getGameTypeLabel(game)}
+              active={gameFilter === game}
+              onClick={() => handleGameChipClick(game)}
+              className="px-3 py-1.5 text-[11px]"
+            />
+          ))}
+          {shouldShowPoolTypeFilter &&
+            uniquePoolTypes.map((poolType) => (
+              <FilterChip
+                key={poolType}
+                label={getPoolTypeLabel(poolType)}
+                active={poolTypeFilter === poolType}
+                onClick={() => updateFilters({ poolType: poolTypeFilter === poolType ? 'all' : poolType })}
+                className="px-3 py-1.5 text-[11px]"
+              />
+            ))}
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
@@ -828,122 +1063,9 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         </Card>
       ) : (
         <>
-          <Card className="border-0 shadow-card md:hidden">
-            <CardContent className="grid grid-cols-2 gap-2 p-3">
-              <div className="rounded-md border border-border bg-card px-3 py-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-[11px] font-medium text-muted-foreground">Total Games</p>
-                  <Trophy className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <p className="text-lg font-semibold leading-tight">{totalGames}</p>
-              </div>
-              <div className="rounded-md border border-border bg-card px-3 py-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-[11px] font-medium text-muted-foreground">Win Rate</p>
-                  <TrendingUp className="h-3.5 w-3.5 text-secondary" />
-                </div>
-                <p className="text-lg font-semibold leading-tight text-secondary">{winPercentage}%</p>
-              </div>
-              <div className="rounded-md border border-border bg-card px-3 py-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-[11px] font-medium text-muted-foreground">Average Score</p>
-                  <Target className="h-3.5 w-3.5 text-accent" />
-                </div>
-                <p className="text-lg font-semibold leading-tight">{averageScore.toFixed(1)}</p>
-              </div>
-              <div className="rounded-md border border-border bg-card px-3 py-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-[11px] font-medium text-muted-foreground">Favorite Game</p>
-                  <Users className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <p className="text-lg font-semibold leading-tight">{mostPlayedGame}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {isHeadToHead ? headToHeadCard : headlineRecordCard}
 
-          <div className="hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Games</CardTitle>
-                <Trophy className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalGames}</div>
-                <p className="text-xs text-muted-foreground">Games played</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-                <TrendingUp className="h-4 w-4 text-secondary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-secondary">{winPercentage}%</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalWins}W {totalLosses}L{totalDraws > 0 ? ` ${totalDraws}D` : ''}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                <Target className="h-4 w-4 text-accent" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{averageScore.toFixed(1)}</div>
-                <p className="text-xs text-muted-foreground">Points per game</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card border-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Favorite Game</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{mostPlayedGame}</div>
-                <p className="text-xs text-muted-foreground">Most played</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="shadow-card border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="h-5 w-5 text-primary" />
-                  Streaks
-                </CardTitle>
-                <CardDescription>Momentum and consistency</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Current streak</span>
-                  <span
-                    className={cn(
-                      'font-semibold',
-                      streakInfo.currentType === 'win' && 'text-secondary',
-                      streakInfo.currentType === 'loss' && 'text-destructive'
-                    )}
-                  >
-                    {streakInfo.currentCount > 0
-                      ? `${streakInfo.currentCount} ${streakInfo.currentType === 'win' ? 'W' : 'L'}`
-                      : 'No streak'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Best win streak</span>
-                  <span className="font-semibold">{streakInfo.bestWinStreak}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Close games (≤2 pts)</span>
-                  <span className="font-semibold">{closeGamesCount}</span>
-                </div>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Card className="shadow-card border-0">
               <CardHeader>
                 <CardTitle>Recent Form</CardTitle>
@@ -984,149 +1106,190 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
                 </div>
               </CardContent>
             </Card>
+
             <Card className="shadow-card border-0">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CalendarRange className="h-5 w-5 text-primary" />
-                  Activity Heatmap
+                  <Flame className="h-5 w-5 text-primary" />
+                  Streaks
                 </CardTitle>
-                <CardDescription>Last 12 weeks ({gamesInHeatmapRange} games)</CardDescription>
+                <CardDescription>Momentum and consistency</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1">
-                  <div />
-                  <div className="grid grid-cols-12 gap-1">
-                    {heatmapMonthLabels.map((monthLabel, index) => (
-                      <div key={`month-${index}`} className="text-[10px] text-muted-foreground leading-none h-3">
-                        {monthLabel}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-rows-7 gap-1">
-                    {heatmapWeekdayLabels.map((dayLabel, dayIndex) => (
-                      <div
-                        key={`day-${dayIndex}`}
-                        className="h-full flex items-center justify-start text-[10px] text-muted-foreground leading-none"
-                      >
-                        {dayLabel}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="w-full grid grid-cols-12 gap-1">
-                    {heatmapData.weeks.map((weekColumn, weekIndex) => (
-                      <div key={`week-${weekIndex}`} className="grid grid-rows-7 gap-1">
-                        {weekColumn.map((cell) => (
-                          <Popover
-                            key={cell.key}
-                            open={activeHeatmapCellKey === cell.key}
-                            onOpenChange={(isOpen) => {
-                              setActiveHeatmapCellKey(isOpen ? cell.key : null);
-                            }}
-                          >
-                            <PopoverTrigger asChild>
-                              <button
-                                type="button"
-                                aria-label={`${formatTooltipDate(cell.date)}: ${cell.count} game${cell.count === 1 ? '' : 's'}`}
-                                className={cn(
-                                  'w-full aspect-square rounded-[3px] border border-border/60',
-                                  getHeatmapIntensityClass(cell.count, heatmapData.maxCount, cell.isFuture)
-                                )}
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                              {formatTooltipDate(cell.date)}: {cell.count} game{cell.count === 1 ? '' : 's'}
-                            </PopoverContent>
-                          </Popover>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                  <span className="text-sm text-muted-foreground">Current streak</span>
+                  <span
+                    className={cn(
+                      'font-semibold',
+                      streakInfo.currentType === 'win' && 'text-secondary',
+                      streakInfo.currentType === 'loss' && 'text-destructive'
+                    )}
+                  >
+                    {streakInfo.currentCount > 0
+                      ? `${streakInfo.currentCount} ${streakInfo.currentType === 'win' ? 'W' : 'L'}`
+                      : 'No streak'}
+                  </span>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>Less</span>
-                  <div className="flex items-center gap-1">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-muted/60 border border-border/60" />
-                    <span className="h-2.5 w-2.5 rounded-sm bg-primary/30 border border-border/60" />
-                    <span className="h-2.5 w-2.5 rounded-sm bg-primary/55 border border-border/60" />
-                    <span className="h-2.5 w-2.5 rounded-sm bg-primary/80 border border-border/60" />
-                  </div>
-                  <span>More</span>
+                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                  <span className="text-sm text-muted-foreground">Best win streak</span>
+                  <span className="font-semibold">{streakInfo.bestWinStreak}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                  <span className="text-sm text-muted-foreground">Average score</span>
+                  <span className="font-semibold tabular-nums">
+                    {averageUserScore.toFixed(1)} – {averageOpponentScore.toFixed(1)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="shadow-card border-0">
-              <CardHeader>
-                <CardTitle>Game Performance</CardTitle>
-                <CardDescription>Your best and worst performances</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-secondary/10 rounded-lg">
-                  <div>
-                    <div className="font-medium text-secondary">Best Game</div>
-                    <div className="text-sm text-muted-foreground">
-                      {bestScore
-                        ? `${getDisplayGameLabel(bestScore.score.game, bestScore.score.pool_settings?.pool_type)} vs ${bestScore.perspective.opponentName}`
-                        : 'N/A'}
-                    </div>
-                  </div>
-                  <div className="text-lg font-bold text-secondary">{bestScore?.score.score || 'N/A'}</div>
+          <Card className="shadow-card border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Win rate · last 12 weeks
+              </CardTitle>
+              <CardDescription>Weekly win percentage, dashed line marks 50%</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trendHasData ? (
+                <ChartContainer
+                  config={{ winRate: { label: 'Win rate', color: 'hsl(var(--primary))' } }}
+                  className="aspect-auto h-44 w-full"
+                >
+                  <LineChart data={weeklyTrend} margin={{ top: 8, right: 12, bottom: 0, left: 12 }}>
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={32}
+                    />
+                    <YAxis domain={[0, 100]} hide />
+                    <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.5} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, _name, item) => (
+                            <span className="font-medium tabular-nums">
+                              {value}% · {item?.payload?.wins}W {item?.payload?.losses}L
+                            </span>
+                          )}
+                        />
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="winRate"
+                      stroke="var(--color-winRate)"
+                      strokeWidth={2}
+                      connectNulls
+                      dot={{ r: 3, fill: 'var(--color-winRate)', strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No games in the last 12 weeks for these filters
                 </div>
+              )}
+            </CardContent>
+          </Card>
 
-                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <div>
-                    <div className="font-medium">Worst Game</div>
-                    <div className="text-sm text-muted-foreground">
-                      {worstScore
-                        ? `${getDisplayGameLabel(worstScore.score.game, worstScore.score.pool_settings?.pool_type)} vs ${worstScore.perspective.opponentName}`
-                        : 'N/A'}
-                    </div>
-                  </div>
-                  <div className="text-lg font-bold">{worstScore?.score.score || 'N/A'}</div>
-                </div>
-              </CardContent>
-            </Card>
+          <Card className="shadow-card border-0">
+            <CardHeader>
+              <CardTitle>Game Performance</CardTitle>
+              <CardDescription>Close games and your extremes — tap to dig in</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link
+                to={closeGamesHref}
+                className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 transition-colors hover:bg-muted/70 active:bg-muted/60"
+              >
+                <span>
+                  <span className="block text-sm font-medium">Close games (≤2 pts)</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {closeGamesCount > 0 ? `You win ${closeGamesWinRate}% of them` : 'None yet'}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1 font-semibold tabular-nums">
+                  {closeGamesCount}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </span>
+              </Link>
 
-            <Card className="shadow-card border-0">
-              <CardHeader>
-                <CardTitle>Social Stats</CardTitle>
-                <CardDescription>Opponents and matchup trends</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Most Played Opponent</span>
-                    <span className="font-medium">{mostPlayedOpponent}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Unique Opponents</span>
-                    <span className="font-medium">{uniqueOpponents.length}</span>
-                  </div>
-                </div>
+              <button
+                type="button"
+                onClick={() => bestScore && setDetailScore(bestScore.score)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-secondary/10 px-3 py-2 text-left transition-colors hover:bg-secondary/15 active:bg-secondary/20"
+              >
+                <span>
+                  <span className="block text-sm font-medium text-secondary">Best game</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {bestScore
+                      ? `${getDisplayGameLabel(bestScore.score.game, bestScore.score.pool_settings?.pool_type)} vs ${bestScore.perspective.opponentName}`
+                      : 'N/A'}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1 text-lg font-bold tabular-nums text-secondary">
+                  {bestScore?.score.score || 'N/A'}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </span>
+              </button>
 
-                <div className="space-y-2 pt-2 border-t">
-                  <div className="text-sm font-medium">Top Matchups</div>
-                  {topOpponents.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No opponent data yet</div>
-                  ) : (
-                    topOpponents.map((opponent) => (
-                      <div key={opponent.opponentName} className="flex items-center justify-between text-sm">
-                        <span className="text-foreground">{opponent.opponentName}</span>
-                        <span className="text-muted-foreground">
-                          {opponent.wins}W {opponent.losses}L{opponent.draws > 0 ? ` ${opponent.draws}D` : ''} ({opponent.games} games)
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <button
+                type="button"
+                onClick={() => worstScore && setDetailScore(worstScore.score)}
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/70 active:bg-muted/60"
+              >
+                <span>
+                  <span className="block text-sm font-medium">Worst game</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {worstScore
+                      ? `${getDisplayGameLabel(worstScore.score.game, worstScore.score.pool_settings?.pool_type)} vs ${worstScore.perspective.opponentName}`
+                      : 'N/A'}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1 text-lg font-bold tabular-nums">
+                  {worstScore?.score.score || 'N/A'}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </span>
+              </button>
+            </CardContent>
+          </Card>
 
+          <Card className="shadow-card border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarRange className="h-5 w-5 text-primary" />
+                Activity Heatmap
+              </CardTitle>
+              <CardDescription>Last 12 weeks ({gamesInHeatmapRange} games)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ActivityHeatmapGrid
+                weeks={heatmapData.weeks}
+                maxCount={heatmapData.maxCount}
+                cellAriaLabel={(cell) =>
+                  `${formatTooltipDate(cell.date)}: ${cell.count} game${cell.count === 1 ? '' : 's'}`
+                }
+                cellDetail={(cell) => (
+                  <>
+                    {formatTooltipDate(cell.date)}: {cell.count} game{cell.count === 1 ? '' : 's'}
+                    {cell.count > 0 ? ` · ${winsByDateKey.get(cell.key) ?? 0}W` : ''}
+                  </>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          <ScoreDetailSheet
+            score={detailScore}
+            currentUserId={currentUserId}
+            onClose={() => setDetailScore(null)}
+            onScoreUpdated={() => undefined}
+          />
         </>
       )}
     </div>
