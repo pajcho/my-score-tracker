@@ -525,7 +525,13 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   };
 
   const updateScore = (gameId: string, player: PlayerSide, change: 1 | -1) => {
-    const gameToUpdate = games.find((game) => game.id === gameId);
+    // Read the freshest optimistic cache, not the render-time `games`
+    // closure: this callback also fires later from the undo snackbar and
+    // from tap bursts that outrun re-renders, where the closure is stale —
+    // an undo computed from a stale score reverts by two (or no-ops at 0).
+    const currentGames =
+      queryClient.getQueryData<LiveGameView[]>(trackerQueryKeys.liveGames) ?? games;
+    const gameToUpdate = currentGames.find((game) => game.id === gameId);
     if (!gameToUpdate) return;
 
     const nextScore1 = player === 'player1'

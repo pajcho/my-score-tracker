@@ -98,12 +98,15 @@ vi.mock("@/hooks/useMobile", () => ({
   useIsMobile: () => useIsMobileMock(),
 }));
 
+import { Toaster } from "sonner";
 import { LiveScoreTracker } from "@/components/scores/LiveScoreTracker";
 
 function renderLiveScoreTracker() {
   return render(
     <QueryClientProvider client={queryClient}>
       <LiveScoreTracker onClose={() => undefined} onScoresSaved={() => undefined} />
+      {/* Real sonner toaster so the undo snackbar is interactable. */}
+      <Toaster />
     </QueryClientProvider>
   );
 }
@@ -280,6 +283,31 @@ describe("LiveScoreTracker perspective labels", () => {
     await waitFor(() => {
       expect(screen.getByText("Friend Two")).toBeInTheDocument();
     });
+  });
+
+  it("undoes exactly the last tap from the snackbar, even from a stale render", async () => {
+    authState.currentUserId = "user-1";
+
+    renderLiveScoreTracker();
+
+    // Seeded game: You 7 – 5 Friend One.
+    const youTile = await screen.findByRole("button", { name: /Score for You: 7/ });
+    fireEvent.click(youTile);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Score for You: 8/ })).toBeInTheDocument();
+    });
+
+    // The snackbar's Undo fires from a closure created at tap time; it must
+    // operate on the current cache (8 → 7), not the pre-tap snapshot
+    // (7 → 6, the old revert-by-two bug).
+    const undoButton = await screen.findByRole("button", { name: "Undo" });
+    fireEvent.click(undoButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Score for You: 7/ })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Score for You: 6/ })).not.toBeInTheDocument();
   });
 
   it("opens the live game setup inside the shared modal", async () => {
