@@ -3,7 +3,7 @@ import {Calendar, Dumbbell, Medal, Play, Plus, TrendingUp, Trophy} from 'lucide-
 import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ScoreForm} from '@/components/scores/ScoreForm';
-import {ScoreList} from '@/components/scores/ScoreList';
+import {ScoreDayList} from '@/components/scores/ScoreDayList';
 import {TrainingCard} from '@/components/trainings/TrainingCard';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
 import { Score, Training } from '@/lib/supabaseDatabase';
@@ -304,10 +304,12 @@ export function HomePage() {
                 Loading scores...
               </div>
             ) : scores.length > 0 ? (
-              <ScoreList
+              // Same day-grouped rows as the History screen — one list
+              // system across the app.
+              <ScoreDayList
                 scores={scores.slice(0, 5)}
+                currentUserId={currentUserId}
                 onScoreUpdated={() => undefined}
-                compact={true}
               />
             ) : (
               <div className="text-center py-8 space-y-4">

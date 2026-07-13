@@ -90,7 +90,7 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
         )}
         {label}
       </span>
-      <span key={score} className="animate-score-pop text-[88px] font-extrabold leading-none tabular-nums">
+      <span key={score} className="animate-score-pop text-[110px] font-extrabold leading-none tabular-nums">
         {score}
       </span>
       <button
@@ -101,7 +101,7 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
           event.stopPropagation();
           onScore(side, -1);
         }}
-        className="mt-6 min-w-[64px] rounded-full bg-white/20 px-4 py-2 text-base font-bold transition-transform active:scale-95 disabled:opacity-40"
+        className="mt-3 min-w-[64px] rounded-full bg-white/20 px-4 py-2 text-base font-bold transition-transform active:scale-95 disabled:opacity-40"
       >
         <Minus className="mx-auto h-5 w-5" />
       </button>
@@ -116,7 +116,9 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className={cn('flex flex-1 transition-transform duration-300', isFlipped && 'rotate-180')}>
+      {/* Stacked halves: each player owns a full-width half of the screen —
+          roughly double the tap area of side-by-side columns in portrait. */}
+      <div className={cn('flex flex-1 flex-col transition-transform duration-300', isFlipped && 'rotate-180')}>
         {renderHalf('player1', leftLabel, game.score1, 'bg-player-one')}
         {renderHalf('player2', rightLabel, game.score2, 'bg-player-two')}
       </div>
@@ -124,7 +126,7 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
       <button
         type="button"
         onClick={() => setIsFlipped((flipped) => !flipped)}
-        className="absolute left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] max-w-[calc(100%-7.5rem)] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-foreground/80 px-4 py-2 text-xs font-bold uppercase tracking-wide text-background backdrop-blur transition-transform active:scale-95"
+        className="absolute left-1/2 top-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 truncate whitespace-nowrap rounded-full bg-foreground/80 px-4 py-2 text-xs font-bold uppercase tracking-wide text-background shadow-lg backdrop-blur transition-transform active:scale-95"
         aria-label="Flip scoreboard to face the opponent"
         title="Tap to flip the board for the player across the table"
       >

@@ -29,7 +29,9 @@ export function PageHeader({
   hideIconOnMobile = true,
 }: PageHeaderProps) {
   return (
-    <div className={cn('flex flex-col gap-3 md:flex-row md:items-center md:justify-between', className)}>
+    // Actions share the title row on all breakpoints — a stacked action
+    // row costs a full line of content on small screens.
+    <div className={cn('flex flex-row items-center justify-between gap-3', className)}>
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
         {Icon ? (
           <div className={cn('shrink-0 text-primary', hideIconOnMobile ? 'hidden sm:block' : 'block')}>
@@ -50,7 +52,7 @@ export function PageHeader({
           ) : null}
         </div>
       </div>
-      {actions ? <div className="flex items-center gap-3 text-sm">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 items-center gap-3 text-sm">{actions}</div> : null}
     </div>
   );
 }
