@@ -24,10 +24,16 @@ vi.mock("@/components/scores/ScoreDayList", () => ({
   ScoreDayList: ({ scores }: { scores: Array<{ id: string }> }) => <div>{`ScoreDayList-${scores.length}`}</div>,
 }));
 
-vi.mock("@/components/trainings/TrainingCard", () => ({
-  TrainingCard: ({ onTrainingUpdated }: { onTrainingUpdated?: () => void }) => (
+vi.mock("@/components/trainings/TrainingDayList", () => ({
+  TrainingDayList: ({
+    trainings,
+    onTrainingUpdated,
+  }: {
+    trainings: Array<{ id: string }>;
+    onTrainingUpdated?: () => void;
+  }) => (
     <button type="button" onClick={() => onTrainingUpdated?.()}>
-      TrainingCard
+      {`TrainingDayList-${trainings.length}`}
     </button>
   ),
 }));
@@ -35,10 +41,10 @@ vi.mock("@/components/trainings/TrainingCard", () => ({
 import { HistoryPage } from "@/components/pages/HistoryPage";
 import { queryClient } from "@/lib/queryClient";
 
-function renderHistoryPage(view: "score" | "training") {
+function renderHistoryPage(view: "score" | "training", initialEntries: string[] = ["/"]) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <HistoryPage view={view} />
       </MemoryRouter>
     </QueryClientProvider>
@@ -79,12 +85,12 @@ describe("HistoryPage", () => {
     });
   });
 
-  it("renders training history view", async () => {
+  it("renders training history view with day list", async () => {
     renderHistoryPage("training");
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayList-1")).toBeInTheDocument();
     });
   });
 
@@ -151,11 +157,42 @@ describe("HistoryPage", () => {
     });
   });
 
+  it("reads game and opponent filters from the URL", async () => {
+    getScoresByUserIdMock.mockResolvedValue([
+      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "5-1" },
+      { id: "s2", game: "Ping Pong", opponent_name: "Marko", friend_name: null, date: "2026-07-05", user_id: "user-1", score: "11-8" },
+    ]);
+    renderHistoryPage("score", ["/history/score?game=Pool&opponent=Ana"]);
+
+    await waitFor(() => {
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
+    });
+  });
+
+  it("filters to close games via the URL and clears with the chip", async () => {
+    getScoresByUserIdMock.mockResolvedValue([
+      { id: "s1", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-06", user_id: "user-1", score: "5-4" },
+      { id: "s2", game: "Pool", opponent_name: "Ana", friend_name: null, date: "2026-07-05", user_id: "user-1", score: "7-1" },
+    ]);
+    renderHistoryPage("score", ["/history/score?close=1"]);
+
+    await waitFor(() => {
+      expect(screen.getByText("ScoreDayList-1")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close games (≤2)" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close games (≤2)" }));
+    await waitFor(() => {
+      expect(screen.getByText("ScoreDayList-2")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Close games (≤2)" })).not.toBeInTheDocument();
+    });
+  });
+
   it("updates training search and training callback reloads data", async () => {
     renderHistoryPage("training");
 
     await waitFor(() => {
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayList-1")).toBeInTheDocument();
     });
 
     openSearch();
@@ -166,7 +203,7 @@ describe("HistoryPage", () => {
     });
 
     fireEvent.change(trainingSearchInput, { target: { value: "" } });
-    fireEvent.click(screen.getByText("TrainingCard"));
+    fireEvent.click(screen.getByText("TrainingDayList-1"));
 
     await waitFor(() => {
       expect(getTrainingsByUserIdMock).toHaveBeenCalledTimes(1);
@@ -207,7 +244,7 @@ describe("HistoryPage", () => {
     scoreView.unmount();
     renderHistoryPage("training");
     await waitFor(() => {
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayList-1")).toBeInTheDocument();
     });
     openSearch();
     fireEvent.change(screen.getByPlaceholderText("Search by training name or notes..."), { target: { value: "x" } });
@@ -230,12 +267,12 @@ describe("HistoryPage", () => {
     ]);
     renderHistoryPage("training");
     await waitFor(() => {
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayList-1")).toBeInTheDocument();
     });
     openSearch();
     fireEvent.change(screen.getByPlaceholderText("Search by training name or notes..."), { target: { value: "serve" } });
     await waitFor(() => {
-      expect(screen.getByText("TrainingCard")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayList-1")).toBeInTheDocument();
     });
   });
 });
