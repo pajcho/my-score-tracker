@@ -226,6 +226,8 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.trainings (id, user_id, game, title, training_date, duration_minutes, notes) VALUES
   ('eeeeeeee-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Pool',      'Pattern drills',     CURRENT_DATE - 13, 60, 'Worked on 8-ball patterns and shape for the 8.'),
   ('eeeeeeee-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Pool',      'Break practice',     CURRENT_DATE - 7,  45, '9-ball break technique, focus on cue ball control.'),
+  -- Same-day pair so the History day-grouping is visible with seed data.
+  ('eeeeeeee-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Ping Pong', 'Serve drills',       CURRENT_DATE - 7,  40, 'Short serves and third-ball attack.'),
   ('eeeeeeee-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Ping Pong', 'Backhand topspin',   CURRENT_DATE - 3,  30, NULL)
 ON CONFLICT (id) DO NOTHING;
 

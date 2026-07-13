@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { History, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/pageHeader';
+import { FilterChip } from '@/components/ui/filterChip';
 import { ScoreDayList } from '@/components/scores/ScoreDayList';
-import { TrainingCard } from '@/components/trainings/TrainingCard';
+import { TrainingDayList } from '@/components/trainings/TrainingDayList';
 import { Score, Training } from '@/lib/supabaseDatabase';
 import { getGameTypeLabel, type GameType } from '@/lib/gameTypes';
 import { cn } from '@/lib/utils';
@@ -13,31 +14,11 @@ import { useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
 
 type ScoreWithFriend = Score & { friend_name?: string | null };
 
+/** Margin at or under which a game counts as "close" (Statistics links here). */
+const CLOSE_GAME_MARGIN = 2;
+
 interface HistoryPageProps {
   view: 'score' | 'training';
-}
-
-interface FilterChipProps {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}
-
-function FilterChip({ label, active, onClick }: FilterChipProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'shrink-0 whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition-colors',
-        active
-          ? 'border-primary bg-primary text-primary-foreground'
-          : 'border-border bg-card text-muted-foreground hover:text-foreground'
-      )}
-    >
-      {label}
-    </button>
-  );
 }
 
 interface FilterChipsRowProps {
@@ -47,6 +28,8 @@ interface FilterChipsRowProps {
   opponents?: string[];
   opponentFilter?: string;
   onOpponentFilterChange?: (value: string) => void;
+  closeGamesOnly?: boolean;
+  onCloseGamesOnlyChange?: (value: boolean) => void;
   searchTerm: string;
   onSearchTermChange: (value: string) => void;
   searchPlaceholder: string;
@@ -63,6 +46,8 @@ function FilterChipsRow({
   opponents = [],
   opponentFilter = '',
   onOpponentFilterChange,
+  closeGamesOnly = false,
+  onCloseGamesOnlyChange,
   searchTerm,
   onSearchTermChange,
   searchPlaceholder,
@@ -89,6 +74,11 @@ function FilterChipsRow({
         >
           {showSearch ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
         </button>
+        {/* The "close games" filter only arrives via the Statistics
+            drill-down link — show its chip only while it's active. */}
+        {closeGamesOnly && onCloseGamesOnlyChange && (
+          <FilterChip label="Close games (≤2)" active onClick={() => onCloseGamesOnlyChange(false)} />
+        )}
         <FilterChip label="All" active={gameFilter === 'all'} onClick={() => onGameFilterChange('all')} />
         {games.map((game) => (
           <FilterChip
@@ -125,9 +115,13 @@ function FilterChipsRow({
 }
 
 export function HistoryPage({ view }: HistoryPageProps) {
+  // Statistics drill-downs link here with ?game/?opponent/?close — read
+  // once as initial state, then the chips own the filters.
+  const [searchParams] = useSearchParams();
   const [scoreSearchTerm, setScoreSearchTerm] = useState('');
-  const [scoreGameFilter, setScoreGameFilter] = useState<string>('all');
-  const [opponentFilter, setOpponentFilter] = useState('');
+  const [scoreGameFilter, setScoreGameFilter] = useState<string>(searchParams.get('game') || 'all');
+  const [opponentFilter, setOpponentFilter] = useState(searchParams.get('opponent') || '');
+  const [closeGamesOnly, setCloseGamesOnly] = useState(searchParams.get('close') === '1');
   const [trainingSearchTerm, setTrainingSearchTerm] = useState('');
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
   const { isAuthenticated, user } = useAuth();
@@ -155,6 +149,13 @@ export function HistoryPage({ view }: HistoryPageProps) {
         return false;
       }
 
+      if (closeGamesOnly) {
+        const [leftScore = 0, rightScore = 0] = score.score.split('-').map((part) => Number(part) || 0);
+        if (Math.abs(leftScore - rightScore) > CLOSE_GAME_MARGIN) {
+          return false;
+        }
+      }
+
       if (!scoreSearchTerm) {
         return true;
       }
@@ -164,7 +165,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
       const friendName = score.friend_name?.toLowerCase() || '';
       return opponentName.includes(searchLower) || friendName.includes(searchLower);
     });
-  }, [opponentFilter, scoreGameFilter, scoreSearchTerm, scores]);
+  }, [closeGamesOnly, opponentFilter, scoreGameFilter, scoreSearchTerm, scores]);
 
   const filteredTrainings = useMemo(() => {
     return trainings.filter((training) => {
@@ -193,11 +194,17 @@ export function HistoryPage({ view }: HistoryPageProps) {
       if (!name) continue;
       countByName.set(name, (countByName.get(name) ?? 0) + 1);
     }
-    return [...countByName.entries()]
+    const topNames = [...countByName.entries()]
       .sort((first, second) => second[1] - first[1])
       .slice(0, 6)
       .map(([name]) => name);
-  }, [scores]);
+    // A URL-provided opponent may not be in the top six — surface it so
+    // the active filter is always visible and dismissible.
+    if (opponentFilter && !topNames.includes(opponentFilter)) {
+      topNames.unshift(opponentFilter);
+    }
+    return topNames;
+  }, [opponentFilter, scores]);
 
   const historyViewTabs = (
     <div className="flex items-center gap-2">
@@ -258,16 +265,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
             ))}
           </div>
         ) : filteredTrainings.length > 0 ? (
-          <div className="space-y-3">
-            {filteredTrainings.map((training) => (
-              <TrainingCard
-                key={training.id}
-                training={training}
-                showActions={true}
-                onTrainingUpdated={() => undefined}
-              />
-            ))}
-          </div>
+          <TrainingDayList trainings={filteredTrainings} onTrainingUpdated={() => undefined} />
         ) : trainings.length > 0 ? (
           <div className="space-y-2 py-12 text-center">
             <div className="text-lg text-muted-foreground">No trainings match your filters</div>
@@ -299,6 +297,8 @@ export function HistoryPage({ view }: HistoryPageProps) {
         opponents={opponentChips}
         opponentFilter={opponentFilter}
         onOpponentFilterChange={setOpponentFilter}
+        closeGamesOnly={closeGamesOnly}
+        onCloseGamesOnlyChange={setCloseGamesOnly}
         searchTerm={scoreSearchTerm}
         onSearchTermChange={setScoreSearchTerm}
         searchPlaceholder="Search by opponent name..."
@@ -306,7 +306,7 @@ export function HistoryPage({ view }: HistoryPageProps) {
 
       <p className="px-1 text-xs text-muted-foreground">
         {filteredScores.length} {filteredScores.length === 1 ? 'game' : 'games'}
-        {scoreSearchTerm || scoreGameFilter !== 'all' || opponentFilter ? ` of ${scores.length}` : ''}
+        {scoreSearchTerm || scoreGameFilter !== 'all' || opponentFilter || closeGamesOnly ? ` of ${scores.length}` : ''}
       </p>
 
       {isLoading ? (

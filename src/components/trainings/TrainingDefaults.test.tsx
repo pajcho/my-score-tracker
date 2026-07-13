@@ -50,11 +50,6 @@ vi.mock('@/components/ui/calendar', () => ({
   Calendar: () => <div>calendar</div>,
 }));
 
-vi.mock('@/components/ui/toggleGroup', () => ({
-  ToggleGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  ToggleGroupItem: ({ children }: { children: React.ReactNode }) => <button type="button">{children}</button>,
-}));
-
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -72,7 +67,19 @@ vi.mock('@/components/ui/drawer', () => ({
 import { TrainingForm } from '@/components/trainings/TrainingForm';
 import { TrainingEditDialog } from '@/components/trainings/TrainingEditDialog';
 
-describe('Training default title', () => {
+const editableTraining = {
+  id: 'training-1',
+  user_id: 'user-1',
+  game: 'Pool' as const,
+  title: 'Initial title',
+  training_date: '2026-02-15',
+  duration_minutes: 30,
+  notes: null,
+  created_at: '2026-02-15T00:00:00.000Z',
+  updated_at: '2026-02-15T00:00:00.000Z',
+};
+
+describe('Training forms', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isAuthenticatedMock.mockReturnValue(true);
@@ -85,7 +92,7 @@ describe('Training default title', () => {
     const onSuccess = vi.fn();
     render(<TrainingForm onCancel={vi.fn()} onSuccess={onSuccess} />);
 
-    fireEvent.change(screen.getByLabelText('Total Duration (minutes) *'), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: '60m' }));
     fireEvent.submit(screen.getByRole('button', { name: 'Save Training' }).closest('form'));
 
     await waitFor(() => {
@@ -93,40 +100,40 @@ describe('Training default title', () => {
         expect.any(String),
         'Training',
         expect.any(String),
-        45,
+        60,
         ''
       );
       expect(onSuccess).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('prefills create duration via quick fill links', () => {
+  it('sets duration via quick chips and adjusts it with the stepper', () => {
     render(<TrainingForm onCancel={vi.fn()} onSuccess={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('link', { name: '60m' }));
+    fireEvent.click(screen.getByRole('button', { name: '30m' }));
+    expect(screen.getByLabelText('Duration in minutes')).toHaveTextContent('30');
 
-    expect(screen.getByLabelText('Total Duration (minutes) *')).toHaveValue(60);
+    fireEvent.click(screen.getByRole('button', { name: 'Increase duration in minutes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Increase duration in minutes' }));
+    expect(screen.getByLabelText('Duration in minutes')).toHaveTextContent('40');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decrease duration in minutes' }));
+    expect(screen.getByLabelText('Duration in minutes')).toHaveTextContent('35');
+  });
+
+  it('disables saving until a duration is set', () => {
+    render(<TrainingForm onCancel={vi.fn()} onSuccess={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Save Training' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: '90m' }));
+    expect(screen.getByRole('button', { name: 'Save Training' })).toBeEnabled();
   });
 
   it('uses "Training" as default title when editing with an empty name', async () => {
     const onSuccess = vi.fn();
     render(
-      <TrainingEditDialog
-        training={{
-          id: 'training-1',
-          user_id: 'user-1',
-          game: 'Pool',
-          title: 'Initial title',
-          training_date: '2026-02-15',
-          duration_minutes: 30,
-          notes: null,
-          created_at: '2026-02-15T00:00:00.000Z',
-          updated_at: '2026-02-15T00:00:00.000Z',
-        }}
-        open
-        onOpenChange={vi.fn()}
-        onSuccess={onSuccess}
-      />
+      <TrainingEditDialog training={editableTraining} open onOpenChange={vi.fn()} onSuccess={onSuccess} />
     );
 
     fireEvent.change(screen.getByLabelText('Training Name'), { target: { value: '' } });
@@ -143,28 +150,22 @@ describe('Training default title', () => {
     });
   });
 
-  it('prefills edit duration via quick fill links', () => {
+  it('prefills the edit duration and updates it via quick chips', async () => {
     render(
-      <TrainingEditDialog
-        training={{
-          id: 'training-1',
-          user_id: 'user-1',
-          game: 'Pool',
-          title: 'Initial title',
-          training_date: '2026-02-15',
-          duration_minutes: 30,
-          notes: null,
-          created_at: '2026-02-15T00:00:00.000Z',
-          updated_at: '2026-02-15T00:00:00.000Z',
-        }}
-        open
-        onOpenChange={vi.fn()}
-        onSuccess={vi.fn()}
-      />
+      <TrainingEditDialog training={editableTraining} open onOpenChange={vi.fn()} onSuccess={vi.fn()} />
     );
 
-    fireEvent.click(screen.getByRole('link', { name: '90m' }));
+    expect(screen.getByLabelText('Duration in minutes')).toHaveTextContent('30');
 
-    expect(screen.getByLabelText('Total Duration (minutes) *')).toHaveValue(90);
+    fireEvent.click(screen.getByRole('button', { name: '90m' }));
+    expect(screen.getByLabelText('Duration in minutes')).toHaveTextContent('90');
+
+    fireEvent.submit(screen.getByRole('button', { name: 'Update Training' }).closest('form'));
+    await waitFor(() => {
+      expect(updateTrainingMock).toHaveBeenCalledWith(
+        'training-1',
+        expect.objectContaining({ duration_minutes: 90 })
+      );
+    });
   });
 });

@@ -2,6 +2,16 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+// recharts' ResponsiveContainer needs ResizeObserver, which jsdom lacks.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+}
+
 // Opt-in to React Router v7 future flags globally so individual tests
 // don't need to pass them to every <MemoryRouter>.
 vi.mock("react-router-dom", async () => {

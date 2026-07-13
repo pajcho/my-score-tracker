@@ -1,22 +1,13 @@
-import { useEffect } from 'react';
-import { Calendar, Users, User } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { useEffect, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { OpponentAutocomplete } from '@/components/ui/opponentAutocomplete';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { SegmentedControl } from '@/components/ui/segmentedControl';
+import { DateChipPicker } from '@/components/ui/dateChipPicker';
+import { StepperInput } from '@/components/ui/stepperInput';
+import { OpponentPicker } from '@/components/scores/OpponentPicker';
 import { GAME_TYPE_OPTIONS, POOL_TYPE_OPTIONS, isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
-import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
+import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
 import { useAuth } from '@/components/auth/authContext';
-import { useFriendsQuery, useOpponentsQuery } from '@/hooks/useTrackerData';
-
-const toggleOptionClassName =
-  "h-10 justify-start rounded-md px-3 text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
+import { useFriendsQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
 
 interface ScoreFormFieldsProps {
   game: GameType;
@@ -25,10 +16,10 @@ interface ScoreFormFieldsProps {
   setPoolType: (poolType: PoolType) => void;
   opponent: string;
   setOpponent: (opponent: string) => void;
-  yourScore: string;
-  setYourScore: (score: string) => void;
-  opponentScore: string;
-  setOpponentScore: (score: string) => void;
+  yourScore: number;
+  setYourScore: (score: number) => void;
+  opponentScore: number;
+  setOpponentScore: (score: number) => void;
   date: Date;
   setDate: (date: Date) => void;
   opponentType: 'custom' | 'friend';
@@ -64,8 +55,12 @@ export function ScoreFormFields({
   const currentUserId = isAuthenticated ? user?.id : undefined;
   const opponentsQuery = useOpponentsQuery(currentUserId);
   const friendsQuery = useFriendsQuery(currentUserId);
+  const scoresQuery = useScoresQuery(currentUserId);
   const opponents = opponentsQuery.data ?? [];
-  const friends = friendsQuery.data ?? [];
+  const friendsData = friendsQuery.data;
+  const scoresData = scoresQuery.data;
+  const friends = useMemo(() => friendsData ?? [], [friendsData]);
+  const scores = useMemo(() => scoresData ?? [], [scoresData]);
 
   const initialOpponentUserId = initialData?.opponent_user_id;
   const initialOpponentName = initialData?.opponent_name;
@@ -78,7 +73,7 @@ export function ScoreFormFields({
   // Set initial opponent type and selection based on initialData (only once)
   useEffect(() => {
     if (!initialOpponentUserId && !initialOpponentName) return;
-    
+
     if (initialOpponentUserId && friends.length > 0) {
       const friend = friends.find(f => f.id === initialOpponentUserId);
       if (friend) {
@@ -93,190 +88,91 @@ export function ScoreFormFields({
     }
   }, [friends, initialOpponentName, initialOpponentUserId, setOpponent, setOpponentType, setSelectedFriend]);
 
+  // Friends you played most recently come first — tonight's rival is
+  // almost always one tap away.
+  const rankedFriends = useMemo(() => {
+    const latestGameByName = new Map<string, number>();
+    for (const score of scores) {
+      const name = (score as { friend_name?: string | null }).friend_name || score.opponent_name;
+      if (!name) continue;
+      const playedAt = new Date(score.date).getTime();
+      latestGameByName.set(name, Math.max(latestGameByName.get(name) ?? 0, playedAt));
+    }
+    return [...friends].sort(
+      (first, second) => (latestGameByName.get(second.name) ?? 0) - (latestGameByName.get(first.name) ?? 0)
+    );
+  }, [friends, scores]);
+
+  const opponentLabel =
+    (opponentType === 'friend'
+      ? friends.find((friend) => friend.id === selectedFriend)?.name.split(' ')[0]
+      : opponent.trim().split(/\s+/)[0]) || 'Opponent';
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label>Game Type *</Label>
-          <ToggleGroup
-            type="single"
-            value={game}
-            onValueChange={(value) => {
-              if (!value) return;
-              setGame(value as GameType);
-            }}
-            className="grid grid-cols-2 gap-2"
-          >
-            {GAME_TYPE_OPTIONS.map(({ value, label }) => (
-              <ToggleGroupItem
-                key={value}
-                value={value}
-                variant="outline"
-                className={toggleOptionClassName}
-              >
-                <GameTypeIcon gameType={value} className="mr-2 h-4 w-4" />
-                {label}
-                <span
-                  className={`ml-auto h-2.5 w-2.5 rounded-full border ${game === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                />
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Date *</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal dark:bg-muted/40 dark:hover:bg-muted/55",
-                  !date && "text-muted-foreground"
-                )}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {date ? format(date, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <CalendarComponent
-                mode="single"
-                selected={date}
-                onSelect={(newDate) => newDate && setDate(newDate)}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+      <div className="space-y-2">
+        <Label>Game *</Label>
+        <SegmentedControl
+          aria-label="Game type"
+          value={game}
+          onValueChange={setGame}
+          options={GAME_TYPE_OPTIONS.map(({ value, label }) => ({
+            value,
+            label,
+            icon: <GameTypeIcon gameType={value} className="h-4 w-4" />,
+          }))}
+        />
       </div>
 
       {isPoolGameType(game) && (
         <div className="space-y-2">
           <Label>Pool Type *</Label>
-          <ToggleGroup
-            type="single"
+          <SegmentedControl
+            aria-label="Pool type"
             value={poolType}
-            onValueChange={(value) => {
-              if (!value) return;
-              setPoolType(value as PoolType);
-            }}
-            className="grid grid-cols-3 gap-2"
-          >
-            {POOL_TYPE_OPTIONS.map(({ value, label }) => (
-              <ToggleGroupItem
-                key={value}
-                value={value}
-                variant="outline"
-                className={toggleOptionClassName}
-              >
-                <PoolTypeIcon poolType={value} className="mr-2 h-4 w-4" />
-                {label}
-                <span
-                  className={`ml-auto h-2.5 w-2.5 rounded-full border ${poolType === value ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-                />
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            onValueChange={setPoolType}
+            options={POOL_TYPE_OPTIONS}
+          />
         </div>
       )}
 
-      <div className="space-y-3">
-        <Label>Opponent *</Label>
-        <ToggleGroup
-          type="single"
-          value={opponentType}
-          onValueChange={(value) => {
-            if (!value) return;
-            setOpponentType(value as 'custom' | 'friend');
-          }}
-          className="grid grid-cols-2 gap-2"
-        >
-          <ToggleGroupItem
-            value="friend"
-            variant="outline"
-            className={toggleOptionClassName}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Friend
-            <span
-              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'friend' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-            />
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="custom"
-            variant="outline"
-            className={toggleOptionClassName}
-          >
-            <User className="mr-2 h-4 w-4" />
-            Custom
-            <span
-              className={`ml-auto h-2.5 w-2.5 rounded-full border ${opponentType === 'custom' ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-transparent'}`}
-            />
-          </ToggleGroupItem>
-        </ToggleGroup>
-
-        {opponentType === 'custom' ? (
-          <OpponentAutocomplete
-            value={opponent}
-            onChange={(value) => {
-              setOpponent(value);
-              setSelectedFriend('');
-            }}
-            opponents={opponents}
-            required
-          />
-        ) : (
-          <Select value={selectedFriend} onValueChange={(value) => {
-            setSelectedFriend(value);
-            setOpponent('');
-          }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a friend" />
-            </SelectTrigger>
-            <SelectContent>
-              {friends.length === 0 ? (
-                <div className="p-2 text-sm text-muted-foreground">
-                  No friends yet. Add friends to play against them!
-                </div>
-              ) : (
-                friends.map((friend) => (
-                  <SelectItem key={friend.id} value={friend.id}>
-                    {friend.name}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        )}
+      <div className="space-y-2">
+        <Label>When *</Label>
+        <DateChipPicker value={date} onChange={setDate} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="yourScore">Your Score *</Label>
-          <Input
-            id="yourScore"
-            type="number"
-            min="0"
-            value={yourScore}
-            onChange={(e) => setYourScore(e.target.value)}
-            placeholder="Your score"
-            required
-          />
-        </div>
+      <div className="space-y-2">
+        <Label>Opponent *</Label>
+        <OpponentPicker
+          friends={rankedFriends}
+          selectedFriendId={opponentType === 'friend' ? selectedFriend : ''}
+          customName={opponentType === 'custom' ? opponent : ''}
+          onSelectFriend={(friendId) => {
+            setOpponentType('friend');
+            setSelectedFriend(friendId);
+            setOpponent('');
+          }}
+          onCustomNameChange={(name) => {
+            setOpponentType('custom');
+            setOpponent(name);
+            setSelectedFriend('');
+          }}
+          customSuggestions={opponents}
+        />
+      </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="opponentScore">Opponent Score *</Label>
-          <Input
-            id="opponentScore"
-            type="number"
-            min="0"
-            value={opponentScore}
-            onChange={(e) => setOpponentScore(e.target.value)}
-            placeholder="Opponent score"
-            required
-          />
+          <Label className="block text-center text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            You
+          </Label>
+          <StepperInput value={yourScore} onValueChange={setYourScore} label="Your score" min={0} />
+        </div>
+        <div className="space-y-2">
+          <Label className="block text-center text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            {opponentLabel}
+          </Label>
+          <StepperInput value={opponentScore} onValueChange={setOpponentScore} label="Opponent score" min={0} />
         </div>
       </div>
     </div>

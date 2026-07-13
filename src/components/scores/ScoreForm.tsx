@@ -8,6 +8,8 @@ import { supabaseAuth } from '@/lib/supabaseAuth';
 import { supabaseDb } from '@/lib/supabaseDatabase';
 import { DEFAULT_GAME_TYPE, DEFAULT_POOL_TYPE, isPoolGameType, type GameType, type PoolType } from '@/lib/gameTypes';
 import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { getOutcomePreview, outcomeButtonClassName } from './scoreOutcome';
+import { cn } from '@/lib/utils';
 
 interface ScoreFormProps {
   onCancel: () => void;
@@ -25,21 +27,24 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   const [game, setGame] = useState<GameType>(initialData?.game || DEFAULT_GAME_TYPE);
   const [poolType, setPoolType] = useState<PoolType>(DEFAULT_POOL_TYPE);
   const [opponent, setOpponent] = useState(initialData?.opponent_name || '');
-  const [yourScore, setYourScore] = useState(initialData?.score ? initialData.score.split('-')[0] : '');
-  const [opponentScore, setOpponentScore] = useState(initialData?.score ? initialData.score.split('-')[1] : '');
+  const [yourScore, setYourScore] = useState(() => Number(initialData?.score?.split('-')[0]) || 0);
+  const [opponentScore, setOpponentScore] = useState(() => Number(initialData?.score?.split('-')[1]) || 0);
   const [date, setDate] = useState<Date>(initialData?.date ? new Date(initialData.date) : new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string>('');
   const [opponentType, setOpponentType] = useState<'custom' | 'friend'>('friend');
   const { toast } = useToast();
 
+  const hasScore = yourScore > 0 || opponentScore > 0;
+  const preview = getOutcomePreview(yourScore, opponentScore);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!game || !yourScore || !opponentScore) {
+
+    if (!hasScore) {
       toast({
         title: "Missing information",
-        description: "Please fill in all required fields",
+        description: "Enter the final score before saving",
         variant: "destructive",
       });
       return;
@@ -76,10 +81,10 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
 
     try {
       const combinedScore = `${yourScore}-${opponentScore}`;
-      
+
       let opponentName: string | null = null;
       let opponentUserId: string | undefined;
-      
+
       if (opponentType === 'friend' && selectedFriend) {
         // For friends, we store the user_id but no name (will be looked up from profiles)
         opponentUserId = selectedFriend;
@@ -87,7 +92,7 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
         // For custom opponents, we store the name
         opponentName = opponent;
       }
-      
+
       const createdScore = await supabaseDb.createScore(
         game,
         opponentName,
@@ -123,16 +128,10 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
   };
 
   return (
-    // The form is the scroll container; fields and the action row stack
-    // naturally inside it. We deliberately do NOT pin the buttons to the
-    // modal bottom — they ride at the natural end of content so short
-    // forms don't leave a band of empty space above a "floating" footer
-    // and long forms don't overlay scrolling content under one.
-    <form
-      onSubmit={handleSubmit}
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
-    >
-      <div className="px-4 pt-4">
+    // Pinned footer, same treatment as the wizard: only the fields scroll,
+    // the outcome-preview save button stays under the thumb.
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
         <ScoreFormFields
           game={game}
           setGame={setGame}
@@ -154,23 +153,23 @@ export function ScoreForm({ onCancel, onSuccess, initialData }: ScoreFormProps) 
         />
       </div>
 
-      <div className="mt-6 flex flex-row gap-3 border-t px-4 py-3">
+      <div className="flex flex-row gap-3 border-t px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3">
         <Button
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="flex-1"
+          className="h-11 flex-1"
         >
           <X className="h-4 w-4" />
           Cancel
         </Button>
         <Button
           type="submit"
-          disabled={isLoading}
-          className="flex-1"
+          disabled={isLoading || !hasScore}
+          className={cn('h-11 flex-1', hasScore && outcomeButtonClassName(preview.outcome))}
         >
           <Save className="h-4 w-4" />
-          {isLoading ? "Saving..." : "Save Score"}
+          {isLoading ? 'Saving...' : hasScore ? preview.label : 'Save Score'}
         </Button>
       </div>
     </form>

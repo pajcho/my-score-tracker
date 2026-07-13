@@ -1,30 +1,17 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { CalendarDays, ChevronRight, Pencil, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alertDialog';
-import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
-import { ScoreEditDialog } from '@/components/scores/ScoreEditDialog';
-import { GameTypeIcon, PoolTypeIcon } from '@/components/ui/gameTypeIcon';
-import { useToast } from '@/hooks/useToast';
-import { supabaseDb, Score } from '@/lib/supabaseDatabase';
-import { invalidateTrackerQueries } from '@/lib/queryCache';
+import { ChevronRight } from 'lucide-react';
+import { ScoreDetailSheet } from '@/components/scores/ScoreDetailSheet';
 import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
 import { cn } from '@/lib/utils';
-
-type ScoreWithFriend = Score & { friend_name?: string | null };
-type ScoreResult = 'win' | 'loss' | 'tie';
+import {
+  getOpponentDisplayName,
+  getPerspectiveScore,
+  getScoreResult,
+  resultScoreStyles,
+  resultStripeStyles,
+  type ScoreWithFriend,
+} from '@/components/scores/scoreDisplay';
 
 interface ScoreDayListProps {
   scores: ScoreWithFriend[];
@@ -33,25 +20,6 @@ interface ScoreDayListProps {
 }
 
 const DAY_GROUPS_PAGE_SIZE = 10;
-
-function getScoreResult(scoreString: string, isCreator: boolean): ScoreResult {
-  const [score1, score2] = scoreString.split('-').map(Number);
-  const userScore = isCreator ? score1 : score2;
-  const opponentScore = isCreator ? score2 : score1;
-  if (userScore > opponentScore) return 'win';
-  if (userScore < opponentScore) return 'loss';
-  return 'tie';
-}
-
-function getOpponentDisplayName(score: ScoreWithFriend): string {
-  return score.friend_name || score.opponent_name || 'Unknown';
-}
-
-/** Score as the current user reads it: their points first. */
-function getPerspectiveScore(score: ScoreWithFriend, isOwnScore: boolean): string {
-  const [score1, score2] = score.score.split('-');
-  return isOwnScore ? `${score1}–${score2}` : `${score2}–${score1}`;
-}
 
 interface DayGroup {
   date: string;
@@ -110,18 +78,6 @@ function getDayTally(dayScores: ScoreWithFriend[], currentUserId: string | undef
   return [`${wins}W`, `${losses}L`, ...(ties > 0 ? [`${ties}T`] : [])].join(' · ');
 }
 
-const resultStripeStyles: Record<ScoreResult, string> = {
-  win: 'bg-secondary',
-  loss: 'bg-destructive',
-  tie: 'bg-accent',
-};
-
-const resultScoreStyles: Record<ScoreResult, string> = {
-  win: 'text-secondary',
-  loss: 'text-destructive',
-  tie: 'text-accent',
-};
-
 /**
  * Day-grouped compact score history. Each evening gets a header with its
  * tally; rows are one line each and open a detail sheet with edit/delete.
@@ -129,9 +85,6 @@ const resultScoreStyles: Record<ScoreResult, string> = {
  */
 export function ScoreDayList({ scores, currentUserId, onScoreUpdated }: ScoreDayListProps) {
   const [selectedScore, setSelectedScore] = useState<ScoreWithFriend | null>(null);
-  const [editingScore, setEditingScore] = useState<Score | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { toast } = useToast();
 
   const dayGroups = groupScoresByDay(scores);
   // Pagination resets whenever the incoming (already filtered) list changes
@@ -142,10 +95,15 @@ export function ScoreDayList({ scores, currentUserId, onScoreUpdated }: ScoreDay
   const visibleGroups = dayGroups.slice(0, visibleDayCount);
   const hasMore = dayGroups.length > visibleDayCount;
 
+  // The observer callback reads the latest values through a ref that is
+  // re-pointed after every render (writing refs during render is not
+  // allowed; an always-running effect is the sanctioned equivalent).
   const showMoreRef = useRef(() => undefined as void);
-  showMoreRef.current = () => {
-    setPagination({ key: paginationKey, count: visibleDayCount + DAY_GROUPS_PAGE_SIZE });
-  };
+  useEffect(() => {
+    showMoreRef.current = () => {
+      setPagination({ key: paginationKey, count: visibleDayCount + DAY_GROUPS_PAGE_SIZE });
+    };
+  });
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = (node: HTMLDivElement | null) => {
@@ -163,33 +121,6 @@ export function ScoreDayList({ scores, currentUserId, onScoreUpdated }: ScoreDay
     observer.observe(node);
     observerRef.current = observer;
   };
-
-  const handleDelete = async (scoreId: string) => {
-    setIsDeleting(true);
-    try {
-      await supabaseDb.deleteScore(scoreId);
-      await invalidateTrackerQueries({ scores: true, opponents: true });
-      toast({
-        title: 'Score deleted',
-        description: 'The score has been removed from your history',
-      });
-      setSelectedScore(null);
-      onScoreUpdated();
-    } catch (error) {
-      toast({
-        title: 'Failed to delete score',
-        description: 'Please try again',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const selectedIsOwn = !!selectedScore && selectedScore.user_id === currentUserId;
-  const selectedResult = selectedScore
-    ? getScoreResult(selectedScore.score, selectedIsOwn)
-    : null;
 
   return (
     <div className="space-y-5">
@@ -240,118 +171,11 @@ export function ScoreDayList({ scores, currentUserId, onScoreUpdated }: ScoreDay
 
       {hasMore && <div ref={sentinelRef} data-testid="history-load-more" className="h-1" />}
 
-      <ResponsiveFormModal
-        open={!!selectedScore}
-        onOpenChange={(open) => !open && setSelectedScore(null)}
-        title="Game details"
-        height="fit"
-      >
-        {selectedScore && selectedResult && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-5 sm:px-5">
-            <div className="space-y-5">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'h-6 rounded-sm border bg-transparent px-2.5 text-[11px] font-semibold tracking-wide',
-                    selectedResult === 'win' && 'border-secondary/70 bg-secondary/10 text-secondary',
-                    selectedResult === 'loss' && 'border-destructive/70 bg-destructive/10 text-destructive',
-                    selectedResult === 'tie' && 'border-accent/70 bg-accent/10 text-accent'
-                  )}
-                >
-                  {selectedResult === 'win' ? 'WIN' : selectedResult === 'loss' ? 'LOSS' : 'TIE'}
-                </Badge>
-                <div className={cn('text-5xl font-bold tabular-nums', resultScoreStyles[selectedResult])}>
-                  {getPerspectiveScore(selectedScore, selectedIsOwn)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {selectedIsOwn
-                    ? `You vs ${getOpponentDisplayName(selectedScore)}`
-                    : `${getOpponentDisplayName(selectedScore)} vs You`}
-                </div>
-              </div>
-
-              <div className="divide-y divide-border rounded-xl border border-border">
-                <div className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="text-muted-foreground">Game</span>
-                  <span className="flex items-center gap-2 font-medium">
-                    {isPoolGameType(selectedScore.game) ? (
-                      <PoolTypeIcon
-                        poolType={selectedScore.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
-                        className="h-4 w-4"
-                      />
-                    ) : (
-                      <GameTypeIcon gameType={selectedScore.game} className="h-4 w-4" />
-                    )}
-                    {getGameTypeLabel(selectedScore.game)}
-                    {isPoolGameType(selectedScore.game)
-                      ? ` · ${getPoolTypeLabel(selectedScore.pool_settings?.pool_type || DEFAULT_POOL_TYPE)}`
-                      : ''}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <CalendarDays className="h-4 w-4" />
-                    Date
-                  </span>
-                  <span className="font-medium">{format(new Date(selectedScore.date), 'MMM d, yyyy')}</span>
-                </div>
-              </div>
-
-              {selectedIsOwn && (
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="h-11 flex-1 gap-2"
-                    onClick={() => {
-                      setEditingScore(selectedScore);
-                      setSelectedScore(null);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        disabled={isDeleting}
-                        className="h-11 flex-1 gap-2 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Score</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this score? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter className="flex-row justify-end gap-2 space-x-0">
-                        <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => void handleDelete(selectedScore.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </ResponsiveFormModal>
-
-      <ScoreEditDialog
-        score={editingScore}
-        open={!!editingScore}
-        onOpenChange={(open) => !open && setEditingScore(null)}
-        onSuccess={onScoreUpdated}
+      <ScoreDetailSheet
+        score={selectedScore}
+        currentUserId={currentUserId}
+        onClose={() => setSelectedScore(null)}
+        onScoreUpdated={onScoreUpdated}
       />
     </div>
   );
