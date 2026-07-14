@@ -6,6 +6,9 @@ let harness: SupabaseMockHarness;
 describe("supabaseAuth", () => {
   beforeEach(() => {
     vi.resetModules();
+    // The profile cache persists in localStorage — clear it so tests don't
+    // leak hydrated profiles into each other.
+    localStorage.clear();
     harness = createSupabaseMockHarness();
     vi.doMock("@/integrations/supabase/client", () => ({
       supabase: harness.supabase,
@@ -101,6 +104,120 @@ describe("supabaseAuth", () => {
     expect(finalState.isAuthenticated).toBe(true);
     expect(finalState.profile?.name).toBe("Nikola");
     expect(observedStates.some((state) => state.isLoading)).toBe(true);
+  });
+
+  it("does not re-enter loading when the same user's token refreshes", async () => {
+    vi.useFakeTimers();
+    let authStateListener: ((event: string, session: unknown) => void) | undefined;
+    harness.supabase.auth.onAuthStateChange.mockImplementation((listener) => {
+      authStateListener = listener;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: vi.fn(),
+          },
+        },
+      };
+    });
+    const profilesBuilder = harness.getBuilder("profiles");
+    profilesBuilder.single.mockResolvedValue({
+      data: { user_id: "user-1", name: "Nikola", email: "user@example.com" },
+      error: null,
+    });
+
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
+    const session = { user: { id: "user-1", email: "user@example.com" } };
+    authStateListener?.("SIGNED_IN", session);
+    await vi.runAllTimersAsync();
+    expect(supabaseAuth.getState().profile?.name).toBe("Nikola");
+
+    const observedStates: boolean[] = [];
+    supabaseAuth.subscribe((state) => {
+      observedStates.push(state.isLoading);
+    });
+
+    // Simulates the app resuming from background after the phone was locked.
+    authStateListener?.("TOKEN_REFRESHED", session);
+    await vi.runAllTimersAsync();
+
+    expect(observedStates.every((isLoading) => !isLoading)).toBe(true);
+    expect(supabaseAuth.getState().profile?.name).toBe("Nikola");
+  });
+
+  it("hydrates the profile from the localStorage cache without a loading gate", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem(
+      "score-tracker-profile",
+      JSON.stringify({ id: "profile-1", user_id: "user-1", name: "Cached", email: "user@example.com" })
+    );
+    let authStateListener: ((event: string, session: unknown) => void) | undefined;
+    harness.supabase.auth.onAuthStateChange.mockImplementation((listener) => {
+      authStateListener = listener;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: vi.fn(),
+          },
+        },
+      };
+    });
+    const profilesBuilder = harness.getBuilder("profiles");
+    profilesBuilder.single.mockResolvedValue({
+      data: { user_id: "user-1", name: "Fresh", email: "user@example.com" },
+      error: null,
+    });
+
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
+    authStateListener?.("SIGNED_IN", {
+      user: { id: "user-1", email: "user@example.com" },
+    });
+
+    // Before the background fetch resolves the cached profile is already
+    // available and the UI is not gated.
+    const stateBeforeRefresh = supabaseAuth.getState();
+    expect(stateBeforeRefresh.isLoading).toBe(false);
+    expect(stateBeforeRefresh.profile?.name).toBe("Cached");
+
+    await vi.runAllTimersAsync();
+    expect(supabaseAuth.getState().profile?.name).toBe("Fresh");
+  });
+
+  it("keeps the known profile when a background refresh fails", async () => {
+    vi.useFakeTimers();
+    let authStateListener: ((event: string, session: unknown) => void) | undefined;
+    harness.supabase.auth.onAuthStateChange.mockImplementation((listener) => {
+      authStateListener = listener;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: vi.fn(),
+          },
+        },
+      };
+    });
+    const profilesBuilder = harness.getBuilder("profiles");
+    profilesBuilder.single.mockResolvedValueOnce({
+      data: { user_id: "user-1", name: "Nikola", email: "user@example.com" },
+      error: null,
+    });
+
+    const { supabaseAuth } = await import("@/lib/supabaseAuth");
+    const session = { user: { id: "user-1", email: "user@example.com" } };
+    authStateListener?.("SIGNED_IN", session);
+    await vi.runAllTimersAsync();
+    expect(supabaseAuth.getState().profile?.name).toBe("Nikola");
+
+    profilesBuilder.single.mockResolvedValueOnce({
+      data: null,
+      error: { message: "network down" },
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    authStateListener?.("TOKEN_REFRESHED", session);
+    await vi.runAllTimersAsync();
+
+    expect(supabaseAuth.getState().profile?.name).toBe("Nikola");
+    errorSpy.mockRestore();
   });
 
   it("keeps state when signOut returns error", async () => {

@@ -34,9 +34,21 @@ const renderWithAuthState = (authState: AuthState) => {
 };
 
 describe("ProtectedRoute", () => {
-  it("renders loading UI while auth state is loading", () => {
+  it("renders loading UI while auth state is unknown", () => {
     renderWithAuthState({ ...baseAuthState, isLoading: true });
     expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
+  });
+
+  it("renders protected content while an authenticated user's profile refreshes", () => {
+    renderWithAuthState({
+      ...baseAuthState,
+      user: { id: "user-1" } as AuthState["user"],
+      isAuthenticated: true,
+      isLoading: true,
+    });
+    expect(screen.getByText("Protected content")).toBeInTheDocument();
+    expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
   });
 
   it("redirects unauthenticated users to login", () => {

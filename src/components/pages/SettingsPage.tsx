@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/pageHeader';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -459,7 +460,12 @@ function SessionsCard({ n }: SessionsCardProps) {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <div className="space-y-3" aria-busy="true">
+            <span className="sr-only">Loading…</span>
+            {[0, 1].map((skeletonIndex) => (
+              <Skeleton key={skeletonIndex} aria-hidden="true" className="h-10 rounded-lg" />
+            ))}
+          </div>
         ) : subscriptions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No active sessions. Enable notifications above so this device starts receiving them.

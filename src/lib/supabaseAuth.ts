@@ -18,6 +18,34 @@ export interface AuthState {
   isLoading: boolean;
 }
 
+// Profile cache lets a cold start (or an app resume after the phone was
+// locked) render the app immediately instead of gating the whole UI on a
+// network round-trip; the profile still refreshes in the background.
+const PROFILE_CACHE_KEY = 'score-tracker-profile';
+
+function readCachedProfile(userId: string): Profile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const profile = JSON.parse(raw) as Profile;
+    return profile?.user_id === userId ? profile : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedProfile(profile: Profile | null) {
+  try {
+    if (profile) {
+      localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    } else {
+      localStorage.removeItem(PROFILE_CACHE_KEY);
+    }
+  } catch {
+    // localStorage unavailable — the cache is best-effort only.
+  }
+}
+
 class SupabaseAuthService {
   private state: AuthState = {
     user: null,
@@ -28,6 +56,10 @@ class SupabaseAuthService {
   };
 
   private listeners: ((state: AuthState) => void)[] = [];
+
+  // Dedupes concurrent profile fetches — the startup getSession() call and
+  // the INITIAL_SESSION/SIGNED_IN auth event both ask for the same profile.
+  private profileRefresh: { userId: string; promise: Promise<void> } | null = null;
 
   private createStateSnapshot(): AuthState {
     return {
@@ -41,28 +73,28 @@ class SupabaseAuthService {
   }
 
   private async initialize() {
-    // Set up auth state listener
+    // Set up auth state listener. TOKEN_REFRESHED fires every time the app
+    // resumes from background — it must not gate the UI behind a network
+    // fetch, so isLoading only turns on when no profile is known at all.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Keep loading true until profile is loaded for authenticated users.
         this.state.session = session;
         this.state.user = session?.user ?? null;
         this.state.isAuthenticated = !!session?.user;
 
         if (session?.user) {
-          this.state.isLoading = true;
+          const userId = session.user.id;
+          this.applyKnownProfile(userId);
           this.notifyListeners();
 
           // Defer Supabase calls with setTimeout to avoid deadlock
           setTimeout(() => {
-            void this.loadProfile(session.user.id).finally(() => {
-              this.state.isLoading = false;
-              this.notifyListeners();
-            });
+            void this.refreshProfile(userId);
           }, 0);
         } else {
           this.state.profile = null;
           this.state.isLoading = false;
+          writeCachedProfile(null);
           this.notifyListeners();
         }
       }
@@ -74,21 +106,46 @@ class SupabaseAuthService {
       this.state.session = session;
       this.state.user = session.user;
       this.state.isAuthenticated = true;
-      this.state.isLoading = true;
+      this.applyKnownProfile(session.user.id);
       this.notifyListeners();
-      await this.loadProfile(session.user.id);
+      await this.refreshProfile(session.user.id);
+    } else {
       this.state.isLoading = false;
+      this.notifyListeners();
     }
-
-    if (!session?.user) {
-      this.state.isLoading = false;
-    }
-    this.notifyListeners();
 
     // Clean up subscription on page unload
     window.addEventListener('beforeunload', () => {
       subscription.unsubscribe();
     });
+  }
+
+  // Reuse the in-memory or localStorage-cached profile so returning users
+  // never see the auth loading gate; only a first sign-in on this device
+  // (no profile anywhere) keeps isLoading on until the fetch lands.
+  private applyKnownProfile(userId: string) {
+    if (this.state.profile?.user_id !== userId) {
+      this.state.profile = readCachedProfile(userId);
+    }
+    this.state.isLoading = !this.state.profile;
+  }
+
+  private refreshProfile(userId: string): Promise<void> {
+    if (this.profileRefresh?.userId === userId) {
+      return this.profileRefresh.promise;
+    }
+
+    const promise = this.loadProfile(userId).finally(() => {
+      if (this.profileRefresh?.promise === promise) {
+        this.profileRefresh = null;
+      }
+      if (this.state.user?.id === userId && this.state.isLoading) {
+        this.state.isLoading = false;
+        this.notifyListeners();
+      }
+    });
+    this.profileRefresh = { userId, promise };
+    return promise;
   }
 
   private async loadProfile(userId: string) {
@@ -100,12 +157,19 @@ class SupabaseAuthService {
         .single();
 
       if (error) throw error;
-      this.state.profile = profile;
-      this.notifyListeners(); // Notify listeners after profile is loaded
+      if (this.state.user?.id === userId) {
+        this.state.profile = profile;
+        writeCachedProfile(profile);
+        this.notifyListeners(); // Notify listeners after profile is loaded
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
-      this.state.profile = null;
-      this.notifyListeners(); // Notify listeners even on error
+      // Keep any already-known profile — a transient network failure on app
+      // resume must not blank out the signed-in UI.
+      if (this.state.profile?.user_id !== userId) {
+        this.state.profile = null;
+        this.notifyListeners(); // Notify listeners even on error
+      }
     }
   }
 
@@ -159,6 +223,7 @@ class SupabaseAuthService {
         isAuthenticated: false,
         isLoading: false
       };
+      writeCachedProfile(null);
       this.notifyListeners();
     }
     return { error };
