@@ -209,7 +209,10 @@ INSERT INTO public.pool_game_settings (
   id, live_game_id, created_by_user_id, pool_type, break_rule, first_breaker_side, current_breaker_side, last_rack_winner_side
 ) VALUES
   (
-    'cccccccc-0000-0000-0000-000000000010',
+    -- Unique id: '...010' is already used by a finished-score row above, so
+    -- the previous value was silently skipped by ON CONFLICT, leaving the
+    -- seed live game with no pool settings (no breaker, no settings button).
+    'cccccccc-0000-0000-0000-000000000011',
     'dddddddd-0000-0000-0000-000000000001',
     '11111111-1111-1111-1111-111111111111',
     '8-ball',
