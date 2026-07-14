@@ -117,13 +117,13 @@ describe("ScoreForm", () => {
     fireEvent.click(increaseYours);
     fireEvent.click(increaseYours);
     fireEvent.click(increaseTheirs);
-    expect(screen.getByRole("button", { name: "Save · Win 2–1" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save · Win 2-1" })).toBeEnabled();
 
     fireEvent.click(increaseTheirs);
-    expect(screen.getByRole("button", { name: "Save · Draw 2–2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save · Draw 2-2" })).toBeInTheDocument();
 
     fireEvent.click(increaseTheirs);
-    expect(screen.getByRole("button", { name: "Save · Loss 2–3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save · Loss 2-3" })).toBeInTheDocument();
   });
 
   it("saves a friend game built entirely from taps", async () => {
@@ -137,7 +137,7 @@ describe("ScoreForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Increase your score" }));
     fireEvent.click(screen.getByRole("button", { name: "Increase opponent score" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Save · Win 2–1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save · Win 2-1" }));
 
     await waitFor(() => {
       expect(createScoreMock).toHaveBeenCalledWith("Pool", null, "2-1", expect.any(String), "friend-1");
@@ -157,7 +157,7 @@ describe("ScoreForm", () => {
     fireEvent.change(screen.getByPlaceholderText("Opponent's name"), { target: { value: "Luka" } });
 
     fireEvent.click(screen.getByRole("button", { name: "Increase opponent score" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save · Loss 0–1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save · Loss 0-1" }));
 
     await waitFor(() => {
       expect(createScoreMock).toHaveBeenCalledWith("Ping Pong", "Luka", "0-1", expect.any(String), undefined);

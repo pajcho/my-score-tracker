@@ -19,7 +19,7 @@ export function getOpponentDisplayName(score: ScoreWithFriend): string {
 /** Score as the current user reads it: their points first. */
 export function getPerspectiveScore(score: ScoreWithFriend, isOwnScore: boolean): string {
   const [score1, score2] = score.score.split('-');
-  return isOwnScore ? `${score1}–${score2}` : `${score2}–${score1}`;
+  return isOwnScore ? `${score1}-${score2}` : `${score2}-${score1}`;
 }
 
 export const resultStripeStyles: Record<ScoreResult, string> = {

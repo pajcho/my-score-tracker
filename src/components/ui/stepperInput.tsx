@@ -14,7 +14,7 @@ interface StepperInputProps {
 
 /**
  * 44px +/− stepper around a large read-only number. Faster than the
- * keyboard for values that live in 0–9 and can't produce "5e" or an
+ * keyboard for values that live in 0-9 and can't produce "5e" or an
  * accidentally empty field.
  */
 export function StepperInput({

@@ -58,7 +58,7 @@ describe("ScoreDayList", () => {
     expect(screen.getByText(/Jul 6, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Jul 1, 2026/)).toBeInTheDocument();
     // Single-opponent day reads as a head-to-head tally with first name.
-    expect(screen.getByText("You 1–1 Marko")).toBeInTheDocument();
+    expect(screen.getByText("You 1-1 Marko")).toBeInTheDocument();
   });
 
   it("shows a per-opponent tally when an evening had multiple opponents", () => {
@@ -73,14 +73,14 @@ describe("ScoreDayList", () => {
     render(<ScoreDayList scores={eveningScores} currentUserId="user-1" onScoreUpdated={() => undefined} />);
 
     // Ordered by games played per opponent, first names only.
-    expect(screen.getByText("You 2–1 Marko · 1–1 Ana")).toBeInTheDocument();
+    expect(screen.getByText("You 2-1 Marko · 1-1 Ana")).toBeInTheDocument();
   });
 
   it("shows scores from the current user's perspective", () => {
     render(<ScoreDayList scores={scores} currentUserId="user-1" onScoreUpdated={() => undefined} />);
 
     // s3 was recorded by the opponent as 11-8; user-1 reads it flipped.
-    expect(screen.getByText("8–11")).toBeInTheDocument();
+    expect(screen.getByText("8-11")).toBeInTheDocument();
     expect(screen.getByText("Mladen Pajic vs You")).toBeInTheDocument();
   });
 

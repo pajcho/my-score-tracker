@@ -16,7 +16,7 @@ interface SegmentedControlProps<T extends string> {
 }
 
 /**
- * True segmented control for 2–3 exclusive choices: one joined track, the
+ * True segmented control for 2-3 exclusive choices: one joined track, the
  * active segment lifted on a card background. Replaces the old
  * radio-dot-inside-outline-button hybrid in the score/training forms.
  */
