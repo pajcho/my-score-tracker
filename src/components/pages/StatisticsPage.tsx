@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   BarChart3,
@@ -13,10 +13,11 @@ import {
 } from 'lucide-react';
 import { Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartHint } from '@/components/ui/chartHint';
 import { PageHeader } from '@/components/ui/pageHeader';
 import { FilterChip } from '@/components/ui/filterChip';
+import { useHasHover } from '@/hooks/useHasHover';
 import { ScoreDetailSheet } from '@/components/scores/ScoreDetailSheet';
 import { Score, Training } from '@/lib/supabaseDatabase';
 import { cn } from '@/lib/utils';
@@ -197,7 +198,6 @@ interface ActivityHeatmapGridProps {
  * instead of the cells shrinking to fit.
  */
 function ActivityHeatmapGrid({ weeks, maxCount, cellAriaLabel, cellDetail }: ActivityHeatmapGridProps) {
-  const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
   const monthLabels = useMemo(() => buildMonthLabels(weeks), [weeks]);
 
   // Dock the scroll position at the current week once on mount; inline
@@ -233,27 +233,16 @@ function ActivityHeatmapGrid({ weeks, maxCount, cellAriaLabel, cellDetail }: Act
               {weeks.map((weekColumn, weekIndex) => (
                 <div key={`week-${weekIndex}`} className="flex flex-col gap-1">
                   {weekColumn.map((cell) => (
-                    <Popover
-                      key={cell.key}
-                      open={activeCellKey === cell.key}
-                      onOpenChange={(isOpen) => {
-                        setActiveCellKey(isOpen ? cell.key : null);
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={cellAriaLabel(cell)}
-                          className={cn(
-                            'h-6 w-6 rounded-[4px] border border-border/60',
-                            getHeatmapIntensityClass(cell.count, maxCount, cell.isFuture)
-                          )}
-                        />
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                        {cellDetail(cell)}
-                      </PopoverContent>
-                    </Popover>
+                    <ChartHint key={cell.key} content={cellDetail(cell)}>
+                      <button
+                        type="button"
+                        aria-label={cellAriaLabel(cell)}
+                        className={cn(
+                          'h-6 w-6 rounded-[4px] border border-border/60',
+                          getHeatmapIntensityClass(cell.count, maxCount, cell.isFuture)
+                        )}
+                      />
+                    </ChartHint>
                   ))}
                 </div>
               ))}
@@ -334,6 +323,73 @@ function FormPill({ outcome }: { outcome: MatchOutcome }) {
   );
 }
 
+/**
+ * Weekly win-rate line. Tooltip reveals on hover on pointer devices and on
+ * tap on touch devices. recharts' click-triggered tooltip has no built-in
+ * dismiss, so on touch we clear it when the next tap lands outside the
+ * chart by remounting (cheap — the line has no entry animation).
+ */
+function WinRateTrendChart({ data }: { data: WeekTrendPoint[] }) {
+  const hasHover = useHasHover();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const tooltipOpenRef = useRef(false);
+  const [remountKey, setRemountKey] = useState(0);
+
+  useEffect(() => {
+    if (hasHover) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!tooltipOpenRef.current) return;
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        tooltipOpenRef.current = false;
+        setRemountKey((key) => key + 1);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [hasHover]);
+
+  return (
+    <div ref={wrapperRef}>
+      <ChartContainer
+        key={remountKey}
+        config={{ winRate: { label: 'Win rate', color: 'hsl(var(--primary))' } }}
+        className="aspect-auto h-44 w-full"
+      >
+        <LineChart
+          data={data}
+          margin={{ top: 8, right: 12, bottom: 0, left: 12 }}
+          onClick={hasHover ? undefined : () => { tooltipOpenRef.current = true; }}
+        >
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} />
+          <YAxis domain={[0, 100]} hide />
+          <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.5} />
+          <ChartTooltip
+            trigger={hasHover ? 'hover' : 'click'}
+            content={
+              <ChartTooltipContent
+                formatter={(value, _name, item) => (
+                  <span className="font-medium tabular-nums">
+                    {value}% · {item?.payload?.wins}W {item?.payload?.losses}L
+                  </span>
+                )}
+              />
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="winRate"
+            stroke="var(--color-winRate)"
+            strokeWidth={2}
+            connectNulls
+            isAnimationActive={false}
+            dot={{ r: 3, fill: 'var(--color-winRate)', strokeWidth: 0 }}
+          />
+        </LineChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
 interface StatisticsPageProps {
   view: 'score' | 'training';
 }
@@ -346,7 +402,6 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const poolTypeFilter = searchParams.get('poolType') || 'all';
   const opponentFilter = searchParams.get('opponent') || 'all';
   const [trainingGameFilter, setTrainingGameFilter] = useState<string>('all');
-  const [activeRecentFormIndex, setActiveRecentFormIndex] = useState<number | null>(null);
   const [detailScore, setDetailScore] = useState<ScoreWithFriend | null>(null);
   const { profile, isAuthenticated, user } = useAuth();
   const currentUserId = isAuthenticated ? user?.id : undefined;
@@ -1074,31 +1129,27 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-10 gap-1.5 sm:gap-2">
                   {lastTenFormChronological.map((match, index) => (
-                    <Popover
+                    <ChartHint
                       key={`${match.score.id}-${index}`}
-                      open={activeRecentFormIndex === index}
-                      onOpenChange={(isOpen) => {
-                        setActiveRecentFormIndex(isOpen ? index : null);
-                      }}
+                      content={
+                        <>
+                          {match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs {match.perspective.opponentName} ({match.score.score})
+                        </>
+                      }
                     >
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={`${match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs ${match.perspective.opponentName}, score ${match.score.score}`}
-                          className={cn(
-                            'w-full aspect-square rounded-sm sm:rounded-md text-xs font-semibold flex items-center justify-center border',
-                            match.perspective.outcome === 'win' && 'border-secondary/40 bg-secondary/15 text-secondary',
-                            match.perspective.outcome === 'loss' && 'border-destructive/30 bg-destructive/10 text-destructive',
-                            match.perspective.outcome === 'draw' && 'border-muted-foreground/40 bg-muted text-muted-foreground'
-                          )}
-                        >
-                          {match.perspective.outcome === 'win' ? 'W' : match.perspective.outcome === 'loss' ? 'L' : 'D'}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto max-w-56 px-3 py-2 text-xs">
-                        {match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs {match.perspective.opponentName} ({match.score.score})
-                      </PopoverContent>
-                    </Popover>
+                      <button
+                        type="button"
+                        aria-label={`${match.perspective.outcome === 'win' ? 'Win' : match.perspective.outcome === 'loss' ? 'Loss' : 'Draw'} vs ${match.perspective.opponentName}, score ${match.score.score}`}
+                        className={cn(
+                          'w-full aspect-square rounded-sm sm:rounded-md text-xs font-semibold flex items-center justify-center border',
+                          match.perspective.outcome === 'win' && 'border-secondary/40 bg-secondary/15 text-secondary',
+                          match.perspective.outcome === 'loss' && 'border-destructive/30 bg-destructive/10 text-destructive',
+                          match.perspective.outcome === 'draw' && 'border-muted-foreground/40 bg-muted text-muted-foreground'
+                        )}
+                      >
+                        {match.perspective.outcome === 'win' ? 'W' : match.perspective.outcome === 'loss' ? 'L' : 'D'}
+                      </button>
+                    </ChartHint>
                   ))}
                 </div>
                 <div className="text-sm text-muted-foreground">
@@ -1154,44 +1205,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
             </CardHeader>
             <CardContent>
               {trendHasData ? (
-                <ChartContainer
-                  config={{ winRate: { label: 'Win rate', color: 'hsl(var(--primary))' } }}
-                  className="aspect-auto h-44 w-full"
-                >
-                  <LineChart data={weeklyTrend} margin={{ top: 8, right: 12, bottom: 0, left: 12 }}>
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      minTickGap={32}
-                    />
-                    <YAxis domain={[0, 100]} hide />
-                    <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.5} />
-                    {/* Click, not hover — touch devices have no hover, so a
-                        tap on (or near) a week reveals its numbers. */}
-                    <ChartTooltip
-                      trigger="click"
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, _name, item) => (
-                            <span className="font-medium tabular-nums">
-                              {value}% · {item?.payload?.wins}W {item?.payload?.losses}L
-                            </span>
-                          )}
-                        />
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="winRate"
-                      stroke="var(--color-winRate)"
-                      strokeWidth={2}
-                      connectNulls
-                      dot={{ r: 3, fill: 'var(--color-winRate)', strokeWidth: 0 }}
-                    />
-                  </LineChart>
-                </ChartContainer>
+                <WinRateTrendChart data={weeklyTrend} />
               ) : (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   No games in the last 12 weeks for these filters
