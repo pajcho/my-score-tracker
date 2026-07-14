@@ -12,6 +12,21 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 }
 
+// jsdom has no matchMedia; useHasHover / useIsMobile call it. Default to no
+// match (treated as touch / not-mobile) unless a test overrides it.
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
 // Opt-in to React Router v7 future flags globally so individual tests
 // don't need to pass them to every <MemoryRouter>.
 vi.mock("react-router-dom", async () => {
