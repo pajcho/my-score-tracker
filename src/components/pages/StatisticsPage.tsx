@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/ui/pageHeader';
 import { FilterChip } from '@/components/ui/filterChip';
 import { useHasHover } from '@/hooks/useHasHover';
 import { ScoreDetailSheet } from '@/components/scores/ScoreDetailSheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Score, Training } from '@/lib/supabaseDatabase';
 import { cn } from '@/lib/utils';
 import { getDisplayGameLabel, getGameTypeLabel, getPoolTypeLabel, isPoolGameType } from '@/lib/gameTypes';
@@ -411,6 +412,18 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
   const scores: ScoreWithFriend[] = isAuthenticated ? (scoresQuery.data ?? []) : [];
   const trainings: Training[] = isAuthenticated ? (trainingsQuery.data ?? []) : [];
   const isLoading = isQueryEnabled && (scoresQuery.isLoading || trainingsQuery.isLoading);
+
+  const statisticsLoadingSkeleton = (
+    <div className="space-y-4" aria-busy="true">
+      <span className="sr-only">Loading statistics...</span>
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1, 2, 3].map((skeletonIndex) => (
+          <Skeleton key={skeletonIndex} aria-hidden="true" className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton aria-hidden="true" className="h-64 rounded-xl" />
+    </div>
+  );
 
   useEffect(() => {
     if (!scoresQuery.error && !trainingsQuery.error) return;
@@ -1045,7 +1058,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
+          statisticsLoadingSkeleton
         ) : (
           trainingStatisticsSection
         )}
@@ -1108,7 +1121,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading statistics...</div>
+        statisticsLoadingSkeleton
       ) : totalGames === 0 ? (
         <Card className="shadow-card border-0">
           <CardContent className="text-center py-12">

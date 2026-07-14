@@ -12,6 +12,7 @@ import { GameTypeIcon } from '@/components/ui/gameTypeIcon';
 import { useAuth } from '@/components/auth/authContext';
 import { useLiveGamesQuery, useScoresQuery, useTrainingsQuery } from '@/hooks/useTrackerData';
 import { ResponsiveFormModal } from '@/components/ui/responsiveFormModal';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function HomePage() {
   const [isScoreDialogOpen, setIsScoreDialogOpen] = useState(false);
@@ -300,8 +301,11 @@ export function HomePage() {
         <CardContent>
           {activeRecentTab === 'scores' ? (
             isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading scores...
+              <div className="space-y-3">
+                <span className="sr-only">Loading scores...</span>
+                {[0, 1, 2, 3].map((skeletonIndex) => (
+                  <Skeleton key={skeletonIndex} aria-hidden="true" className="h-14 rounded-xl" />
+                ))}
               </div>
             ) : scores.length > 0 ? (
               // Same day-grouped rows as the History screen — one list
@@ -329,8 +333,11 @@ export function HomePage() {
               </div>
             )
           ) : isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading trainings...
+            <div className="space-y-3">
+              <span className="sr-only">Loading trainings...</span>
+              {[0, 1, 2, 3].map((skeletonIndex) => (
+                <Skeleton key={skeletonIndex} aria-hidden="true" className="h-14 rounded-xl" />
+              ))}
             </div>
           ) : trainings.length > 0 ? (
             // Same day-grouped list as the History screen — one system.
