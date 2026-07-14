@@ -4,7 +4,7 @@ import {Link} from 'react-router-dom';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {ScoreForm} from '@/components/scores/ScoreForm';
 import {ScoreDayList} from '@/components/scores/ScoreDayList';
-import {TrainingCard} from '@/components/trainings/TrainingCard';
+import {TrainingDayList} from '@/components/trainings/TrainingDayList';
 import {TrainingForm} from '@/components/trainings/TrainingForm';
 import { Score, Training } from '@/lib/supabaseDatabase';
 import {GAME_TYPE_OPTIONS} from '@/lib/gameTypes';
@@ -333,17 +333,8 @@ export function HomePage() {
               Loading trainings...
             </div>
           ) : trainings.length > 0 ? (
-            <div className="space-y-3">
-              {trainings.slice(0, 5).map((training) => (
-                <TrainingCard
-                  key={training.id}
-                  training={training}
-                  notesClassName="mt-2 text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2"
-                  showActions={true}
-                  onTrainingUpdated={() => undefined}
-                />
-              ))}
-            </div>
+            // Same day-grouped list as the History screen — one system.
+            <TrainingDayList trainings={trainings.slice(0, 5)} onTrainingUpdated={() => undefined} />
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               No trainings recorded yet. Add your first training above.

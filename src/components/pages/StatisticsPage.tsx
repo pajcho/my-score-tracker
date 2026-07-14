@@ -813,7 +813,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
         <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
           <span className="text-muted-foreground">Average score</span>
           <span className="font-semibold tabular-nums">
-            {averageUserScore.toFixed(1)} – {averageOpponentScore.toFixed(1)}
+            {averageUserScore.toFixed(1)} - {averageOpponentScore.toFixed(1)}
           </span>
         </div>
       </CardContent>
@@ -1137,7 +1137,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
                 <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
                   <span className="text-sm text-muted-foreground">Average score</span>
                   <span className="font-semibold tabular-nums">
-                    {averageUserScore.toFixed(1)} – {averageOpponentScore.toFixed(1)}
+                    {averageUserScore.toFixed(1)} - {averageOpponentScore.toFixed(1)}
                   </span>
                 </div>
               </CardContent>
@@ -1168,7 +1168,10 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
                     />
                     <YAxis domain={[0, 100]} hide />
                     <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.5} />
+                    {/* Click, not hover — touch devices have no hover, so a
+                        tap on (or near) a week reveals its numbers. */}
                     <ChartTooltip
+                      trigger="click"
                       content={
                         <ChartTooltipContent
                           formatter={(value, _name, item) => (
@@ -1197,10 +1200,12 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
             </CardContent>
           </Card>
 
+          {/* Side by side on desktop, stacked on mobile. */}
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
           <Card className="shadow-card border-0">
             <CardHeader>
               <CardTitle>Game Performance</CardTitle>
-              <CardDescription>Close games and your extremes — tap to dig in</CardDescription>
+              <CardDescription>Close games and your extremes - tap to dig in</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Link
@@ -1283,6 +1288,7 @@ export function StatisticsPage({ view }: StatisticsPageProps) {
               />
             </CardContent>
           </Card>
+          </div>
 
           <ScoreDetailSheet
             score={detailScore}

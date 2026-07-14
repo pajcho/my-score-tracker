@@ -290,7 +290,7 @@ describe("LiveScoreTracker perspective labels", () => {
 
     renderLiveScoreTracker();
 
-    // Seeded game: You 7 – 5 Friend One.
+    // Seeded game: You 7 - 5 Friend One.
     const youTile = await screen.findByRole("button", { name: /Score for You: 7/ });
     fireEvent.click(youTile);
 

@@ -131,15 +131,18 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const latestPendingRef = useRef<Map<string, PendingWrite>>(new Map());
 
-  // Get last pool game settings to pre-fill in wizard
+  // Get last pool game settings to pre-fill in wizard. Pool type / break
+  // rule live on the score's pool_settings, not as flat columns — reading
+  // the (non-existent) flat fields left this undefined, so the rematch
+  // card sent an empty pool_type and the game failed to start.
   const lastPoolGame = scoresQuery.data
-    ?.filter((score) => score.game === 'Pool' && score.pool_type && score.break_rule)
+    ?.filter((score) => score.game === 'Pool' && score.pool_settings?.pool_type && score.pool_settings?.break_rule)
     ?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     ?.[0];
-  const lastPoolSettings = lastPoolGame
+  const lastPoolSettings = lastPoolGame?.pool_settings
     ? {
-        poolType: lastPoolGame.pool_type as PoolType,
-        breakRule: lastPoolGame.break_rule as BreakRule,
+        poolType: lastPoolGame.pool_settings.pool_type,
+        breakRule: lastPoolGame.pool_settings.break_rule,
       }
     : undefined;
 
@@ -155,10 +158,10 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     return {
       game: lastScore.game,
       poolType: isPoolGameType(lastScore.game)
-        ? ((lastScore.pool_type as PoolType | null) ?? lastPoolSettings?.poolType)
+        ? (lastScore.pool_settings?.pool_type ?? lastPoolSettings?.poolType)
         : undefined,
       breakRule: isPoolGameType(lastScore.game)
-        ? ((lastScore.break_rule as BreakRule | null) ?? lastPoolSettings?.breakRule)
+        ? (lastScore.pool_settings?.break_rule ?? lastPoolSettings?.breakRule)
         : undefined,
       opponentType: friend ? ('friend' as const) : ('custom' as const),
       opponentName,
@@ -457,9 +460,12 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
     try {
       const firstBreakerSide = getFirstBreakerSide(dataToUse.firstBreakerSelection);
+      // Never send an empty pool_type to the DB — the column is a checked
+      // enum, and an empty value fails the pool_settings insert after the
+      // live_games row is already created, leaving a broken partial game.
       const initialPoolSettings = isPoolGameType(dataToUse.game)
         ? {
-            pool_type: dataToUse.poolType,
+            pool_type: dataToUse.poolType || DEFAULT_POOL_TYPE,
             break_rule: dataToUse.breakRule,
             first_breaker_side: firstBreakerSide,
             current_breaker_side: firstBreakerSide,
@@ -886,7 +892,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
             </div>
             <div className="flex shrink-0 items-baseline gap-1.5 text-2xl font-bold tabular-nums">
               <span className="text-player-one">{game.score1}</span>
-              <span className="text-base font-medium text-muted-foreground">–</span>
+              <span className="text-base font-medium text-muted-foreground">-</span>
               <span className="text-player-two">{game.score2}</span>
             </div>
             <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -965,7 +971,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   <AlertDialogHeader>
                     <AlertDialogTitle>Finish this game?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      The final score {leftScore}–{rightScore} vs {isGameCreator ? opponentName : creatorName} will
+                      The final score {leftScore}-{rightScore} vs {isGameCreator ? opponentName : creatorName} will
                       be saved to your history.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -990,7 +996,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete this live game?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      The current score {leftScore}–{rightScore} will be discarded. This cannot be undone.
+                      The current score {leftScore}-{rightScore} will be discarded. This cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

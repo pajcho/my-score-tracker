@@ -42,9 +42,9 @@ function groupScoresByDay(scores: ScoreWithFriend[]): DayGroup[] {
 }
 
 /**
- * The evening's headline. One opponent: "You 3–1 Marko". Two or three
+ * The evening's headline. One opponent: "You 3-1 Marko". Two or three
  * opponents (the usual pool-night shape): a per-rival tally like
- * "You 2–1 Marko · 1–1 Ana". More than that: an aggregate "3W · 2L".
+ * "You 2-1 Marko · 1-1 Ana". More than that: an aggregate "3W · 2L".
  */
 function getDayTally(dayScores: ScoreWithFriend[], currentUserId: string | undefined): string {
   let wins = 0;
@@ -70,7 +70,7 @@ function getDayTally(dayScores: ScoreWithFriend[], currentUserId: string | undef
   if (tallyByOpponent.size <= 3 && tallyByOpponent.size > 0) {
     const perOpponent = [...tallyByOpponent.entries()]
       .sort((first, second) => second[1].games - first[1].games)
-      .map(([name, tally]) => `${tally.wins}–${tally.losses} ${name.split(' ')[0]}`)
+      .map(([name, tally]) => `${tally.wins}-${tally.losses} ${name.split(' ')[0]}`)
       .join(' · ');
     return `You ${perOpponent}`;
   }

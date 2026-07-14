@@ -461,7 +461,14 @@ class SupabaseDatabaseService {
           last_rack_winner_side: poolSettings.last_rack_winner_side,
         });
 
-      if (poolSettingsError) throw poolSettingsError;
+      if (poolSettingsError) {
+        // The live_games row is already committed; without the pool
+        // settings the game renders with no breaker and no settings
+        // control. Roll it back so a failed insert never leaves a
+        // half-created game in the list.
+        await supabase.from('live_games').delete().eq('id', data.id);
+        throw poolSettingsError;
+      }
     }
 
     return data as LiveGame;

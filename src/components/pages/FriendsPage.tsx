@@ -63,7 +63,7 @@ function FriendRow({ friend, record, onOpenStats, onRemove }: FriendRowProps) {
             {record && record.games > 0 ? (
               <>
                 {record.games} {record.games === 1 ? 'game' : 'games'} ·{' '}
-                <span className="font-medium text-secondary">{record.wins}W</span>–
+                <span className="font-medium text-secondary">{record.wins}W</span>-
                 <span className="font-medium text-destructive">{record.losses}L</span>
               </>
             ) : (

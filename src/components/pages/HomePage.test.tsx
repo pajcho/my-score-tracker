@@ -60,10 +60,10 @@ vi.mock("@/components/trainings/TrainingForm", () => ({
   ),
 }));
 
-vi.mock("@/components/trainings/TrainingCard", () => ({
-  TrainingCard: ({ onTrainingUpdated }: { onTrainingUpdated: () => void }) => (
+vi.mock("@/components/trainings/TrainingDayList", () => ({
+  TrainingDayList: ({ onTrainingUpdated }: { onTrainingUpdated: () => void }) => (
     <button onClick={onTrainingUpdated} type="button">
-      TrainingCardUpdate
+      TrainingDayListUpdate
     </button>
   ),
 }));
@@ -206,10 +206,10 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Trainings" }));
     await waitFor(() => {
-      expect(screen.getByText("TrainingCardUpdate")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayListUpdate")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("TrainingCardUpdate"));
+    fireEvent.click(screen.getByText("TrainingDayListUpdate"));
     await waitFor(() => {
       expect(getScoresByUserIdMock).toHaveBeenCalledTimes(1);
     });
@@ -251,7 +251,7 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Trainings" }));
     await waitFor(() => {
-      expect(screen.getByText("TrainingCardUpdate")).toBeInTheDocument();
+      expect(screen.getByText("TrainingDayListUpdate")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Scores" }));
