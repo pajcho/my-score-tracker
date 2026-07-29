@@ -1,11 +1,8 @@
 import { Label } from '@/components/ui/label';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggleGroup';
+import { ToggleGroup, ToggleGroupItem, compactToggleOptionClassName } from '@/components/ui/toggleGroup';
 import { PoolTypeIcon } from '@/components/ui/gameTypeIcon';
 import { POOL_TYPE_OPTIONS } from '@/lib/gameTypes';
 import type { PoolType, BreakRule } from '@/lib/supabaseDatabase';
-
-const compactToggleOptionClassName =
-  "h-9 justify-start rounded-md px-3 text-xs text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65";
 
 interface StepPoolSettingsProps {
   poolType: PoolType;
