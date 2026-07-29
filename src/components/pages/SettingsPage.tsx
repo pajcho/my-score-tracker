@@ -352,7 +352,10 @@ function NotificationsTab() {
   // the user lands on the notifications tab. Without this the column
   // only updates on subscribe — meaning a device that's been quietly
   // receiving pushes would still show "subscribed N months ago".
-  useTouchCurrentSubscription(n.subscription?.endpoint ?? null);
+  // Gated on `isSubscribed`: when the browser's subscription belongs to
+  // another account there is no row of ours to touch, and RLS would drop
+  // the UPDATE anyway.
+  useTouchCurrentSubscription(n.isSubscribed ? (n.subscription?.endpoint ?? null) : null);
 
   return (
     <>
@@ -399,7 +402,14 @@ function NotificationsCard({ n }: NotificationsCardProps) {
         {n.error ? <p className="text-sm text-destructive">{n.error}</p> : null}
 
         <div className="flex flex-wrap gap-2">
-          {!n.isSubscribed ? (
+          {n.checking ? (
+            // Both halves of `isSubscribed` (browser subscription + server row)
+            // have to be in before we can name the button; guessing would flash
+            // the wrong one on every load.
+            <Button disabled variant="outline">
+              Checking…
+            </Button>
+          ) : !n.isSubscribed ? (
             <Button onClick={() => void n.subscribe()} disabled={!n.supported || n.pending}>
               {n.pending ? 'Enabling…' : 'Enable notifications'}
             </Button>
@@ -424,7 +434,7 @@ interface SessionsCardProps {
 }
 
 function SessionsCard({ n }: SessionsCardProps) {
-  const { subscriptions, isLoading, remove, isRemoving, refresh } = usePushSubscriptions();
+  const { subscriptions, isLoading, remove, isRemoving } = usePushSubscriptions();
   const currentEndpoint = n.subscription?.endpoint ?? null;
 
   // Hide the card entirely when the user has zero sessions and isn't
@@ -437,10 +447,9 @@ function SessionsCard({ n }: SessionsCardProps) {
   const handleRevoke = async (row: PushSubscriptionRow) => {
     if (row.endpoint === currentEndpoint) {
       // Current device → route through `unsubscribe()` so the local
-      // SW subscription is torn down alongside the DB row. Re-fetch
-      // the list afterwards so the row disappears immediately.
+      // SW subscription is torn down alongside the DB row. It refetches
+      // this list itself, so the row disappears immediately.
       await n.unsubscribe();
-      await refresh();
       return;
     }
     await remove(row.id);

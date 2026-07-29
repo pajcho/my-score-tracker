@@ -90,6 +90,7 @@ const defaultNotifications = {
   permission: "default" as NotificationPermission,
   isSubscribed: false,
   subscription: null,
+  checking: false,
   pending: false,
   error: null,
   subscribe: vi.fn(),
@@ -163,6 +164,28 @@ describe("SettingsPage", () => {
     render(<MemoryRouter><SettingsPage /></MemoryRouter>);
     expect(screen.getByRole("button", { name: /disable notifications/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send local test/i })).toBeInTheDocument();
+  });
+
+  it("shows neither Enable nor Disable while the subscription is still being checked", () => {
+    useNotificationsMock.mockReturnValue({ ...defaultNotifications, checking: true });
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+    // Picking a label before both halves of `isSubscribed` are in would flash
+    // the wrong one on every load — which is the bug this guards.
+    expect(screen.queryByRole("button", { name: /enable notifications/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /disable notifications/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /checking/i })).toBeDisabled();
+  });
+
+  it("only touches last_used_at for a subscription that is ours", () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotifications,
+      isSubscribed: false,
+      // Left behind by whoever was signed in before: there is no row of ours
+      // to heat, and RLS would drop the UPDATE anyway.
+      subscription: { endpoint: "https://push.test/theirs", keys: { p256dh: "", auth: "" } },
+    });
+    render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+    expect(touchSubscriptionMock).toHaveBeenCalledWith(null);
   });
 
   it("warns when permission is denied", () => {

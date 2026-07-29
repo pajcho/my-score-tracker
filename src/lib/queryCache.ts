@@ -6,6 +6,14 @@ export const trackerQueryKeys = {
   liveGames: ['tracker', 'liveGames'] as const,
   opponents: ['tracker', 'opponents'] as const,
   friends: ['tracker', 'friends'] as const,
+  // Push subscription rows are user-scoped, so the account id is part of the
+  // key and every account gets its own cache entry — never one user's device
+  // list served to the next one signing in on the same browser. Living under
+  // the `tracker` prefix also means AuthProvider's `removeQueries(['tracker'])`
+  // clears it on account switch for free.
+  pushSubscriptions: ['tracker', 'pushSubscriptions'] as const,
+  pushSubscriptionsForUser: (userId: string | null) =>
+    ['tracker', 'pushSubscriptions', userId] as const,
 };
 
 interface InvalidateTrackerOptions {
@@ -14,6 +22,8 @@ interface InvalidateTrackerOptions {
   liveGames?: boolean;
   opponents?: boolean;
   friends?: boolean;
+  /** Matches on the prefix, so every account's entry is invalidated. */
+  pushSubscriptions?: boolean;
 }
 
 export async function invalidateTrackerQueries(options: InvalidateTrackerOptions): Promise<void> {
@@ -37,6 +47,12 @@ export async function invalidateTrackerQueries(options: InvalidateTrackerOptions
 
   if (options.friends) {
     invalidationTasks.push(queryClient.invalidateQueries({ queryKey: trackerQueryKeys.friends }));
+  }
+
+  if (options.pushSubscriptions) {
+    invalidationTasks.push(
+      queryClient.invalidateQueries({ queryKey: trackerQueryKeys.pushSubscriptions }),
+    );
   }
 
   await Promise.all(invalidationTasks);
