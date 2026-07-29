@@ -56,4 +56,9 @@ const ToggleGroupItem = React.forwardRef<
 
 ToggleGroupItem.displayName = ToggleGroupPrimitive.Item.displayName
 
+// Shared look for compact inline option rows (game setup wizard, live game
+// settings) so the same choice reads the same wherever it is offered.
+export const compactToggleOptionClassName =
+  "h-9 justify-start rounded-md px-3 text-xs text-foreground hover:bg-muted/60 hover:text-foreground dark:bg-muted/40 dark:hover:bg-muted/55 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-foreground data-[state=on]:shadow-none dark:data-[state=on]:bg-muted/65"
+
 export { ToggleGroup, ToggleGroupItem }

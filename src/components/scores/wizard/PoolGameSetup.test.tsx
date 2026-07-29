@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PoolGameSetup } from '@/components/scores/wizard/PoolGameSetup';
 
 vi.mock('@/components/ui/toggleGroup', () => ({
+  compactToggleOptionClassName: '',
   ToggleGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ToggleGroupItem: ({
     children,

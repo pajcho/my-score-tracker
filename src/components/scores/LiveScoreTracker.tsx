@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Flag, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye, Maximize2 } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye, Maximize2 } from 'lucide-react';
 import { toast as snackbar } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { hapticTick } from '@/lib/haptics';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/pageHeader';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem, compactToggleOptionClassName } from '@/components/ui/toggleGroup';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -101,7 +101,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     nextScore2: number;
     settingsPatch: Partial<PoolGameSettingsInput>;
   } | null>(null);
-  const [expandedPoolSettingsByGameId, setExpandedPoolSettingsByGameId] = useState<Record<string, boolean>>({});
+  const [expandedGameSettingsByGameId, setExpandedGameSettingsByGameId] = useState<Record<string, boolean>>({});
   // null = no explicit user choice yet; the section then defaults to open
   // only when the user has no games of their own to focus on.
   const [watchingSectionOpenOverride, setWatchingSectionOpenOverride] = useState<boolean | null>(null);
@@ -632,8 +632,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     });
   };
 
-  const togglePoolSettingsPanel = (gameId: string) => {
-    setExpandedPoolSettingsByGameId((previousState) => ({
+  const toggleGameSettingsPanel = (gameId: string) => {
+    setExpandedGameSettingsByGameId((previousState) => ({
       ...previousState,
       [gameId]: !previousState[gameId],
     }));
@@ -923,7 +923,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const rightScore = game.score2;
     const nextBreakerSide = game.pool_settings?.current_breaker_side;
     const rackNumber = leftScore + rightScore + 1;
-    const isPoolSettingsExpanded = !!expandedPoolSettingsByGameId[game.id];
+    const isGameSettingsExpanded = !!expandedGameSettingsByGameId[game.id];
     const disableGameInteractions = isLoading;
 
     return (
@@ -944,17 +944,15 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
               )}
             </CardTitle>
             <div className="flex shrink-0 items-center justify-end">
-              {isPoolGame && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => togglePoolSettingsPanel(game.id)}
-                  className={cn('h-11 w-11 p-0', isPoolSettingsExpanded && 'bg-muted text-primary')}
-                  aria-label="Game rules"
-                >
-                  <Settings2 className={cn('!h-[18px] !w-[18px]', !isPoolSettingsExpanded && 'text-muted-foreground')} />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleGameSettingsPanel(game.id)}
+                className={cn('h-11 w-11 p-0', isGameSettingsExpanded && 'bg-muted text-primary')}
+                aria-label="Game settings"
+              >
+                <Settings2 className={cn('!h-[18px] !w-[18px]', !isGameSettingsExpanded && 'text-muted-foreground')} />
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -962,9 +960,9 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                     size="sm"
                     disabled={isLoading}
                     className="h-11 w-11 p-0"
-                    aria-label="Finish game"
+                    aria-label="Save game"
                   >
-                    <Flag className="!h-[18px] !w-[18px] text-muted-foreground" />
+                    <Save className="!h-[18px] !w-[18px] text-muted-foreground" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -981,95 +979,135 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-11 w-11 p-0"
-                    aria-label="Delete game"
-                  >
-                    <Trash2 className="!h-[18px] !w-[18px] text-muted-foreground" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this live game?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      The current score {leftScore}-{rightScore} will be discarded. This cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep playing</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => void removeGame(game.id)}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-3">
           <div className="space-y-3">
-            {isPoolGame && isPoolSettingsExpanded && (
-              <div className="rounded-md border border-border p-2 text-xs">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Pool Type</Label>
-                    <Select
-                      value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
-                      onValueChange={(value) => changePoolType(game, value as PoolType)}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
+            {isGameSettingsExpanded && (
+              <div className="space-y-3 rounded-md border border-border p-3">
+                {isPoolGame && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Pool Type</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={game.pool_settings?.pool_type || DEFAULT_POOL_TYPE}
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          changePoolType(game, value as PoolType);
+                        }}
+                        disabled={isLoading}
+                        className="grid grid-cols-3 gap-2"
+                      >
                         {POOL_TYPE_OPTIONS.map(({ value, label }) => (
-                          <SelectItem key={value} value={value}>
+                          <ToggleGroupItem
+                            key={value}
+                            value={value}
+                            variant="outline"
+                            className={cn(compactToggleOptionClassName, 'justify-center px-2')}
+                          >
+                            <PoolTypeIcon poolType={value} className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                             {label}
-                          </SelectItem>
+                          </ToggleGroupItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Break Rule</Label>
-                    <Select
-                      value={game.pool_settings?.break_rule || 'alternate'}
-                      onValueChange={(value) => changeBreakRule(game, value as BreakRule)}
-                      disabled={isLoading}
+                      </ToggleGroup>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Break Rule</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={game.pool_settings?.break_rule || 'alternate'}
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          changeBreakRule(game, value as BreakRule);
+                        }}
+                        disabled={isLoading}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        <ToggleGroupItem
+                          value="alternate"
+                          variant="outline"
+                          className={cn(compactToggleOptionClassName, 'justify-center px-2')}
+                        >
+                          Alternate
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="winner_stays"
+                          variant="outline"
+                          className={cn(compactToggleOptionClassName, 'justify-center px-2')}
+                        >
+                          Winner Stays
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Next Break</Label>
+                      <ToggleGroup
+                        type="single"
+                        value={nextBreakerSide || 'player1'}
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          changeBreakerSide(game, value as PlayerSide);
+                        }}
+                        disabled={isLoading}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        <ToggleGroupItem
+                          value="player1"
+                          variant="outline"
+                          className={cn(compactToggleOptionClassName, 'justify-center px-2')}
+                        >
+                          <span className="truncate">{leftPlayerLabel}</span>
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="player2"
+                          variant="outline"
+                          className={cn(compactToggleOptionClassName, 'justify-center px-2')}
+                        >
+                          <span className="truncate">{rightPlayerLabel}</span>
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+                  </>
+                )}
+
+                {isPoolGame && <div className="border-t border-border" />}
+
+                {/* Destructive action lives behind the settings toggle so it can't
+                    be hit by a stray thumb next to the save button. */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-full justify-center gap-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      aria-label="Delete game"
                     >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="alternate">Alternate</SelectItem>
-                        <SelectItem value="winner_stays">Winner stays</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Next Break</Label>
-                    <Select
-                      value={nextBreakerSide || 'player1'}
-                      onValueChange={(value) => changeBreakerSide(game, value as PlayerSide)}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="player1">{leftPlayerLabel}</SelectItem>
-                        <SelectItem value="player2">{rightPlayerLabel}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete game
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this live game?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        The current score {leftScore}-{rightScore} will be discarded. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => void removeGame(game.id)}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             )}
 
@@ -1219,7 +1257,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 disabled={isLoading}
                 className="gap-1.5"
               >
-                <Flag className="h-3.5 w-3.5" />
+                <Save className="h-3.5 w-3.5" />
                 Finish all ({ownGamesCount})
               </Button>
             )}
