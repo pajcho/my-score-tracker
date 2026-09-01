@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
 
-const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, toastMock, invalidateTrackerQueriesMock } =
+const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, toastMock, invalidateTrackerQueriesMock } =
   vi.hoisted(() => ({
     authState: {
       currentUserId: "user-1",
@@ -12,6 +12,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     getUniqueOpponentsMock: vi.fn(),
     getFriendsMock: vi.fn(),
     subscribeToLiveGamesMock: vi.fn(),
+    completeLiveGameMock: vi.fn(),
     toastMock: vi.fn(),
     invalidateTrackerQueriesMock: vi.fn(),
   }));
@@ -49,7 +50,7 @@ vi.mock("@/lib/supabaseDatabase", () => ({
     subscribeToLiveGames: subscribeToLiveGamesMock,
     updateLiveGameScore: vi.fn(),
     deleteLiveGame: vi.fn(),
-    completeLiveGame: vi.fn(),
+    completeLiveGame: completeLiveGameMock,
     createLiveGame: vi.fn(),
   },
 }));
@@ -324,5 +325,24 @@ describe("LiveScoreTracker perspective labels", () => {
     expect(screen.getByText("Start a New Game")).toBeInTheDocument();
     expect(screen.getByLabelText("Step 1 of 4")).toBeInTheDocument();
     expect(screen.getByText("What game do you want to play?")).toBeInTheDocument();
+  });
+
+  it("only finishes all games after the confirmation is accepted", async () => {
+    authState.currentUserId = "user-1";
+
+    renderLiveScoreTracker();
+
+    const finishAllButton = await screen.findByRole("button", { name: /Finish all/ });
+    fireEvent.click(finishAllButton);
+
+    // Opening the dialog must not touch the games yet.
+    expect(completeLiveGameMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Finish 1 game?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish & save" }));
+
+    await waitFor(() => {
+      expect(completeLiveGameMock).toHaveBeenCalledWith("live-1");
+    });
   });
 });
