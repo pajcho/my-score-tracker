@@ -1250,16 +1250,33 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         actions={(
           <>
             {ownGamesCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void saveAllGames()}
-                disabled={isLoading}
-                className="gap-1.5"
-              >
-                <Save className="h-3.5 w-3.5" />
-                Finish all ({ownGamesCount})
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isLoading}
+                    className="gap-1.5"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    Finish all ({ownGamesCount})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Finish {ownGamesCount} game{ownGamesCount !== 1 ? 's' : ''}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Every game you are playing will be closed at its current score and saved to your history.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => void saveAllGames()}>Finish & save</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button
               size="sm"
