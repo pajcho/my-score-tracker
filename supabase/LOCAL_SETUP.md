@@ -27,6 +27,9 @@ Local ports in this repo are custom to avoid clashes with other Supabase project
 - Inbucket: `55324`
 - Analytics: `55327`
 
+## Amp orbs
+`.agents/setup` installs Node 22, npm dependencies and the Supabase CLI. Run `amp orb services ensure` to start Docker, the local stack (migrations + `seed.sql`) and the dev server on a portal; the first start pulls the images (~1.5 min). `scripts/orb/supabase.sh` writes `.env.development.local` and `supabase/functions/.env`, and the dev server proxies `/supabase` to the stack because the browser can only reach the portal. Sign in as `nikola.pajic@gmail.com` / `password123`. Set `VAPID_*` as Amp project secrets to send pushes with the production key pair.
+
 ## Production build for GitHub Pages
 - Create `.env.production` from `.env.production.example`.
 - Set production project URL and anon key values.

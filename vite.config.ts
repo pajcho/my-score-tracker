@@ -9,6 +9,18 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: parseInt(process.env.PORT || "8080"),
+    // In Amp orbs the browser can only reach the dev server's portal, so
+    // allow its host and let the app talk to the local Supabase stack
+    // (supabase/config.toml) through /supabase. See scripts/orb/supabase.sh.
+    allowedHosts: [".onamp.dev"],
+    proxy: {
+      "/supabase": {
+        target: "http://127.0.0.1:55321",
+        changeOrigin: true,
+        ws: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/supabase/, ""),
+      },
+    },
   },
   define: {
     __APP_VERSION__: JSON.stringify(version),
