@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
 
-const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, toastMock, invalidateTrackerQueriesMock } =
+const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, updateLiveGameScoreMock, toastMock, invalidateTrackerQueriesMock } =
   vi.hoisted(() => ({
     authState: {
       currentUserId: "user-1",
@@ -13,6 +13,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     getFriendsMock: vi.fn(),
     subscribeToLiveGamesMock: vi.fn(),
     completeLiveGameMock: vi.fn(),
+    updateLiveGameScoreMock: vi.fn(),
     toastMock: vi.fn(),
     invalidateTrackerQueriesMock: vi.fn(),
   }));
@@ -48,7 +49,7 @@ vi.mock("@/lib/supabaseDatabase", () => ({
     getUniqueOpponents: getUniqueOpponentsMock,
     getFriends: getFriendsMock,
     subscribeToLiveGames: subscribeToLiveGamesMock,
-    updateLiveGameScore: vi.fn(),
+    updateLiveGameScore: updateLiveGameScoreMock,
     deleteLiveGame: vi.fn(),
     completeLiveGame: completeLiveGameMock,
     createLiveGame: vi.fn(),
@@ -309,6 +310,70 @@ describe("LiveScoreTracker perspective labels", () => {
       expect(screen.getByRole("button", { name: /Score for You: 7/ })).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Score for You: 6/ })).not.toBeInTheDocument();
+  });
+
+  it("only lets the most recent rack winner take a point back, in play order", async () => {
+    authState.currentUserId = "user-1";
+    getLiveGamesMock.mockResolvedValue([
+      {
+        id: "live-1",
+        created_by_user_id: "user-1",
+        game: "Pool",
+        opponent_name: null,
+        opponent_user_id: "friend-1",
+        score1: 2,
+        score2: 1,
+        rack_history: ["player1", "player2", "player1"],
+        date: "2026-02-14",
+        started_at: "2026-02-14T10:00:00.000Z",
+        created_at: "2026-02-14T10:00:00.000Z",
+        updated_at: "2026-02-14T10:00:00.000Z",
+        creator_name: "Current User",
+        opponent_user_name: "Friend One",
+        pool_settings: {
+          id: "settings-1",
+          live_game_id: "live-1",
+          score_id: null,
+          created_by_user_id: "user-1",
+          pool_type: "9-ball",
+          break_rule: "winner_stays",
+          first_breaker_side: "player1",
+          current_breaker_side: "player1",
+          last_rack_winner_side: "player1",
+          created_at: "2026-02-14T10:00:00.000Z",
+          updated_at: "2026-02-14T10:00:00.000Z",
+        },
+      },
+    ]);
+
+    renderLiveScoreTracker();
+
+    const removeYourPoint = await screen.findByRole("button", { name: "Remove point for You" });
+    const removeFriendPoint = screen.getByRole("button", { name: "Remove point for Friend One" });
+    // Friend One has a point, but You won the last rack.
+    expect(removeFriendPoint).toBeDisabled();
+    expect(removeYourPoint).toBeEnabled();
+
+    fireEvent.click(removeYourPoint);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Score for You: 1/ })).toBeInTheDocument();
+    });
+    // Now Friend One's rack 2 is the latest win.
+    expect(screen.getByRole("button", { name: "Remove point for You" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove point for Friend One" })).toBeEnabled();
+    // Winner stays: the history says Friend One won the previous rack, so no breaker prompt.
+    expect(screen.queryByText("Who breaks next?")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(updateLiveGameScoreMock).toHaveBeenCalledWith(
+        "live-1",
+        1,
+        1,
+        { current_breaker_side: "player2", last_rack_winner_side: "player2" },
+        ["player1", "player2"]
+      );
+    });
   });
 
   it("opens the live game setup inside the shared modal", async () => {

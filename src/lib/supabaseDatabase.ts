@@ -34,6 +34,8 @@ export interface Score {
   opponent_name: string | null;
   opponent_user_id: string | null;
   score: string;
+  /** Winner of each rack in play order; player1 is `user_id`. Optional: rows cached before the column existed lack it. */
+  rack_history?: PlayerSide[];
   date: string;
   created_at: string;
   updated_at: string;
@@ -60,6 +62,8 @@ export interface LiveGame {
   opponent_user_id: string | null;
   score1: number;
   score2: number;
+  /** Winner of each rack in play order; player1 is the creator. Optional: rows cached before the column existed lack it. */
+  rack_history?: PlayerSide[];
   date: string;
   started_at: string;
   created_at: string;
@@ -85,7 +89,8 @@ class SupabaseDatabaseService {
     opponent_name: string | null,
     score: string,
     date: string,
-    opponent_user_id?: string
+    opponent_user_id?: string,
+    rackHistory?: PlayerSide[]
   ): Promise<Score> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -98,7 +103,8 @@ class SupabaseDatabaseService {
         opponent_name: opponent_user_id ? null : opponent_name,
         opponent_user_id: opponent_user_id || null,
         score,
-        date
+        date,
+        ...(rackHistory ? { rack_history: rackHistory } : {}),
       })
       .select()
       .single();
@@ -539,11 +545,13 @@ class SupabaseDatabaseService {
     id: string,
     score1: number,
     score2: number,
-    poolSettingsPatch?: Partial<PoolGameSettingsInput>
+    poolSettingsPatch?: Partial<PoolGameSettingsInput>,
+    rackHistory?: PlayerSide[]
   ): Promise<void> {
     const payload: Database['public']['Tables']['live_games']['Update'] = {
       score1,
       score2,
+      ...(rackHistory ? { rack_history: rackHistory } : {}),
     };
 
     const { error } = await supabase
@@ -618,13 +626,17 @@ class SupabaseDatabaseService {
     const opponentNameForScore = isCreator && !liveGame.opponent_user_id
       ? liveGame.opponent_name
       : null;
+    const rackHistoryForScore = (liveGame.rack_history ?? []).map((side): PlayerSide =>
+      isCreator === (side === 'player1') ? 'player1' : 'player2'
+    );
 
     const createdScore = await this.createScore(
       liveGame.game,
       opponentNameForScore,
       `${saverScore}-${opposingScore}`,
       liveGame.date,
-      opponentUserIdForScore
+      opponentUserIdForScore,
+      rackHistoryForScore
     );
 
     if (isPoolGameType(liveGame.game)) {

@@ -24,6 +24,7 @@ import { DEFAULT_POOL_TYPE, getGameTypeLabel, getPoolTypeLabel, isPoolGameType }
 import { cn } from '@/lib/utils';
 import {
   getOpponentDisplayName,
+  getPerspectiveRackWins,
   getPerspectiveScore,
   getScoreResult,
   resultScoreStyles,
@@ -49,6 +50,7 @@ export function ScoreDetailSheet({ score, currentUserId, onClose, onScoreUpdated
 
   const isOwnScore = !!score && score.user_id === currentUserId;
   const result = score ? getScoreResult(score.score, isOwnScore) : null;
+  const rackWins = score ? getPerspectiveRackWins(score, isOwnScore) : null;
 
   const handleDelete = async (scoreId: string) => {
     setIsDeleting(true);
@@ -104,6 +106,38 @@ export function ScoreDetailSheet({ score, currentUserId, onClose, onScoreUpdated
                     : `${getOpponentDisplayName(score)} vs You`}
                 </div>
               </div>
+
+              {rackWins && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="font-medium">{isPoolGameType(score.game) ? 'Rack by rack' : 'Game by game'}</span>
+                    <span className="flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-secondary" aria-hidden="true" />
+                        You
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-destructive" aria-hidden="true" />
+                        {getOpponentDisplayName(score)}
+                      </span>
+                    </span>
+                  </div>
+                  <ol className="flex flex-wrap gap-1.5" aria-label="Winner of each game in order">
+                    {rackWins.map((isUserWin, index) => (
+                      <li
+                        key={index}
+                        aria-label={`${index + 1}: ${isUserWin ? 'You' : getOpponentDisplayName(score)}`}
+                        className={cn(
+                          'flex h-7 min-w-7 items-center justify-center rounded-md px-1 text-xs font-semibold tabular-nums',
+                          isUserWin ? 'bg-secondary/15 text-secondary' : 'bg-destructive/15 text-destructive'
+                        )}
+                      >
+                        {index + 1}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
 
               <div className="divide-y divide-border rounded-xl border border-border">
                 <div className="flex items-center justify-between px-4 py-3 text-sm">

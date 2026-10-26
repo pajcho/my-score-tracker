@@ -97,6 +97,7 @@ export type Database = {
           id: string
           opponent_name: string | null
           opponent_user_id: string | null
+          rack_history: string[]
           score1: number
           score2: number
           started_at: string
@@ -110,6 +111,7 @@ export type Database = {
           id?: string
           opponent_name?: string | null
           opponent_user_id?: string | null
+          rack_history?: string[]
           score1?: number
           score2?: number
           started_at?: string
@@ -123,6 +125,7 @@ export type Database = {
           id?: string
           opponent_name?: string | null
           opponent_user_id?: string | null
+          rack_history?: string[]
           score1?: number
           score2?: number
           started_at?: string
@@ -300,6 +303,7 @@ export type Database = {
           id: string
           opponent_name: string | null
           opponent_user_id: string | null
+          rack_history: string[]
           score: string
           updated_at: string
           user_id: string
@@ -311,6 +315,7 @@ export type Database = {
           id?: string
           opponent_name?: string | null
           opponent_user_id?: string | null
+          rack_history?: string[]
           score: string
           updated_at?: string
           user_id: string
@@ -322,6 +327,7 @@ export type Database = {
           id?: string
           opponent_name?: string | null
           opponent_user_id?: string | null
+          rack_history?: string[]
           score?: string
           updated_at?: string
           user_id?: string
