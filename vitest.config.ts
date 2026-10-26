@@ -1,17 +1,17 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { version } from "./package.json";
+import packageJson from "./package.json" with { type: "json" };
 
 export default defineConfig({
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(version),
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "virtual:pwa-register/react": path.resolve(__dirname, "./src/test/pwaRegisterStub.ts"),
+      "@": path.resolve(import.meta.dirname, "./src"),
+      "virtual:pwa-register/react": path.resolve(import.meta.dirname, "./src/test/pwaRegisterStub.ts"),
     },
   },
   test: {
