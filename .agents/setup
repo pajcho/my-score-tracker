@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb: Node 22 (what CI runs), npm dependencies from the
+# lockfile and the Supabase CLI for the local stack. Runs again on a stale
+# snapshot, so every step must be idempotent and cheap when already done.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+	local label="$1"
+	shift
+	echo "==> $label"
+	local start=$SECONDS
+	"$@"
+	echo "<== $label ($((SECONDS - start))s)"
+}
+
+# The orb image ships a newer Node whose built-in localStorage shadows the
+# jsdom one and breaks tests, so install the major CI uses (.github/workflows).
+node_major=22
+node_dir="$HOME/.local/node-$node_major"
+ensure_node() {
+	if [[ ! -x "$node_dir/bin/node" ]]; then
+		local base="https://nodejs.org/dist/latest-v$node_major.x"
+		local tarball
+		tarball="$(curl -fsSL "$base/SHASUMS256.txt" | grep -oE "node-v$node_major\.[0-9.]+-linux-x64\.tar\.xz" | head -1)"
+		rm -rf "$node_dir"
+		mkdir -p "$node_dir"
+		curl -fsSL "$base/$tarball" | tar -xJ -C "$node_dir" --strip-components=1
+	fi
+	"$node_dir/bin/node" --version
+}
+step "node $node_major" ensure_node
+export PATH="$node_dir/bin:$PATH"
+
+# Later login shells (Amp, orb services) get the same Node first on PATH.
+profile_marker="# my-score-tracker: Node $node_major"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+	cat >>"$HOME/.bash_profile" <<EOF
+
+$profile_marker
+case ":\$PATH:" in
+	*":$node_dir/bin:"*) ;;
+	*) export PATH="$node_dir/bin:\$PATH" ;;
+esac
+EOF
+fi
+
+# `npm ci` always wipes node_modules, so skip it when the restored
+# node_modules was installed from the same lockfile and Node version.
+install_deps() {
+	local marker=node_modules/.orb-install-hash
+	local wanted
+	wanted="$(node --version) $(sha256sum package-lock.json | cut -d' ' -f1)"
+	if [[ "$(cat "$marker" 2>/dev/null || true)" == "$wanted" ]]; then
+		echo "node_modules matches package-lock.json; skipping npm ci"
+		return
+	fi
+	npm ci --no-audit --no-fund
+	printf '%s\n' "$wanted" >"$marker"
+}
+step "npm ci" install_deps
+
+# Local Supabase runs in Docker (docker-ce ships with the orb image); the
+# docker and supabase services in .amp/services.yaml start it. The images
+# are pulled on the first `supabase start`, not baked into snapshots.
+supabase_version=2.121.0
+ensure_supabase() {
+	if [[ "$(supabase --version 2>/dev/null || true)" != "$supabase_version" ]]; then
+		local tmp
+		tmp="$(mktemp -d)"
+		curl -fsSL "https://github.com/supabase/cli/releases/download/v$supabase_version/supabase_linux_amd64.tar.gz" |
+			tar -xz -C "$tmp" supabase
+		sudo install -m 0755 "$tmp/supabase" /usr/local/bin/supabase
+		rm -rf "$tmp"
+	fi
+	supabase --version
+}
+step "supabase cli $supabase_version" ensure_supabase
+
+# Orb-wide notes for agents working in this repository.
+agents_md="$HOME/.config/amp/AGENTS.md"
+agents_marker="# my-score-tracker: local Supabase"
+if ! grep -Fqx "$agents_marker" "$agents_md" 2>/dev/null; then
+	mkdir -p "$(dirname "$agents_md")"
+	cat >>"$agents_md" <<'EOF'
+
+# my-score-tracker: local Supabase
+- `amp orb services ensure` starts Docker, a local Supabase stack (all migrations plus `supabase/seed.sql`) and the dev server on a portal. The first start in an orb pulls the Supabase images (a minute or two); check progress with `amp orb service logs supabase` or `supabase status`.
+- The app talks to that stack through the dev server's `/supabase` proxy; `scripts/orb/supabase.sh` writes `.env.development.local`. Seeded logins: `nikola.pajic@gmail.com`, `marko@example.com`, `ana@example.com`, all with password `password123`.
+- Database: `postgresql://postgres:postgres@127.0.0.1:55322/postgres`. Studio: port 55323 (`amp orb portal 55323 --title 'Supabase Studio'`). `npm run supabase:reset` reapplies migrations and the seed. Never point local tooling at the production project.
+EOF
+fi
