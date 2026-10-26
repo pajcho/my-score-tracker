@@ -3,6 +3,7 @@ import { Minus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveGameView, PlayerSide } from '@/lib/supabaseDatabase';
 import { getDisplayGameLabel, isPoolGameType } from '@/lib/gameTypes';
+import { canRemovePoint } from './rackHistory';
 
 interface ScoreboardModeProps {
   game: LiveGameView;
@@ -96,7 +97,7 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
       <button
         type="button"
         aria-label={`Remove point for ${label}`}
-        disabled={score === 0}
+        disabled={!canRemovePoint(game, side)}
         onClick={(event) => {
           event.stopPropagation();
           onScore(side, -1);

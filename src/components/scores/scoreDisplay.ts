@@ -1,4 +1,5 @@
 import { Score } from '@/lib/supabaseDatabase';
+import { isRackHistoryComplete } from './rackHistory';
 
 export type ScoreWithFriend = Score & { friend_name?: string | null };
 export type ScoreResult = 'win' | 'loss' | 'tie';
@@ -20,6 +21,17 @@ export function getOpponentDisplayName(score: ScoreWithFriend): string {
 export function getPerspectiveScore(score: ScoreWithFriend, isOwnScore: boolean): string {
   const [score1, score2] = score.score.split('-');
   return isOwnScore ? `${score1}-${score2}` : `${score2}-${score1}`;
+}
+
+/**
+ * Rack winners in play order from the current user's side (true = they won
+ * it), or null when the score has no trustworthy history.
+ */
+export function getPerspectiveRackWins(score: ScoreWithFriend, isOwnScore: boolean): boolean[] | null {
+  const [score1, score2] = score.score.split('-').map(Number);
+  if (!score.rack_history?.length || !isRackHistoryComplete(score.rack_history, score1, score2)) return null;
+  const userSide = isOwnScore ? 'player1' : 'player2';
+  return score.rack_history.map((side) => side === userSide);
 }
 
 export const resultStripeStyles: Record<ScoreResult, string> = {

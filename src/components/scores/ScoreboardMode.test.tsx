@@ -94,4 +94,11 @@ describe("ScoreboardMode", () => {
     fireEvent.click(pill);
     expect(board?.className).toContain("rotate-180");
   });
+
+  it("only enables the minus of the player who won the latest rack", () => {
+    renderBoard({ game: { ...baseGame, rack_history: ["player1", "player1", "player2"] } });
+
+    expect(screen.getByRole("button", { name: "Remove point for You" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove point for Mladen" })).toBeEnabled();
+  });
 });

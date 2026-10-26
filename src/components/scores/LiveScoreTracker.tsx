@@ -57,6 +57,7 @@ import { invalidateTrackerQueries, trackerQueryKeys } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
 import { GameSetupWizard } from './wizard/GameSetupWizard';
 import { ScoreboardMode } from './ScoreboardMode';
+import { canRemovePoint, isRackHistoryComplete } from './rackHistory';
 
 // Debounce window for batching rapid +/- clicks into a single Supabase write.
 // Long enough to coalesce a burst of taps; short enough that a watching device
@@ -67,6 +68,7 @@ interface PendingWrite {
   score1: number;
   score2: number;
   poolSettingsPatch?: Partial<PoolGameSettingsInput>;
+  rackHistory?: PlayerSide[];
 }
 
 interface LiveScoreTrackerProps {
@@ -190,7 +192,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       gameId: string,
       nextScore1: number,
       nextScore2: number,
-      poolSettingsPatch?: Partial<PoolGameSettingsInput>
+      poolSettingsPatch?: Partial<PoolGameSettingsInput>,
+      nextRackHistory?: PlayerSide[]
     ) => {
       queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) => {
         if (!previousGames) return previousGames;
@@ -201,6 +204,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 ...game,
                 score1: nextScore1,
                 score2: nextScore2,
+                ...(nextRackHistory ? { rack_history: nextRackHistory } : {}),
                 pool_settings: game.pool_settings
                   ? {
                       ...game.pool_settings,
@@ -241,7 +245,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
           gameId,
           pending.score1,
           pending.score2,
-          pending.poolSettingsPatch
+          pending.poolSettingsPatch,
+          pending.rackHistory
         );
       } catch (error) {
         toast({
@@ -277,7 +282,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       gameId: string,
       nextScore1: number,
       nextScore2: number,
-      poolSettingsPatch?: Partial<PoolGameSettingsInput>
+      poolSettingsPatch?: Partial<PoolGameSettingsInput>,
+      nextRackHistory?: PlayerSide[]
     ) => {
       // Cancel any in-flight refetch for live games before we write the new
       // optimistic value. Otherwise the fetch — kicked off by either the prior
@@ -288,7 +294,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       // we re-acquire authoritative server state at the right moment.
       void queryClient.cancelQueries({ queryKey: trackerQueryKeys.liveGames });
 
-      writeGameToCache(gameId, nextScore1, nextScore2, poolSettingsPatch);
+      writeGameToCache(gameId, nextScore1, nextScore2, poolSettingsPatch, nextRackHistory);
 
       // Merge any prior pending pool patch with the new one — later wins per field.
       const existing = latestPendingRef.current.get(gameId);
@@ -301,6 +307,8 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         score1: nextScore1,
         score2: nextScore2,
         poolSettingsPatch: mergedPatch && Object.keys(mergedPatch).length > 0 ? mergedPatch : undefined,
+        // Breaker-only edits pass no history; keep the one a prior tap queued.
+        rackHistory: nextRackHistory ?? existing?.rackHistory,
       });
       pendingWritesRef.current.add(gameId);
 
@@ -539,6 +547,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       queryClient.getQueryData<LiveGameView[]>(trackerQueryKeys.liveGames) ?? games;
     const gameToUpdate = currentGames.find((game) => game.id === gameId);
     if (!gameToUpdate) return;
+    if (change === -1 && !canRemovePoint(gameToUpdate, player)) return;
 
     const nextScore1 = player === 'player1'
       ? Math.max(0, gameToUpdate.score1 + change)
@@ -547,10 +556,15 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       ? Math.max(0, gameToUpdate.score2 + change)
       : gameToUpdate.score2;
 
-    const isNoopChange = nextScore1 === gameToUpdate.score1 && nextScore2 === gameToUpdate.score2;
-    if (isNoopChange) {
-      return;
-    }
+    // Untracked (legacy) histories are left alone; they only become trusted
+    // again once the score is back at 0-0.
+    const rackHistory = gameToUpdate.rack_history;
+    const isHistoryTracked = isRackHistoryComplete(rackHistory, gameToUpdate.score1, gameToUpdate.score2);
+    const nextRackHistory = isHistoryTracked
+      ? change === 1
+        ? [...rackHistory, player]
+        : rackHistory.slice(0, -1)
+      : undefined;
 
     // Physical + peripheral confirmation: taps often happen while walking
     // back to the table, not while watching the screen.
@@ -569,7 +583,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     }
 
     if (!isPoolGameType(gameToUpdate.game) || !gameToUpdate.pool_settings) {
-      scheduleScoreWrite(gameId, nextScore1, nextScore2);
+      scheduleScoreWrite(gameId, nextScore1, nextScore2, undefined, nextRackHistory);
       return;
     }
 
@@ -587,16 +601,18 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
         scheduleScoreWrite(gameId, nextScore1, nextScore2, {
           current_breaker_side: nextBreakerSide,
           last_rack_winner_side: player,
-        });
+        }, nextRackHistory);
         return;
       }
 
       scheduleScoreWrite(gameId, nextScore1, nextScore2, {
         current_breaker_side: player,
         last_rack_winner_side: player,
-      });
+      }, nextRackHistory);
       return;
     }
+
+    const previousRackWinner = nextRackHistory?.at(-1) ?? null;
 
     if (breakRule === 'alternate') {
       const completedRackCountAfterChange = nextScore1 + nextScore2;
@@ -605,8 +621,18 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
           poolSettings.first_breaker_side,
           completedRackCountAfterChange
         ),
-        last_rack_winner_side: null,
-      });
+        last_rack_winner_side: previousRackWinner,
+      }, nextRackHistory);
+      return;
+    }
+
+    // Winner stays: with a tracked history the previous rack's winner breaks
+    // again (or the first breaker once no rack is left), so no prompt is needed.
+    if (nextRackHistory) {
+      scheduleScoreWrite(gameId, nextScore1, nextScore2, {
+        current_breaker_side: previousRackWinner ?? poolSettings.first_breaker_side,
+        last_rack_winner_side: previousRackWinner,
+      }, nextRackHistory);
       return;
     }
 
@@ -1127,7 +1153,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, leftPlayer, -1)}
-                  disabled={disableGameInteractions || leftScore === 0}
+                  disabled={disableGameInteractions || !canRemovePoint(game, leftPlayer)}
                   className="h-11 w-11 p-0"
                   aria-label={`Remove point for ${leftPlayerLabel}`}
                 >
@@ -1193,7 +1219,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                   variant="outline"
                   size="sm"
                   onClick={() => updateScore(game.id, rightPlayer, -1)}
-                  disabled={disableGameInteractions || rightScore === 0}
+                  disabled={disableGameInteractions || !canRemovePoint(game, rightPlayer)}
                   className="h-11 w-11 p-0"
                   aria-label={`Remove point for ${rightPlayerLabel}`}
                 >

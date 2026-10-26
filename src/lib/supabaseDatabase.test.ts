@@ -240,6 +240,24 @@ describe("supabaseDb", () => {
     expect(poolSettingsBuilder.update).toHaveBeenCalledWith({ current_breaker_side: "player2" });
   });
 
+  it("persists rack history with live score updates and new scores", async () => {
+    const liveGamesBuilder = harness.getBuilder("live_games");
+    const scoresBuilder = harness.getBuilder("scores");
+    scoresBuilder.single.mockResolvedValue({ data: { id: "score-1" }, error: null });
+
+    await supabaseDb.updateLiveGameScore("live-1", 1, 2, undefined, ["player2", "player1", "player2"]);
+    await supabaseDb.createScore("Pool", "Nikola", "1-2", "2026-02-14", undefined, ["player2", "player1", "player2"]);
+
+    expect(liveGamesBuilder.update).toHaveBeenCalledWith({
+      score1: 1,
+      score2: 2,
+      rack_history: ["player2", "player1", "player2"],
+    });
+    expect(scoresBuilder.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ score: "1-2", rack_history: ["player2", "player1", "player2"] })
+    );
+  });
+
   it("updates live game score with full pool patch payload", async () => {
     const poolSettingsBuilder = harness.getBuilder("pool_game_settings");
     await supabaseDb.updateLiveGameScore("live-1", 8, 6, {
@@ -284,7 +302,7 @@ describe("supabaseDb", () => {
 
     await supabaseDb.completeLiveGame("live-1");
 
-    expect(createScoreSpy).toHaveBeenCalledWith("Pool", "Opponent", "7-3", "2026-02-14", undefined);
+    expect(createScoreSpy).toHaveBeenCalledWith("Pool", "Opponent", "7-3", "2026-02-14", undefined, []);
     expect(poolSettingsBuilder.update).toHaveBeenCalledWith({ score_id: "score-1", live_game_id: null });
     expect(deleteLiveGameSpy).toHaveBeenCalledWith("live-1");
   });
@@ -311,7 +329,7 @@ describe("supabaseDb", () => {
     });
 
     await supabaseDb.completeLiveGame("live-opponent");
-    expect(createScoreSpy).toHaveBeenCalledWith("Ping Pong", null, "11-9", "2026-02-14", "friend-7");
+    expect(createScoreSpy).toHaveBeenCalledWith("Ping Pong", null, "11-9", "2026-02-14", "friend-7", []);
     expect(deleteLiveGameSpy).toHaveBeenCalledWith("live-opponent");
   });
 
@@ -567,6 +585,7 @@ describe("supabaseDb", () => {
         opponent_user_id: "user-1",
         score1: 7,
         score2: 4,
+        rack_history: ["player2", ...Array(7).fill("player1"), "player2", "player2", "player2"],
         date: "2026-05-07",
       },
       error: null,
@@ -574,7 +593,14 @@ describe("supabaseDb", () => {
 
     await supabaseDb.completeLiveGame("live-flip");
 
-    expect(createScoreSpy).toHaveBeenCalledWith("Pool", null, "4-7", "2026-05-07", "creator-9");
+    // The rack history flips sides together with the score.
+    expect(createScoreSpy).toHaveBeenCalledWith("Pool", null, "4-7", "2026-05-07", "creator-9", [
+      "player1",
+      ...Array(7).fill("player2"),
+      "player1",
+      "player1",
+      "player1",
+    ]);
     expect(deleteLiveGameSpy).toHaveBeenCalledWith("live-flip");
   });
 
