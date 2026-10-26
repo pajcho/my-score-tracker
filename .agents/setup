@@ -78,6 +78,20 @@ ensure_supabase() {
 }
 step "supabase cli $supabase_version" ensure_supabase
 
+# The app uses the device's system font, which an orb's Chromium renders as
+# DejaVu Sans. Install stand-ins (Inter for iOS's SF Pro, Roboto for Android)
+# and render like an iPhone by default; see scripts/orb/fonts-*.conf.
+ensure_fonts() {
+	if ! dpkg -s fonts-inter fonts-roboto-unhinted >/dev/null 2>&1; then
+		sudo apt-get update -qq
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends fonts-inter fonts-roboto-unhinted >/dev/null
+	fi
+	mkdir -p "$HOME/.config/fontconfig/conf.d"
+	ln -sfn "$PWD/scripts/orb/fonts-iphone.conf" "$HOME/.config/fontconfig/conf.d/60-my-score-tracker-iphone.conf"
+	fc-match system-ui family
+}
+step "fonts" ensure_fonts
+
 # Orb-wide notes for agents working in this repository.
 agents_md="$HOME/.config/amp/AGENTS.md"
 agents_marker="# my-score-tracker: local Supabase"
@@ -89,5 +103,13 @@ if ! grep -Fqx "$agents_marker" "$agents_md" 2>/dev/null; then
 - `amp orb services ensure` starts Docker, a local Supabase stack (all migrations plus `supabase/seed.sql`) and the dev server on a portal. The first start in an orb pulls the Supabase images (a minute or two); check progress with `amp orb service logs supabase` or `supabase status`.
 - The app talks to that stack through the dev server's `/supabase` proxy; `scripts/orb/supabase.sh` writes `.env.development.local`. Seeded logins: `nikola.pajic@gmail.com`, `marko@example.com`, `ana@example.com`, all with password `password123`.
 - Database: `postgresql://postgres:postgres@127.0.0.1:55322/postgres`. Studio: port 55323 (`amp orb portal 55323 --title 'Supabase Studio'`). `npm run supabase:reset` reapplies migrations and the seed. Never point local tooling at the production project.
+EOF
+fi
+fonts_marker="# my-score-tracker: fonts"
+if ! grep -Fqx "$fonts_marker" "$agents_md" 2>/dev/null; then
+	cat >>"$agents_md" <<'EOF'
+
+# my-score-tracker: fonts
+- The orb's browser renders the app's system font as Inter, standing in for an iPhone's SF Pro. To check Android rendering (Roboto), restart the browser with `agent-browser close && FONTCONFIG_FILE="$PWD/scripts/orb/fonts-android.conf" agent-browser open <url>`, then `agent-browser close` again to return to the iPhone font.
 EOF
 fi
