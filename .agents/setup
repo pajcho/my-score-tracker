@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepares a fresh Amp orb: Node 22 (what CI runs), npm dependencies from the
+# Prepares a fresh Amp orb: Node from .nvmrc (as CI), npm dependencies from the
 # lockfile and the Supabase CLI for the local stack. Runs again on a stale
 # snapshot, so every step must be idempotent and cheap when already done.
 set -euo pipefail
@@ -15,9 +15,9 @@ step() {
 	echo "<== $label ($((SECONDS - start))s)"
 }
 
-# The orb image ships a newer Node whose built-in localStorage shadows the
-# jsdom one and breaks tests, so install the major CI uses (.github/workflows).
-node_major=22
+# Pin the major in .nvmrc (CI reads it too) instead of whatever Node the orb
+# image ships, so local runs match CI.
+node_major="$(tr -d "[:space:]v" <.nvmrc)"
 node_dir="$HOME/.local/node-$node_major"
 ensure_node() {
 	if [[ ! -x "$node_dir/bin/node" ]]; then

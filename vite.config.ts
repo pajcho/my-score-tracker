@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
-import { version } from "./package.json";
+import packageJson from "./package.json" with { type: "json" };
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
@@ -23,7 +23,7 @@ export default defineConfig(() => ({
     },
   },
   define: {
-    __APP_VERSION__: JSON.stringify(version),
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   plugins: [
     react(),
@@ -79,6 +79,23 @@ export default defineConfig(() => ({
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest}"],
         globIgnores: ["**/apple-splash-*.png"],
+        buildPlugins: {
+          vite: [
+            {
+              // vite-plugin-pwa hardcodes `inlineDynamicImports: true` for the
+              // service worker build, which Rolldown deprecates. Remove once
+              // https://github.com/vite-pwa/vite-plugin-pwa/issues/912 ships.
+              name: "sw-rolldown-code-splitting",
+              config(swConfig) {
+                const output = swConfig.build?.rollupOptions?.output;
+                if (output && !Array.isArray(output)) {
+                  delete output.inlineDynamicImports;
+                  output.codeSplitting = false;
+                }
+              },
+            },
+          ],
+        },
       },
       devOptions: {
         enabled: true,
@@ -89,7 +106,7 @@ export default defineConfig(() => ({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   base: "./",
