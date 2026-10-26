@@ -133,6 +133,36 @@ export type Database = {
         }
         Relationships: []
       }
+      live_game_taunts: {
+        Row: {
+          created_at: string
+          emojis: string[]
+          id: string
+          live_game_id: string
+          recipient_user_id: string
+          sender_user_id: string
+          streak: number
+        }
+        Insert: {
+          created_at?: string
+          emojis: string[]
+          id?: string
+          live_game_id: string
+          recipient_user_id: string
+          sender_user_id: string
+          streak: number
+        }
+        Update: {
+          created_at?: string
+          emojis?: string[]
+          id?: string
+          live_game_id?: string
+          recipient_user_id?: string
+          sender_user_id?: string
+          streak?: number
+        }
+        Relationships: []
+      }
       notification_log: {
         Row: {
           id: string

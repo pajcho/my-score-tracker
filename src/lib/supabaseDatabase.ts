@@ -585,6 +585,26 @@ class SupabaseDatabaseService {
     }
   }
 
+  async sendLiveGameTaunt(
+    liveGameId: string,
+    recipientUserId: string,
+    emojis: string[],
+    streak: number
+  ): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase.from('live_game_taunts').insert({
+      live_game_id: liveGameId,
+      sender_user_id: user.id,
+      recipient_user_id: recipientUserId,
+      emojis,
+      streak,
+    });
+
+    if (error) throw error;
+  }
+
   async deleteLiveGame(id: string): Promise<void> {
     const { error } = await supabase
       .from('live_games')

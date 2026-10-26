@@ -15,6 +15,10 @@ vi.mock("@/components/scores/LiveGameInviteNotifier", () => ({
   LiveGameInviteNotifier: () => <div>InviteNotifier</div>,
 }));
 
+vi.mock("@/components/scores/TauntRainNotifier", () => ({
+  TauntRainNotifier: () => null,
+}));
+
 vi.mock("@/hooks/useTrackerData", () => ({
   useLiveGamesQuery: () => ({ data: [] }),
 }));

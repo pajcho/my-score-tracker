@@ -108,6 +108,15 @@ export default {
 					'0%': { transform: 'scale(1)' },
 					'40%': { transform: 'scale(1.18)' },
 					'100%': { transform: 'scale(1)' }
+				},
+				'streak-in': {
+					'0%': { transform: 'scale(2.4) rotate(-12deg)', opacity: '0' },
+					'60%': { transform: 'scale(0.92) rotate(-3deg)', opacity: '1' },
+					'100%': { transform: 'scale(1) rotate(-4deg)', opacity: '1' }
+				},
+				'emoji-fall': {
+					'0%': { transform: 'translateY(-15vh) rotate(0deg)' },
+					'100%': { transform: 'translateY(115vh) rotate(var(--emoji-spin, 360deg))' }
 				}
 			},
 			animation: {
@@ -116,7 +125,9 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'scale-in': 'scale-in 0.2s ease-out',
 				'slide-up': 'slide-up 0.3s ease-out',
-				'score-pop': 'score-pop 0.18s ease-out'
+				'score-pop': 'score-pop 0.18s ease-out',
+				'streak-in': 'streak-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both',
+				'emoji-fall': 'emoji-fall 3s linear both'
 			}
 		}
 	},

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Navigation } from './Navigation';
 import { LiveGameInviteNotifier } from '@/components/scores/LiveGameInviteNotifier';
+import { TauntRainNotifier } from '@/components/scores/TauntRainNotifier';
 import { useAuth } from '@/components/auth/authContext';
 import { useIsKeyboardOpen } from '@/hooks/useIsKeyboardOpen';
 import { useLiveGamesQuery } from '@/hooks/useTrackerData';
@@ -99,6 +100,7 @@ export function Layout() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <LiveGameInviteNotifier />
+      <TauntRainNotifier />
       <main
         className={cn(
           'container mx-auto px-4 py-8 md:pb-8',
