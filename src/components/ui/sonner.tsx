@@ -10,7 +10,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      className="toaster group"
+      // Open Radix/Vaul modals set `pointer-events: none` on <body>; opt the
+      // toaster back in so toast actions (e.g. "Reload") stay tappable.
+      className="toaster group pointer-events-auto"
       position="bottom-center"
       // Clear the bottom tab bar + safe area so snackbars sit above the nav.
       offset={88}
