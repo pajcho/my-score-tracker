@@ -57,7 +57,8 @@ import { invalidateTrackerQueries, trackerQueryKeys } from '@/lib/queryCache';
 import { useFriendsQuery, useLiveGamesQuery, useOpponentsQuery, useScoresQuery } from '@/hooks/useTrackerData';
 import { GameSetupWizard } from './wizard/GameSetupWizard';
 import { ScoreboardMode } from './ScoreboardMode';
-import { canRemovePoint, isRackHistoryComplete } from './rackHistory';
+import { canRemovePoint, getStreakTier, getWinningStreak, isRackHistoryComplete } from './rackHistory';
+import { StreakCelebration } from './StreakCelebration';
 
 // Debounce window for batching rapid +/- clicks into a single Supabase write.
 // Long enough to coalesce a burst of taps; short enough that a watching device
@@ -108,6 +109,17 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   // only when the user has no games of their own to focus on.
   const [watchingSectionOpenOverride, setWatchingSectionOpenOverride] = useState<boolean | null>(null);
   const [scoreboardGameId, setScoreboardGameId] = useState<string | null>(null);
+  const [streakCelebration, setStreakCelebration] = useState<{
+    key: string;
+    gameId: string;
+    side: PlayerSide;
+    length: number;
+  } | null>(null);
+  // Rack count per game as last seen, and streaks already celebrated, so a
+  // banner fires once when a streak grows (from either device) — not on
+  // first load, not again after an undo and redo.
+  const seenRackCountsRef = useRef<Map<string, number>>(new Map());
+  const celebratedStreaksRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser, isAuthenticated } = useAuth();
@@ -526,6 +538,42 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    for (const game of games) {
+      const rackHistory = game.rack_history ?? [];
+      const previousRackCount = seenRackCountsRef.current.get(game.id);
+      seenRackCountsRef.current.set(game.id, rackHistory.length);
+
+      const isPlayer = currentUserId === game.created_by_user_id || currentUserId === game.opponent_user_id;
+      if (!isPlayer || previousRackCount === undefined || rackHistory.length <= previousRackCount) continue;
+      if (!isRackHistoryComplete(rackHistory, game.score1, game.score2)) continue;
+
+      const streak = getWinningStreak(rackHistory);
+      const key = `${game.id}:${rackHistory.length}`;
+      if (!streak || streak.length < 2 || celebratedStreaksRef.current.has(key)) continue;
+
+      celebratedStreaksRef.current.add(key);
+      setStreakCelebration({ key, gameId: game.id, side: streak.side, length: streak.length });
+    }
+  }, [currentUserId, games]);
+
+  const closeStreakCelebration = useCallback(() => setStreakCelebration(null), []);
+
+  const sendTaunt = async (game: LiveGameView, recipientUserId: string, emojis: string[], streakLength: number) => {
+    setStreakCelebration(null);
+    const recipientLabel = getSideLabel(game, game.created_by_user_id === recipientUserId ? 'player1' : 'player2');
+    try {
+      await supabaseDb.sendLiveGameTaunt(game.id, recipientUserId, emojis, streakLength);
+      snackbar(`Sent ${emojis.join(' ')} to ${recipientLabel}`, { id: 'taunt-sent', duration: 2500 });
+    } catch (error) {
+      toast({
+        title: "Couldn't send the taunt",
+        description: 'Please try again on the next streak',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -1382,6 +1430,40 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       >
         <Plus className="h-6 w-6" />
       </button>
+
+      {(() => {
+        if (!streakCelebration) return null;
+        const game = games.find((candidate) => candidate.id === streakCelebration.gameId);
+        const tier = getStreakTier(streakCelebration.length);
+        if (!game || !tier) return null;
+        const winnerLabel = getSideLabel(game, streakCelebration.side);
+        const currentUserSide: PlayerSide | null =
+          currentUserId === game.created_by_user_id
+            ? 'player1'
+            : currentUserId === game.opponent_user_id
+              ? 'player2'
+              : null;
+        const recipientUserId =
+          streakCelebration.side === 'player1' ? game.opponent_user_id : game.created_by_user_id;
+        const canTaunt = currentUserSide === streakCelebration.side && !!recipientUserId;
+        return (
+          <StreakCelebration
+            key={streakCelebration.key}
+            tier={tier}
+            streakLength={streakCelebration.length}
+            winnerLabel={winnerLabel === 'you' ? 'You' : winnerLabel}
+            taunt={
+              canTaunt && recipientUserId
+                ? {
+                    recipientLabel: getSideLabel(game, streakCelebration.side === 'player1' ? 'player2' : 'player1'),
+                    onSend: (emojis) => void sendTaunt(game, recipientUserId, emojis, streakCelebration.length),
+                  }
+                : undefined
+            }
+            onClose={closeStreakCelebration}
+          />
+        );
+      })()}
 
       {(() => {
         // Scoreboard reads the same live cache entry as the cards, so

@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
 
-const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, updateLiveGameScoreMock, toastMock, invalidateTrackerQueriesMock } =
+const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, updateLiveGameScoreMock, sendLiveGameTauntMock, toastMock, invalidateTrackerQueriesMock } =
   vi.hoisted(() => ({
     authState: {
       currentUserId: "user-1",
@@ -14,6 +14,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     subscribeToLiveGamesMock: vi.fn(),
     completeLiveGameMock: vi.fn(),
     updateLiveGameScoreMock: vi.fn(),
+    sendLiveGameTauntMock: vi.fn(),
     toastMock: vi.fn(),
     invalidateTrackerQueriesMock: vi.fn(),
   }));
@@ -50,6 +51,7 @@ vi.mock("@/lib/supabaseDatabase", () => ({
     getFriends: getFriendsMock,
     subscribeToLiveGames: subscribeToLiveGamesMock,
     updateLiveGameScore: updateLiveGameScoreMock,
+    sendLiveGameTaunt: sendLiveGameTauntMock,
     deleteLiveGame: vi.fn(),
     completeLiveGame: completeLiveGameMock,
     createLiveGame: vi.fn(),
@@ -373,6 +375,55 @@ describe("LiveScoreTracker perspective labels", () => {
         { current_breaker_side: "player2", last_rack_winner_side: "player2" },
         ["player1", "player2"]
       );
+    });
+  });
+
+  describe("winning streaks", () => {
+    const pingPongGame = (rackHistory: string[]) => ({
+      id: "live-1",
+      created_by_user_id: "user-1",
+      game: "Ping Pong",
+      opponent_name: null,
+      opponent_user_id: "friend-1",
+      score1: rackHistory.filter((side) => side === "player1").length,
+      score2: rackHistory.filter((side) => side === "player2").length,
+      rack_history: rackHistory,
+      date: "2026-02-14",
+      started_at: "2026-02-14T10:00:00.000Z",
+      created_at: "2026-02-14T10:00:00.000Z",
+      updated_at: "2026-02-14T10:00:00.000Z",
+      creator_name: "Current User",
+      opponent_user_name: "Friend One",
+    });
+
+    it("lets the streak winner taunt their opponent once a second rack in a row is won", async () => {
+      authState.currentUserId = "user-1";
+      getLiveGamesMock.mockResolvedValue([pingPongGame(["player2", "player1"])]);
+      sendLiveGameTauntMock.mockResolvedValue(undefined);
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: /Score for You: 1/ }));
+
+      expect(await screen.findByRole("dialog", { name: "Double! You won 2 in a row" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Send 💩" }));
+
+      await waitFor(() => {
+        expect(sendLiveGameTauntMock).toHaveBeenCalledWith("live-1", "friend-1", ["💩"], 2);
+      });
+      expect(screen.queryByRole("dialog", { name: /Double!/ })).not.toBeInTheDocument();
+    });
+
+    it("shows the opponent's streak without a taunt picker", async () => {
+      authState.currentUserId = "user-1";
+      getLiveGamesMock.mockResolvedValue([pingPongGame(["player1", "player2", "player2"])]);
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: /Score for Friend One: 2/ }));
+
+      expect(await screen.findByRole("dialog", { name: "Triple! Friend One won 3 in a row" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Send/ })).not.toBeInTheDocument();
     });
   });
 

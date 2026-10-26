@@ -258,6 +258,29 @@ describe("supabaseDb", () => {
     );
   });
 
+  it("sends a streak taunt from the signed-in player to their opponent", async () => {
+    const tauntsBuilder = harness.getBuilder("live_game_taunts");
+    tauntsBuilder.insert.mockResolvedValueOnce({ error: null });
+
+    await supabaseDb.sendLiveGameTaunt("live-1", "friend-7", ["💩", "🍆"], 5);
+
+    expect(tauntsBuilder.insert).toHaveBeenCalledWith({
+      live_game_id: "live-1",
+      sender_user_id: "user-1",
+      recipient_user_id: "friend-7",
+      emojis: ["💩", "🍆"],
+      streak: 5,
+    });
+
+    tauntsBuilder.insert.mockResolvedValueOnce({ error: new Error("taunt rejected") });
+    await expect(supabaseDb.sendLiveGameTaunt("live-1", "friend-7", ["💩"], 2)).rejects.toThrow("taunt rejected");
+
+    harness.supabase.auth.getUser.mockResolvedValue({ data: { user: null } });
+    await expect(supabaseDb.sendLiveGameTaunt("live-1", "friend-7", ["💩"], 2)).rejects.toThrow(
+      "User not authenticated"
+    );
+  });
+
   it("updates live game score with full pool patch payload", async () => {
     const poolSettingsBuilder = harness.getBuilder("pool_game_settings");
     await supabaseDb.updateLiveGameScore("live-1", 8, 6, {
