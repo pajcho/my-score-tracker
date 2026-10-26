@@ -5,7 +5,7 @@
   "type": "module",
   "homepage": "https://pajcho.github.io/my-score-tracker",
   "engines": {
-    "node": "26.x"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "vite",
