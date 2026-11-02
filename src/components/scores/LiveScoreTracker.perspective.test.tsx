@@ -118,6 +118,7 @@ function renderLiveScoreTracker() {
 describe("LiveScoreTracker perspective labels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     useIsMobileMock.mockReturnValue(false);
     queryClient.clear();
     queryClient.setDefaultOptions({
@@ -287,6 +288,70 @@ describe("LiveScoreTracker perspective labels", () => {
     await waitFor(() => {
       expect(screen.getByText("Friend Two")).toBeInTheDocument();
     });
+  });
+
+  it("collapses a leftover game to its scoreline and remembers it across reloads", async () => {
+    authState.currentUserId = "user-1";
+    const leftoverGame = {
+      id: "live-old",
+      created_by_user_id: "user-1",
+      game: "Ping Pong",
+      opponent_name: null,
+      opponent_user_id: "friend-1",
+      score1: 3,
+      score2: 9,
+      date: "2026-02-13",
+      started_at: "2026-02-13T20:00:00.000Z",
+      created_at: "2026-02-13T20:00:00.000Z",
+      updated_at: "2026-02-13T20:00:00.000Z",
+      creator_name: "Owner Name",
+      opponent_user_name: "Friend One",
+    };
+    const currentGame = {
+      ...leftoverGame,
+      id: "live-new",
+      opponent_user_id: "friend-2",
+      opponent_user_name: "Friend Two",
+      score1: 6,
+      score2: 4,
+      started_at: "2026-02-14T20:00:00.000Z",
+    };
+    getLiveGamesMock.mockResolvedValue([leftoverGame, currentGame]);
+
+    const { unmount } = renderLiveScoreTracker();
+
+    // Leftover game (older) renders first and is fully interactive.
+    expect(await screen.findByRole("button", { name: /Score for You: 3/ })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Collapse game" })[0]);
+
+    // Collapsed: only the scoreline remains, and it no longer takes taps.
+    const collapsedCard = await screen.findByRole("button", { name: "Expand Ping Pong game: You 3 - 9 Friend One" });
+    expect(screen.queryByRole("button", { name: /Score for You: 3/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Score for You: 6/ })).toBeInTheDocument();
+    // The game still in focus moves to the top.
+    expect(
+      screen.getByRole("button", { name: /Score for You: 6/ }).compareDocumentPosition(collapsedCard) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    // Only the expanded game offers a collapse toggle now.
+    expect(screen.getAllByRole("button", { name: "Collapse game" })).toHaveLength(1);
+
+    unmount();
+    renderLiveScoreTracker();
+
+    const restoredCard = await screen.findByRole("button", { name: /Expand Ping Pong game: You 3 - 9/ });
+    fireEvent.click(restoredCard);
+    expect(await screen.findByRole("button", { name: /Score for You: 3/ })).toBeInTheDocument();
+  });
+
+  it("never collapses a game that is the only one being played", async () => {
+    authState.currentUserId = "user-1";
+    localStorage.setItem("live-collapsed-game-ids", JSON.stringify(["live-1"]));
+
+    renderLiveScoreTracker();
+
+    expect(await screen.findByRole("button", { name: /Score for You: 7/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse game" })).not.toBeInTheDocument();
   });
 
   it("undoes exactly the last tap from the snackbar, even from a stale render", async () => {

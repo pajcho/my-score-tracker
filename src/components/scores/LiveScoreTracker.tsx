@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, Eye, Maximize2 } from 'lucide-react';
+import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, ChevronUp, Eye, Maximize2 } from 'lucide-react';
 import { toast as snackbar } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,19 @@ import { StreakCelebration } from './StreakCelebration';
 // sees the result within a beat of the user stopping.
 const SCORE_WRITE_DEBOUNCE_MS = 350;
 
+// Games left over from an earlier session stay collapsed across reloads, so
+// the game being played now keeps the focus.
+const COLLAPSED_GAMES_STORAGE_KEY = 'live-collapsed-game-ids';
+
+const readCollapsedGameIds = (): string[] => {
+  try {
+    const storedValue = JSON.parse(localStorage.getItem(COLLAPSED_GAMES_STORAGE_KEY) ?? '[]');
+    return Array.isArray(storedValue) ? storedValue : [];
+  } catch {
+    return [];
+  }
+};
+
 interface PendingWrite {
   score1: number;
   score2: number;
@@ -109,6 +122,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   // only when the user has no games of their own to focus on.
   const [watchingSectionOpenOverride, setWatchingSectionOpenOverride] = useState<boolean | null>(null);
   const [scoreboardGameId, setScoreboardGameId] = useState<string | null>(null);
+  const [collapsedGameIds, setCollapsedGameIds] = useState<string[]>(readCollapsedGameIds);
   const [streakCelebration, setStreakCelebration] = useState<{
     key: string;
     gameId: string;
@@ -706,6 +720,21 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     });
   };
 
+  const toggleGameCollapsed = (gameId: string) => {
+    // Drop ids of games that have since been saved or deleted.
+    const liveGameIds = games.map((game) => game.id);
+    const nextCollapsedGameIds = collapsedGameIds.includes(gameId)
+      ? collapsedGameIds.filter((collapsedGameId) => collapsedGameId !== gameId)
+      : [...collapsedGameIds, gameId];
+    const prunedCollapsedGameIds = nextCollapsedGameIds.filter((collapsedGameId) => liveGameIds.includes(collapsedGameId));
+    setCollapsedGameIds(prunedCollapsedGameIds);
+    try {
+      localStorage.setItem(COLLAPSED_GAMES_STORAGE_KEY, JSON.stringify(prunedCollapsedGameIds));
+    } catch {
+      // localStorage unavailable — the collapsed state just won't survive a reload.
+    }
+  };
+
   const toggleGameSettingsPanel = (gameId: string) => {
     setExpandedGameSettingsByGameId((previousState) => ({
       ...previousState,
@@ -878,9 +907,17 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
       if (firstIsParticipant === secondIsParticipant) return 0;
       return firstIsParticipant ? -1 : 1;
     });
-  const activePlayerGames = orderedGames.filter((game) =>
+  const playerGames = orderedGames.filter((game) =>
     currentUser ? game.created_by_user_id === currentUser.id || game.opponent_user_id === currentUser.id : false
   );
+  // A single game is always the one in focus; collapsing only helps when
+  // several are open at once. Collapsed games sink below the expanded ones.
+  const canCollapseGames = playerGames.length > 1;
+  const isGameCollapsed = (game: LiveGameView) => canCollapseGames && collapsedGameIds.includes(game.id);
+  const activePlayerGames = [
+    ...playerGames.filter((game) => !isGameCollapsed(game)),
+    ...playerGames.filter(isGameCollapsed),
+  ];
   const watchedGames = orderedGames.filter((game) =>
     currentUser ? game.created_by_user_id !== currentUser.id && game.opponent_user_id !== currentUser.id : true
   );
@@ -1000,6 +1037,40 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     const isGameSettingsExpanded = !!expandedGameSettingsByGameId[game.id];
     const disableGameInteractions = isLoading;
 
+    if (isGameCollapsed(game)) {
+      return (
+        <Card key={game.id} className="border-0 shadow-card">
+          <button
+            type="button"
+            onClick={() => toggleGameCollapsed(game.id)}
+            className="flex w-full items-center gap-3 rounded-[inherit] p-3 text-left transition-colors active:bg-muted/50"
+            aria-label={`Expand ${getGameTypeLabel(game.game)} game: ${leftPlayerLabel} ${leftScore} - ${rightScore} ${rightPlayerLabel}`}
+            aria-expanded={false}
+          >
+            {isPoolGame && game.pool_settings?.pool_type ? (
+              <PoolTypeIcon poolType={game.pool_settings.pool_type} className="h-4 w-4 shrink-0" />
+            ) : (
+              <GameTypeIcon gameType={game.game} className="h-4 w-4 shrink-0" />
+            )}
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-xs font-medium text-muted-foreground">
+              <span className={cn('min-w-0 flex-1 truncate text-right', leftPlayerLabel === 'You' && 'font-semibold text-primary')}>
+                {leftPlayerLabel}
+              </span>
+              <span className="flex shrink-0 items-baseline gap-1 text-lg font-bold tabular-nums">
+                <span className="text-player-one">{leftScore}</span>
+                <span className="text-sm font-medium text-muted-foreground">-</span>
+                <span className="text-player-two">{rightScore}</span>
+              </span>
+              <span className={cn('min-w-0 flex-1 truncate', rightPlayerLabel === 'You' && 'font-semibold text-primary')}>
+                {rightPlayerLabel}
+              </span>
+            </span>
+            <ChevronDown className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+          </button>
+        </Card>
+      );
+    }
+
     return (
       <Card key={game.id} className="border-0 shadow-card">
         <CardHeader className="pb-2">
@@ -1018,6 +1089,18 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
               )}
             </CardTitle>
             <div className="flex shrink-0 items-center justify-end">
+              {canCollapseGames && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleGameCollapsed(game.id)}
+                  className="h-11 w-11 p-0"
+                  aria-label="Collapse game"
+                  aria-expanded
+                >
+                  <ChevronUp className="!h-[18px] !w-[18px] text-muted-foreground" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
