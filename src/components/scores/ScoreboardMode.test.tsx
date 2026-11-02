@@ -35,17 +35,19 @@ const baseGame = {
 function renderBoard(overrides: Partial<React.ComponentProps<typeof ScoreboardMode>> = {}) {
   const onScore = vi.fn();
   const onClose = vi.fn();
+  const onFinish = vi.fn();
   render(
     <ScoreboardMode
       game={baseGame}
       leftLabel="You"
       rightLabel="Mladen"
       onScore={onScore}
+      onFinish={onFinish}
       onClose={onClose}
       {...overrides}
     />
   );
-  return { onScore, onClose };
+  return { onScore, onClose, onFinish };
 }
 
 describe("ScoreboardMode", () => {
@@ -84,6 +86,23 @@ describe("ScoreboardMode", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks to finish the game from the save button", () => {
+    const { onFinish, onClose } = renderBoard();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save game" }));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape to a dialog open over the board", () => {
+    const { onClose } = renderBoard();
+
+    const escapeEvent = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+    escapeEvent.preventDefault();
+    window.dispatchEvent(escapeEvent);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("flips the board when the context pill is tapped", () => {

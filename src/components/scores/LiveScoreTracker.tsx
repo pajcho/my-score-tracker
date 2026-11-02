@@ -4,7 +4,7 @@ import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
 import { Plus, Minus, Save, Trash2, Trophy, Settings2, Loader2, Play, ChevronDown, ChevronUp, Eye, Maximize2 } from 'lucide-react';
 import { toast as snackbar } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,6 +122,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
   // only when the user has no games of their own to focus on.
   const [watchingSectionOpenOverride, setWatchingSectionOpenOverride] = useState<boolean | null>(null);
   const [scoreboardGameId, setScoreboardGameId] = useState<string | null>(null);
+  const [finishPromptGameId, setFinishPromptGameId] = useState<string | null>(null);
   const [collapsedGameIds, setCollapsedGameIds] = useState<string[]>(readCollapsedGameIds);
   const [streakCelebration, setStreakCelebration] = useState<{
     key: string;
@@ -441,6 +442,55 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     onActiveGamesChange?.(games.length > 0);
   }, [games, onActiveGamesChange]);
 
+  // Creates the live game row (and its pool settings) and returns it shaped
+  // like a cache entry; callers decide how it enters the cache.
+  const createGame = async (setup: {
+    game: GameType;
+    poolType: string;
+    breakRule: BreakRule;
+    firstBreakerSide: PlayerSide;
+    opponentName: string;
+    opponentUserId?: string;
+  }): Promise<LiveGameView> => {
+    // Never send an empty pool_type to the DB — the column is a checked
+    // enum, and an empty value fails the pool_settings insert after the
+    // live_games row is already created, leaving a broken partial game.
+    const initialPoolSettings = isPoolGameType(setup.game)
+      ? {
+          pool_type: setup.poolType || DEFAULT_POOL_TYPE,
+          break_rule: setup.breakRule,
+          first_breaker_side: setup.firstBreakerSide,
+          current_breaker_side: setup.firstBreakerSide,
+          last_rack_winner_side: null,
+        }
+      : undefined;
+
+    const createdLiveGame = await supabaseDb.createLiveGame(
+      setup.game,
+      setup.opponentUserId ? null : setup.opponentName,
+      format(new Date(), 'yyyy-MM-dd'),
+      setup.opponentUserId,
+      initialPoolSettings
+    );
+
+    return {
+      ...createdLiveGame,
+      creator_name: currentUser?.user_metadata?.name,
+      opponent_user_name: setup.opponentUserId ? setup.opponentName : undefined,
+      pool_settings: initialPoolSettings
+        ? {
+            id: `temp-${createdLiveGame.id}`,
+            live_game_id: createdLiveGame.id,
+            score_id: null,
+            created_by_user_id: createdLiveGame.created_by_user_id,
+            ...initialPoolSettings,
+            created_at: createdLiveGame.created_at,
+            updated_at: createdLiveGame.updated_at,
+          }
+        : undefined,
+    };
+  };
+
   const addNewGame = async (gameData: {
     game: GameType;
     poolType: string;
@@ -493,44 +543,14 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     setIsLoading(true);
 
     try {
-      const firstBreakerSide = getFirstBreakerSide(dataToUse.firstBreakerSelection);
-      // Never send an empty pool_type to the DB — the column is a checked
-      // enum, and an empty value fails the pool_settings insert after the
-      // live_games row is already created, leaving a broken partial game.
-      const initialPoolSettings = isPoolGameType(dataToUse.game)
-        ? {
-            pool_type: dataToUse.poolType || DEFAULT_POOL_TYPE,
-            break_rule: dataToUse.breakRule,
-            first_breaker_side: firstBreakerSide,
-            current_breaker_side: firstBreakerSide,
-            last_rack_winner_side: null,
-          }
-        : undefined;
-
-      const createdLiveGame = await supabaseDb.createLiveGame(
-        dataToUse.game,
-        opponentUserId ? null : opponentName,
-        format(new Date(), 'yyyy-MM-dd'),
+      const newGame = await createGame({
+        game: dataToUse.game,
+        poolType: dataToUse.poolType,
+        breakRule: dataToUse.breakRule,
+        firstBreakerSide: getFirstBreakerSide(dataToUse.firstBreakerSelection),
+        opponentName,
         opponentUserId,
-        initialPoolSettings
-      );
-
-      const newGame: LiveGameView = {
-        ...createdLiveGame,
-        creator_name: currentUser?.user_metadata?.name,
-        opponent_user_name: opponentUserId ? opponentName : undefined,
-        pool_settings: initialPoolSettings
-          ? {
-              id: `temp-${createdLiveGame.id}`,
-              live_game_id: createdLiveGame.id,
-              score_id: null,
-              created_by_user_id: createdLiveGame.created_by_user_id,
-              ...initialPoolSettings,
-              created_at: createdLiveGame.created_at,
-              updated_at: createdLiveGame.updated_at,
-            }
-          : undefined,
-      };
+      });
       queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
         previousGames ? [...previousGames, newGame] : [newGame]
       );
@@ -538,7 +558,7 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
       toast({
         title: "Game started!",
-        description: `${getDisplayGameLabel(dataToUse.game, initialPoolSettings?.pool_type)} game vs ${opponentName}`,
+        description: `${getDisplayGameLabel(newGame.game, newGame.pool_settings?.pool_type)} game vs ${opponentName}`,
       });
       await invalidateTrackerQueries({
         liveGames: true,
@@ -791,7 +811,29 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
     }
   };
 
-  const saveGame = async (game: LiveGameView) => {
+  // Who breaks the first rack of a rematch, seen from the finished game's
+  // sides: whoever was up next when the game was saved.
+  const getRematchBreakerSide = (game: LiveGameView): PlayerSide =>
+    game.pool_settings?.current_breaker_side ?? 'player1';
+
+  // Same game, settings and opponent. The saver creates the rematch, so they
+  // become player1 — sides flip when they were the invited opponent.
+  const startRematch = (game: LiveGameView, currentUserId: string) => {
+    const isCreator = game.created_by_user_id === currentUserId;
+    const breakerSide = getRematchBreakerSide(game);
+    return createGame({
+      game: game.game,
+      poolType: game.pool_settings?.pool_type ?? DEFAULT_POOL_TYPE,
+      breakRule: game.pool_settings?.break_rule ?? 'alternate',
+      firstBreakerSide: isCreator ? breakerSide : getOppositePlayerSide(breakerSide),
+      opponentName: isCreator
+        ? game.opponent_name || game.opponent_user_name || 'Unknown opponent'
+        : game.creator_name || 'Unknown player',
+      opponentUserId: isCreator ? game.opponent_user_id ?? undefined : game.created_by_user_id,
+    });
+  };
+
+  const saveGame = async (game: LiveGameView, { rematch = false } = {}) => {
     if (!isAuthenticated || !currentUser) return;
     const isParticipant =
       game.created_by_user_id === currentUser.id || game.opponent_user_id === currentUser.id;
@@ -808,19 +850,51 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
 
     try {
       await supabaseDb.completeLiveGame(game.id);
+      const scoreSummary = `${getDisplayGameLabel(game.game, game.pool_settings?.pool_type)}: ${game.score1}-${game.score2}`;
+
+      let rematchGame: LiveGameView | undefined;
+      if (rematch) {
+        try {
+          rematchGame = await startRematch(game, currentUser.id);
+        } catch (error) {
+          toast({
+            title: "Score saved, but the rematch didn't start",
+            description: "Start it from the new game button",
+            variant: "destructive",
+          });
+        }
+      }
+
+      // Swap the finished game for its rematch in one cache write, so a
+      // fullscreen board moves straight onto the new game without closing.
       queryClient.setQueryData<LiveGameView[]>(trackerQueryKeys.liveGames, (previousGames) =>
-        previousGames ? previousGames.filter((activeGame) => activeGame.id !== game.id) : previousGames
+        previousGames
+          ? [
+              ...previousGames.filter((activeGame) => activeGame.id !== game.id),
+              ...(rematchGame ? [rematchGame] : []),
+            ]
+          : previousGames
       );
+      if (rematchGame && scoreboardGameId === game.id) {
+        setScoreboardGameId(rematchGame.id);
+      }
       await invalidateTrackerQueries({
         scores: true,
         liveGames: true,
         opponents: true,
       });
 
-      toast({
-        title: "Score saved!",
-        description: `${getDisplayGameLabel(game.game, game.pool_settings?.pool_type)}: ${game.score1}-${game.score2}`,
-      });
+      if (rematchGame) {
+        const breakerLabel = getSideLabel(game, getRematchBreakerSide(game));
+        toast({
+          title: "Score saved, rematch started!",
+          description: rematchGame.pool_settings
+            ? `${scoreSummary} · ${breakerLabel === 'you' ? 'You break' : `${breakerLabel} breaks`} first`
+            : scoreSummary,
+        });
+      } else if (!rematch) {
+        toast({ title: "Score saved!", description: scoreSummary });
+      }
     } catch (error) {
       toast({
         title: "Failed to save score",
@@ -1110,32 +1184,16 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
               >
                 <Settings2 className={cn('!h-[18px] !w-[18px]', !isGameSettingsExpanded && 'text-muted-foreground')} />
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isLoading}
-                    className="h-11 w-11 p-0"
-                    aria-label="Save game"
-                  >
-                    <Save className="!h-[18px] !w-[18px] text-muted-foreground" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Finish this game?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      The final score {leftScore}-{rightScore} vs {isGameCreator ? opponentName : creatorName} will
-                      be saved to your history.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep playing</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void saveGame(game)}>Finish & save</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isLoading}
+                onClick={() => setFinishPromptGameId(game.id)}
+                className="h-11 w-11 p-0"
+                aria-label="Save game"
+              >
+                <Save className="!h-[18px] !w-[18px] text-muted-foreground" />
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -1568,8 +1626,50 @@ export function LiveScoreTracker({ onScoresSaved, onActiveGamesChange }: LiveSco
                 : scoreboardGame.opponent_name || scoreboardGame.opponent_user_name || 'Unknown opponent'
             }
             onScore={(side, change) => updateScore(scoreboardGame.id, side, change)}
+            onFinish={() => setFinishPromptGameId(scoreboardGame.id)}
             onClose={() => setScoreboardGameId(null)}
           />
+        );
+      })()}
+
+      {(() => {
+        // One finish prompt for both the card and the fullscreen board.
+        const finishGame = finishPromptGameId
+          ? activePlayerGames.find((game) => game.id === finishPromptGameId)
+          : undefined;
+        const isCreator = currentUser?.id === finishGame?.created_by_user_id;
+        const opponentLabel = isCreator
+          ? finishGame?.opponent_name || finishGame?.opponent_user_name || 'Unknown opponent'
+          : finishGame?.creator_name || 'Unknown player';
+        const rematchBreakerLabel = finishGame?.pool_settings
+          ? getSideLabel(finishGame, getRematchBreakerSide(finishGame))
+          : null;
+        return (
+          <AlertDialog open={!!finishGame} onOpenChange={(open) => !open && setFinishPromptGameId(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Finish this game?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The final score {finishGame?.score1}-{finishGame?.score2} vs {opponentLabel} will be saved to your
+                  history.
+                  {rematchBreakerLabel &&
+                    ` In a rematch, ${rematchBreakerLabel === 'you' ? 'you break' : `${rematchBreakerLabel} breaks`} first.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep playing</AlertDialogCancel>
+                <AlertDialogAction
+                  className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0')}
+                  onClick={() => finishGame && void saveGame(finishGame)}
+                >
+                  Finish & save
+                </AlertDialogAction>
+                <AlertDialogAction onClick={() => finishGame && void saveGame(finishGame, { rematch: true })}>
+                  Finish & rematch
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         );
       })()}
 
