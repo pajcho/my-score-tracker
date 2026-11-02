@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Minus, X } from 'lucide-react';
+import { Minus, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveGameView, PlayerSide } from '@/lib/supabaseDatabase';
 import { getDisplayGameLabel, isPoolGameType } from '@/lib/gameTypes';
@@ -10,6 +10,7 @@ interface ScoreboardModeProps {
   leftLabel: string;
   rightLabel: string;
   onScore: (side: PlayerSide, change: 1 | -1) => void;
+  onFinish: () => void;
   onClose: () => void;
 }
 
@@ -21,7 +22,7 @@ const SWIPE_CLOSE_THRESHOLD_PX = 80;
  * opponent across the table can read it. Scores stay live through the same
  * debounced write pipeline as the cards.
  */
-export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }: ScoreboardModeProps) {
+export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onFinish, onClose }: ScoreboardModeProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
 
@@ -36,7 +37,8 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      // A dialog over the board (e.g. the finish prompt) claims Escape first.
+      if (event.key === 'Escape' && !event.defaultPrevented) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -132,6 +134,15 @@ export function ScoreboardMode({ game, leftLabel, rightLabel, onScore, onClose }
         title="Tap to flip the board for the player across the table"
       >
         {contextPill}
+      </button>
+
+      <button
+        type="button"
+        onClick={onFinish}
+        aria-label="Save game"
+        className="absolute left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-white transition-transform active:scale-95"
+      >
+        <Save className="h-5 w-5" />
       </button>
 
       <button

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { queryClient } from "@/lib/queryClient";
 
-const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, updateLiveGameScoreMock, sendLiveGameTauntMock, toastMock, invalidateTrackerQueriesMock } =
+const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, subscribeToLiveGamesMock, completeLiveGameMock, createLiveGameMock, updateLiveGameScoreMock, sendLiveGameTauntMock, toastMock, invalidateTrackerQueriesMock } =
   vi.hoisted(() => ({
     authState: {
       currentUserId: "user-1",
@@ -13,6 +13,7 @@ const { authState, getLiveGamesMock, getUniqueOpponentsMock, getFriendsMock, sub
     getFriendsMock: vi.fn(),
     subscribeToLiveGamesMock: vi.fn(),
     completeLiveGameMock: vi.fn(),
+    createLiveGameMock: vi.fn(),
     updateLiveGameScoreMock: vi.fn(),
     sendLiveGameTauntMock: vi.fn(),
     toastMock: vi.fn(),
@@ -54,7 +55,7 @@ vi.mock("@/lib/supabaseDatabase", () => ({
     sendLiveGameTaunt: sendLiveGameTauntMock,
     deleteLiveGame: vi.fn(),
     completeLiveGame: completeLiveGameMock,
-    createLiveGame: vi.fn(),
+    createLiveGame: createLiveGameMock,
   },
 }));
 
@@ -524,6 +525,151 @@ describe("LiveScoreTracker perspective labels", () => {
 
     await waitFor(() => {
       expect(completeLiveGameMock).toHaveBeenCalledWith("live-1");
+    });
+  });
+
+  describe("finish & rematch", () => {
+    const poolGame = (currentBreakerSide: "player1" | "player2") => ({
+      id: "live-1",
+      created_by_user_id: "user-1",
+      game: "Pool",
+      opponent_name: null,
+      opponent_user_id: "friend-1",
+      score1: 4,
+      score2: 3,
+      rack_history: ["player1", "player2", "player1", "player2", "player1", "player2", "player1"],
+      date: "2026-02-14",
+      started_at: "2026-02-14T10:00:00.000Z",
+      created_at: "2026-02-14T10:00:00.000Z",
+      updated_at: "2026-02-14T10:00:00.000Z",
+      creator_name: "Owner Name",
+      opponent_user_name: "Friend One",
+      pool_settings: {
+        id: "settings-1",
+        live_game_id: "live-1",
+        score_id: null,
+        created_by_user_id: "user-1",
+        pool_type: "10-ball",
+        break_rule: "winner_stays",
+        first_breaker_side: "player2",
+        current_breaker_side: currentBreakerSide,
+        last_rack_winner_side: "player1",
+        created_at: "2026-02-14T10:00:00.000Z",
+        updated_at: "2026-02-14T10:00:00.000Z",
+      },
+    });
+
+    beforeEach(() => {
+      completeLiveGameMock.mockResolvedValue(undefined);
+      createLiveGameMock.mockImplementation((game: string, opponentName: string | null, date: string, opponentUserId?: string) => Promise.resolve({
+        id: "live-2",
+        created_by_user_id: authState.currentUserId,
+        game,
+        opponent_name: opponentName,
+        opponent_user_id: opponentUserId ?? null,
+        score1: 0,
+        score2: 0,
+        rack_history: [],
+        date,
+        started_at: "2026-02-14T11:00:00.000Z",
+        created_at: "2026-02-14T11:00:00.000Z",
+        updated_at: "2026-02-14T11:00:00.000Z",
+      }));
+    });
+
+    it("saves from fullscreen and keeps the board open on a rematch where the next breaker breaks first", async () => {
+      authState.currentUserId = "user-1";
+      getLiveGamesMock.mockResolvedValue([poolGame("player2")]);
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Fullscreen" }));
+      const board = screen.getByRole("dialog", { name: "Fullscreen scoreboard" });
+      fireEvent.click(within(board).getByRole("button", { name: "Save game" }));
+
+      expect(await screen.findByText(/In a rematch, Friend One breaks first/)).toBeInTheDocument();
+      expect(completeLiveGameMock).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Finish & rematch" }));
+
+      await waitFor(() => {
+        expect(createLiveGameMock).toHaveBeenCalledWith(
+          "Pool",
+          null,
+          expect.any(String),
+          "friend-1",
+          expect.objectContaining({
+            pool_type: "10-ball",
+            break_rule: "winner_stays",
+            first_breaker_side: "player2",
+            current_breaker_side: "player2",
+          })
+        );
+      });
+      expect(completeLiveGameMock).toHaveBeenCalledWith("live-1");
+      // The fullscreen board now shows the fresh 0-0 rematch.
+      const rematchBoard = await screen.findByRole("dialog", { name: "Fullscreen scoreboard" });
+      expect(within(rematchBoard).getByRole("button", { name: /Score for You: 0/ })).toBeInTheDocument();
+      expect(within(rematchBoard).getByText(/Rack 1 · Friend One breaks/)).toBeInTheDocument();
+    });
+
+    it("hands the break to the right player when the invited opponent starts the rematch", async () => {
+      // The owner (player1) is up next; the invited friend saves, so the
+      // owner becomes player2 of the rematch and must still break first.
+      authState.currentUserId = "friend-1";
+      getLiveGamesMock.mockResolvedValue([poolGame("player1")]);
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Save game" }));
+      expect(await screen.findByText(/In a rematch, Owner Name breaks first/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Finish & rematch" }));
+
+      await waitFor(() => {
+        expect(createLiveGameMock).toHaveBeenCalledWith(
+          "Pool",
+          null,
+          expect.any(String),
+          "user-1",
+          expect.objectContaining({ first_breaker_side: "player2", current_breaker_side: "player2" })
+        );
+      });
+    });
+
+    it("only saves when Finish & save is chosen", async () => {
+      authState.currentUserId = "user-1";
+      getLiveGamesMock.mockResolvedValue([poolGame("player2")]);
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Save game" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Finish & save" }));
+
+      await waitFor(() => {
+        expect(completeLiveGameMock).toHaveBeenCalledWith("live-1");
+      });
+      await waitFor(() => {
+        expect(screen.queryByRole("button", { name: /Score for You: 4/ })).not.toBeInTheDocument();
+      });
+      expect(createLiveGameMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps the save when the rematch fails to start", async () => {
+      authState.currentUserId = "user-1";
+      getLiveGamesMock.mockResolvedValue([poolGame("player2")]);
+      createLiveGameMock.mockRejectedValue(new Error("network"));
+
+      renderLiveScoreTracker();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Save game" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Finish & rematch" }));
+
+      await waitFor(() => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Score saved, but the rematch didn't start" })
+        );
+      });
+      expect(completeLiveGameMock).toHaveBeenCalledWith("live-1");
+      expect(toastMock).not.toHaveBeenCalledWith(expect.objectContaining({ title: "Failed to save score" }));
     });
   });
 });
